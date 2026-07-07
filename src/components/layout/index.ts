@@ -1,0 +1,3 @@
+export { default as AvatarCore } from './AvatarCore.vue'
+export { default as BackgroundLayer } from './BackgroundLayer.vue'
+export { default as RegionContainer } from './RegionContainer.vue'

@@ -1,0 +1,106 @@
+/**
+ * 设计 Token — 加深天蓝 + 薄荷绿点缀（Deep Sky + Mint）
+ */
+
+:root {
+  /* === 蓝绿系 === */
+  --color-sky: 207 65% 55%;         /* #4A95CC 深天蓝 — 主强调 */
+  --color-sky-bright: 207 70% 65%;  /* #5AA8DD 亮天蓝 */
+  --color-sky-deep: 211 50% 35%;    /* #2B6A8C 墨天蓝 — 链接 */
+  --color-sky-soft: 207 60% 82%;    /* #C8E2F5 浅天蓝 — 装饰 */
+
+  --color-mint: 155 30% 55%;        /* #6BA88A 鼠尾草绿 — 次强调 */
+  --color-mint-soft: 155 28% 75%;   /* #B5D9C7 浅薄荷绿 */
+  --color-mint-deep: 155 25% 42%;   /* #4E7D6A 深鼠尾草 */
+
+  --color-amber: 40 55% 55%;        /* #D4A547 琥珀金 — 暖点缀 */
+  --color-amber-soft: 40 50% 70%;   /* #E4C37A 浅琥珀 */
+
+  --color-silver: 210 14% 86%;      /* #CDD8E0 银灰 */
+  --color-paper: 207 30% 97%;       /* #F6F9FC 冷白底 */
+
+  /* 文字色 — 深墨蓝 */
+  --color-ink-1: 213 32% 14%;       /* #1A2530 文字主 */
+  --color-ink-2: 210 14% 35%;       /* #4C5863 文字次 */
+  --color-ink-3: 207 11% 55%;       /* #7C8A96 文字弱 */
+
+  /* 功能色 */
+  --color-red: 0 72% 60%;
+  --color-green: 142 50% 55%;
+  --color-violet: 270 50% 68%;      /* 紫罗兰 — 点缀 */
+
+  /* === Semantic === */
+  --background: var(--color-paper);
+  --foreground: var(--color-ink-1);
+
+  --card: 0 0% 100% / 0.55;
+  --card-foreground: var(--color-ink-1);
+
+  --popover: 0 0% 100% / 0.96;
+  --popover-foreground: var(--color-ink-1);
+
+  --primary: var(--color-sky);
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: var(--color-mint);
+  --secondary-foreground: var(--color-ink-1);
+
+  --muted: 207 11% 55% / 0.15;
+  --muted-foreground: var(--color-ink-2);
+
+  --accent: var(--color-amber);
+  --accent-foreground: var(--color-ink-1);
+
+  --destructive: var(--color-red);
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 210 14% 86% / 0.5;
+  --input: 210 14% 86% / 0.7;
+  --ring: var(--color-sky);
+
+  --color-link: var(--color-sky-deep);
+
+  /* === Component === */
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius: 16px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-blur: blur(22px) saturate(170%);
+
+  --shadow-card:
+    0 1px 3px rgba(26, 37, 48, 0.05),
+    0 6px 16px rgba(26, 37, 48, 0.07),
+    0 16px 40px rgba(26, 37, 48, 0.09);
+  --shadow-pop:
+    0 4px 12px rgba(26, 37, 48, 0.10),
+    0 12px 32px rgba(26, 37, 48, 0.14);
+  --shadow-glow-primary: 0 0 24px hsl(var(--color-sky) / 0.5);
+  --shadow-glow-secondary: 0 0 24px hsl(var(--color-mint) / 0.5);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* === Motion === */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-spiral: 1200ms;
+  --stagger-spiral: 150ms;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-spiral: 0ms;
+    --stagger-spiral: 0ms;
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+  }
+}
