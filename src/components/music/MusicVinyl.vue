@@ -6,12 +6,16 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import VinylDisc from './VinylDisc.vue'
 import MusicUploadDialog from './MusicUploadDialog.vue'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const store = useMusicStore()
 const admin = useAdminStore()
 
 const showUpload = ref(false)
+
+onMounted(() => {
+  store.fetchList()
+})
 
 function onRemove() {
   if (store.currentSong) {
@@ -45,10 +49,23 @@ function onRemove() {
       </Button>
     </div>
 
-    <!-- 大胶片（播放时旋转） -->
-    <VinylDisc :size="120" :spinning="store.isPlaying" />
+    <!-- 大胶片 + 唱针 -->
+    <div class="relative">
+      <VinylDisc :size="120" :spinning="store.isPlaying" />
+      <!-- 唱针臂：初始水平（0°=flat），播放时逆时针转 -25° 搭上唱片 -->
+      <div
+        class="absolute top-[8%] -right-[15%] w-[55px] h-[2px] origin-right transition-transform duration-500"
+        :class="store.isPlaying ? 'rotate-[-25deg]' : 'rotate-[0deg]'"
+        style="
+          background: linear-gradient(270deg, #999 30%, #ddd 70%, #999);
+          border-radius: 2px;
+          box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+        "
+      >
+        <div class="absolute left-0 -top-[1.5px] w-[5px] h-[5px] rounded-full bg-red-500/80 shadow-sm" />
+      </div>
+    </div>
 
-    <!-- 状态指示 -->
     <p class="text-[10px] text-muted-foreground tabular-nums">
       {{ store.isPlaying ? '播放中' : '已暂停' }}
     </p>

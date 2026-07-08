@@ -34,9 +34,11 @@ const option = computed(() => {
 
   return {
     tooltip: {
-      formatter: (p: { value: [string, number] }) =>
-        `${p.value[0]}<br/>活跃度 <b>${p.value[1]}</b>`,
-      backgroundColor: 'rgba(26, 37, 48, 0.92)',
+      formatter: (p: { value: [string, number] }) => {
+        if (!p.value || p.value[1] === 0) return ''
+        return `${p.value[0]}<br/>活跃度 <b>${p.value[1]}</b>`
+      },
+      backgroundColor: 'rgba(26, 37, 48, 0.72)',
       borderWidth: 0,
       padding: [6, 10],
       textStyle: { color: '#fff', fontSize: 11 },
@@ -69,13 +71,17 @@ const option = computed(() => {
         margin: 5,
       },
       splitLine: {
-        show: false,
+        show: true,
+        lineStyle: {
+          color: 'rgba(255,255,255,0.3)',
+          width: 1,
+        },
       },
       itemStyle: {
         color: '#ebedf0',
-        borderColor: 'transparent',
-        borderWidth: 2,
-        borderRadius: 2,
+        borderColor: 'rgba(255,255,255,0.4)',
+        borderWidth: 1,
+        borderRadius: 3,
       },
       yearLabel: { show: false },
     },

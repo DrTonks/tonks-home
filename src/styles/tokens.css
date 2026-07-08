@@ -33,10 +33,10 @@
   --background: var(--color-paper);
   --foreground: var(--color-ink-1);
 
-  --card: 0 0% 100% / 0.55;
+  --card: 0 0% 100% / 0.20;
   --card-foreground: var(--color-ink-1);
 
-  --popover: 0 0% 100% / 0.96;
+  --popover: 0 0% 100% / 0.85;
   --popover-foreground: var(--color-ink-1);
 
   --primary: var(--color-sky);
@@ -68,10 +68,10 @@
   --radius-xl: 22px;
   --radius-full: 9999px;
 
-  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg: rgba(255, 255, 255, 0.20);
   --glass-bg-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.55);
-  --glass-blur: blur(22px) saturate(170%);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-blur: blur(24px) saturate(180%);
 
   --shadow-card:
     0 1px 3px rgba(26, 37, 48, 0.05),

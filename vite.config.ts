@@ -16,18 +16,18 @@ export default defineConfig({
     proxy: {
       // 开发环境代理到 sleepy 后端
       '/api': {
-        target: 'http://127.0.0.1:9010',
+        target: 'http://8.137.145.5:9010',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       // 图片接口（保留 /images 前缀）
       '/images': {
-        target: 'http://127.0.0.1:9010',
+        target: 'http://8.137.145.5:9010',
         changeOrigin: true,
       },
       // 音乐流接口（保留 /music 前缀）
       '/music': {
-        target: 'http://127.0.0.1:9010',
+        target: 'http://8.137.145.5:9010',
         changeOrigin: true,
       },
     },

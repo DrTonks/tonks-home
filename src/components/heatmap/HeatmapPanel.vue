@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { Bot, Github } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -36,8 +36,21 @@ onMounted(async () => {
 const activeTab = ref<'agent' | 'github'>('agent')
 const displayTab = ref<'agent' | 'github'>('agent')
 const chartVisible = ref(true)
+const timeRange = ref<3 | 6 | 12>(3)  // 月份
 const tabsListRef = ref<HTMLElement | null>(null)
 const indicatorStyle = ref({ left: '0px', width: '0px' })
+
+// 根据时间范围过滤数据
+function filterByMonths<T extends { date: string }>(items: T[], months: number): T[] {
+  if (!items.length) return items
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - months)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  return items.filter((it) => it.date >= cutoffStr)
+}
+
+const filteredAgent = computed(() => filterByMonths(agentActivities.value, timeRange.value))
+const filteredGithub = computed(() => filterByMonths(githubDays.value, timeRange.value))
 
 let switchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -77,14 +90,26 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
 </script>
 
 <template>
-  <Card class="w-[clamp(340px,26vw,460px)] p-4">
+  <Card class="w-[clamp(340px,26vw,460px)] p-4 !overflow-visible">
     <Tabs v-model="activeTab">
       <!-- 标题 + tab 切换同一行（带滑动指示器） -->
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
           最近项目活动
         </h2>
-        <div ref="tabsListRef" class="relative">
+        <div class="flex items-center gap-2">
+          <!-- Element Plus 下拉框 -->
+          <el-select
+            v-model="timeRange"
+            size="small"
+            class="time-select"
+            popper-class="time-popper"
+          >
+            <el-option :value="3" label="近 3 月" />
+            <el-option :value="6" label="近 6 月" />
+            <el-option :value="12" label="近一年" />
+          </el-select>
+          <div ref="tabsListRef" class="relative">
           <TabsList
             class="h-7 bg-muted/40 backdrop-blur-sm"
             :class="githubAvailable ? 'grid grid-cols-2' : 'grid-cols-1'"
@@ -104,6 +129,7 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
             :style="{ left: indicatorStyle.left, width: indicatorStyle.width }"
           />
         </div>
+        </div>
       </div>
 
       <TabsContent value="agent" class="mt-0" />
@@ -118,8 +144,8 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
           <HeatmapChart
             :key="displayTab"
             :mode="displayTab"
-            :agent-activities="displayTab === 'agent' ? agentActivities : []"
-            :github-days="displayTab === 'github' ? githubDays : []"
+            :agent-activities="displayTab === 'agent' ? filteredAgent : []"
+            :github-days="displayTab === 'github' ? filteredGithub : []"
           />
         </div>
         <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-muted-foreground">
@@ -133,6 +159,29 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
 </template>
 
 <style scoped>
+/* el-select 主题适配 */
+.time-select {
+  --el-fill-color-blank: transparent;
+  --el-border-color: rgba(255,255,255,0.25);
+  --el-text-color-regular: hsl(var(--muted-foreground));
+  --el-border-radius-base: 8px;
+  width: 80px;
+}
+.time-select :deep(.el-input__wrapper) {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 0 8px;
+  transition: all 0.2s;
+}
+.time-select :deep(.el-input__wrapper:hover) {
+  background: rgba(255,255,255,0.3);
+  border-color: hsl(var(--primary) / 0.4);
+}
+.time-select :deep(.el-input__inner) {
+  font-size: 10px;
+}
+
 /* 手动 class 控制淡入淡出 */
 .chart-stage {
   opacity: 1;

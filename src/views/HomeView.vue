@@ -2,11 +2,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import AvatarCore from '@/components/layout/AvatarCore.vue'
 import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
+import DesktopPet from '@/components/layout/DesktopPet.vue'
 import { AdminAuth } from '@/components/auth'
 import { GestureToggle } from '@/components/gesture'
 import { DeviceStatus } from '@/components/device'
 import { BlogUpdates } from '@/components/blog'
 import { HeatmapPanel, LanguagePanel } from '@/components/heatmap'
+import { useMusicStore } from '@/stores/music'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
 
@@ -18,21 +20,22 @@ function detectMobile() {
 
 // --- 展开/收起状态 ---
 const isExpanded = ref(false)
+
+// --- 音乐状态（驱动 MagicRings 参数） ---
+const musicStore = useMusicStore()
+const ringsOpacity = computed(() => isExpanded.value ? 0.5 : 0)
+const ringsSpeed = computed(() => musicStore.isPlaying ? 1 : 0.7)
+const ringsBaseRadius = computed(() => musicStore.isPlaying ? 0.35 : 0.18)
 const isAnimating = ref(false)
 
 // 展开总时长 = 头像旋转 + 最后区域延迟 + 单区域过渡
 const EXPAND_TOTAL = 1400 + 720 + 800
 const COLLAPSE_TOTAL = 700 + 4 * 60 + 700
 
-const bgRef = ref<InstanceType<typeof BackgroundLayer> | null>(null)
-
 function toggle() {
   if (isAnimating.value) return
   isAnimating.value = true
   isExpanded.value = !isExpanded.value
-  if (isExpanded.value) {
-    bgRef.value?.scatter()
-  }
   const total = isExpanded.value ? EXPAND_TOTAL : COLLAPSE_TOTAL
   setTimeout(() => {
     isAnimating.value = false
@@ -49,13 +52,29 @@ function onResize() {
   detectMobile()
 }
 
+// 全局微 3D（±1° 极轻）
+const mainRef = ref<HTMLElement | null>(null)
+function onGlobalMouseMove(e: MouseEvent) {
+  if (!mainRef.value || isMobile.value) return
+  const cx = window.innerWidth / 2
+  const cy = window.innerHeight / 2
+  const gx = ((e.clientX - cx) / cx * 1).toFixed(3)
+  const gy = ((e.clientY - cy) / cy * 1).toFixed(3)
+  mainRef.value.style.setProperty('--gx', gx)
+  mainRef.value.style.setProperty('--gy', gy)
+}
+
 onMounted(() => {
   detectMobile()
   window.addEventListener('resize', onResize)
+  if (!isMobile.value) {
+    window.addEventListener('mousemove', onGlobalMouseMove)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('mousemove', onGlobalMouseMove)
 })
 
 const componentListMobile = [
@@ -73,15 +92,20 @@ const componentListMobile = [
 </script>
 
 <template>
-  <main class="relative w-full min-h-dvh overflow-hidden bg-background isolate">
-    <BackgroundLayer ref="bgRef" />
+  <main ref="mainRef" class="relative w-full min-h-dvh overflow-hidden bg-background isolate global-3d">
+    <BackgroundLayer
+      :rings-opacity="ringsOpacity"
+      :rings-speed="ringsSpeed"
+      :rings-base-radius="ringsBaseRadius"
+    />
     <AdminAuth />
     <GestureToggle v-if="!isMobile" @palm="toggle" />
+    <DesktopPet />
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">
       <!-- 中心头像 -->
-      <div class="absolute top-1/2 left-1/2 w-0 h-0 z-30">
+      <div class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
         <div class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2">
           <div :class="['avatar-spin-layer', avatarSpinClass]">
             <AvatarCore :size="110" @click="toggle" />
@@ -90,7 +114,7 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 0：左上（热力图 + 技术栈） -->
-      <div class="region-anchor region-tl">
+      <div class="region-anchor region-tl global-tilt">
         <div :class="['region-inner', { visible: isExpanded }]">
           <div class="flex gap-3">
             <HeatmapPanel />
@@ -100,7 +124,7 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 1：左下（日历 bento：左月视图 | 右 星期+节日+待办，等高） -->
-      <div class="region-anchor region-bl">
+      <div class="region-anchor region-bl global-tilt">
         <div :class="['region-inner', { visible: isExpanded }]">
           <div class="flex gap-3 items-stretch">
             <CalendarMonth />
@@ -114,14 +138,14 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 2：中下（博客） -->
-      <div class="region-anchor region-bc">
+      <div class="region-anchor region-bc global-tilt">
         <div :class="['region-inner', { visible: isExpanded }]">
           <BlogUpdates />
         </div>
       </div>
 
       <!-- 区域 3：右下（胶片 + 控制） -->
-      <div class="region-anchor region-br">
+      <div class="region-anchor region-br global-tilt">
         <div :class="['region-inner', { visible: isExpanded }]">
           <div class="flex gap-3 items-center">
             <MusicVinyl />
@@ -259,6 +283,18 @@ const componentListMobile = [
 }
 
 /* ===== 通用过渡 ===== */
+/* 全局微 3D */
+.global-3d {
+  --gx: 0;
+  --gy: 0;
+  transform-style: preserve-3d;
+  perspective: 2000px;
+}
+.global-tilt {
+  transform: rotateY(calc(var(--gx) * -1deg)) rotateX(calc(var(--gy) * 1deg));
+  transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity var(--duration-normal) var(--ease-out);

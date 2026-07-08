@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useCalendarStore } from '@/stores/calendar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { MULTI_DAY_RANGES } from '@/lib/holidays'
 import CalendarGrid from './CalendarGrid.vue'
 import CalendarDayDialog from './CalendarDayDialog.vue'
 
@@ -86,6 +87,25 @@ function openDayDialog(dateStr: string) {
 const selectedDateEvents = computed(() =>
   selectedDate.value ? store.events.filter((e) => e.date === selectedDate.value) : [],
 )
+
+const selectedDateHolidays = computed(() => {
+  if (!selectedDate.value) return [] as string[]
+  const names: string[] = []
+  // Nager.Date 单日节日
+  for (const h of store.publicHolidays) {
+    if (h.date === selectedDate.value) names.push(h.name)
+  }
+  for (const h of store.customHolidays) {
+    if (h.date === selectedDate.value) names.push(h.name)
+  }
+  // 多日节假日范围
+  for (const r of MULTI_DAY_RANGES) {
+    if (selectedDate.value >= r.start && selectedDate.value <= r.end) {
+      if (!names.includes(r.name)) names.push(r.name)
+    }
+  }
+  return names
+})
 
 async function loadMonth() {
   const ym = `${viewYear.value}-${(viewMonth.value + 1).toString().padStart(2, '0')}`
@@ -175,6 +195,7 @@ onMounted(() => {
       v-model:open="showDayDialog"
       :date="selectedDate"
       :events="selectedDateEvents"
+      :holidays="selectedDateHolidays"
       @changed="loadMonth"
     />
   </Card>

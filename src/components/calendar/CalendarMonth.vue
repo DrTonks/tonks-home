@@ -119,6 +119,7 @@ onMounted(() => {
       v-model:open="showDayDialog"
       :date="selectedDate"
       :events="selectedDateEvents"
+      :holidays="[]"
       @changed="loadMonth"
     />
   </Card>

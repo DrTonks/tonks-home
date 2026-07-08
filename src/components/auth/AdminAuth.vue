@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Lock, LogOut, ShieldCheck } from 'lucide-vue-next'
+import { Lock, LogOut } from 'lucide-vue-next'
 import { useAdminStore } from '@/stores/admin'
 import {
   Dialog,
@@ -43,17 +43,6 @@ function confirmLogout() {
 </script>
 
 <template>
-  <!-- 顶部提示条（已登录） -->
-  <Transition name="slide-down">
-    <div
-      v-if="admin.isLoggedIn"
-      class="absolute top-0 left-0 right-0 z-40 bg-destructive/90 text-destructive-foreground text-[10px] tracking-[0.25em] uppercase flex items-center justify-center gap-2 py-1.5 backdrop-blur-sm shadow-md"
-    >
-      <ShieldCheck class="h-3 w-3" />
-      <span>管理模式</span>
-    </div>
-  </Transition>
-
   <!-- 角落按钮 -->
   <div class="absolute bottom-6 left-6 z-40">
     <Button

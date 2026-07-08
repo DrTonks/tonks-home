@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 const props = defineProps<{
   date: string | null
   events: CalendarEvent[]
+  holidays: string[]
 }>()
 
 const open = defineModel<boolean>('open')
@@ -85,11 +86,19 @@ async function removeEvent(id: string) {
     <DialogContent class="max-w-sm">
       <DialogHeader>
         <DialogTitle>{{ dateLabel }}</DialogTitle>
-        <DialogDescription v-if="events.length">
-          当日有 {{ events.length }} 个事件
+        <DialogDescription v-if="events.length || holidays.length">
+          {{ holidays.length ? holidays.join(' · ') + (events.length ? ' | ' + events.length + ' 个事件' : '') : events.length + ' 个事件' }}
         </DialogDescription>
         <DialogDescription v-else>当日暂无事件</DialogDescription>
       </DialogHeader>
+
+      <!-- 节日 -->
+      <div v-if="holidays.length" class="space-y-1.5 mb-2">
+        <div v-for="(h, i) in holidays" :key="i" class="flex items-center gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+          <span class="text-sm">🎉</span>
+          <span class="flex-1 text-sm font-medium text-amber-700 dark:text-amber-400 truncate">{{ h }}</span>
+        </div>
+      </div>
 
       <!-- 已有事件 -->
       <div v-if="events.length" class="space-y-1.5">

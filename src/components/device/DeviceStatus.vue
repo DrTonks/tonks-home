@@ -9,12 +9,57 @@ import StatusDot from './StatusDot.vue'
 
 const { isRefreshing, refresh, store } = useDevicePoll()
 
-// 状态色映射（粉红琥珀系，避免淡蓝）
+// 状态色映射
 const colorMap: Record<string, string> = {
-  awake: 'hsl(var(--primary))',          // 在用应用 → 天蓝
-  sleeping: 'hsl(var(--color-silver))',     // 似了 → 银灰
-  unknown: 'hsl(var(--color-amber))',       // 未登记 → 琥珀金
-  error: 'hsl(var(--color-red))',           // 离线 → 红
+  awake: 'hsl(var(--primary))',
+  sleeping: 'hsl(var(--color-silver))',
+  unknown: 'hsl(var(--color-amber))',
+  error: 'hsl(var(--color-red))',
+}
+
+// 应用名 → 描述映射
+const appDescMap: Record<string, string> = {
+  'Electron应用开发': '在开发exe应用中...很可能是综设任务！',
+  '操作菜单': '在查看电脑菜单',
+  '系统设置': '在编辑系统配置？',
+  '记事本': '可能在修改什么配置文件...',
+  '打开方式': '在选择用什么软件打开文件',
+  'Microsoft Store': '在浏览应用商店',
+  '开始菜单': '在查找什么文件？',
+  'FileZilla': '正在管理服务器文件，可能是在更新网站。',
+  '睡眠状态': '电脑处于睡眠状态，人也可能处于睡眠状态',
+  '锁屏': '暂时离开',
+  '电脑-手机助手': '正在看手机？',
+  '照片查看器': '浏览照片中...',
+  '关机中': '电脑关机了，也许是似了。',
+  "Terminal":"很有可能在Vibe coding",
+  '命令提示符': '命令行操作中！',
+  '视频': '在看视频~',
+  'Word 文档': '正在编辑Word文档，可能在赶报告？',
+  'Excel表格': '正在成为数据分析师！',
+  'PPT演示文稿': '可能在看课件，也可能在学习制作PPT',
+  'OneNote': '笔记时间',
+  'Typora编辑器': '正在编辑Markdown文件，可能在整理笔记！',
+  'Edge浏览器': '查询资料中...大概率在逛b站？',
+  'VSCode 编辑器': '正在写代码！也可能在看AI写代码。',
+  'Clash': '正在科学上网...',
+  '任务管理器': '在查看资源占用情况...',
+  'Steam': '正在查看Steam中...',
+  '微信': '与朋友畅聊中...',
+  'QQ': 'QQ在线中（也可能睡着了）',
+  '文件资源管理器': '在整理电脑文件...',
+  'XMind思维导图': '头脑风暴...',
+  'WPS办公': 'WPS办公，效率工具。',
+  'WPS PDF': '阅读或编辑PDF文档',
+  'WPS文字': '文字编辑',
+  'WPS演示': '演示文稿',
+  'WPS表格': '表格处理',
+  '百度网盘': '龟速下载文件中...',
+  'OneDrive': '龟速浏览共享文档中...',
+  'Postman': 'API测试中...',
+  'GitHub Desktop': '正在使用GitHub...',
+  'OBS Studio': '录屏中...',
+  '似了': '睡似了或不在线，紧急请电话联系。',
 }
 
 interface DisplayState {
@@ -62,13 +107,23 @@ const currentState = computed<DisplayState>(() => {
     }
   }
   const info = s.info as { id: number; name: string; desc: string; color: string }
-  const colorKey = info.color || 'awake'
+  // 应用名不在映射表中且为 awake → 视为未登记（如 raw exe 文件名漏过 report_app 的映射）
+  if (!appDescMap[info.name] && info.color !== 'sleeping') {
+    return {
+      key: 'unknown',
+      color: colorMap.unknown,
+      appName: '未登记应用',
+      desc: `正在使用的应用未在状态列表中登记，也许是什么游戏？`,
+      pulse: true,
+    }
+  }
+  const colorKey = info.name === '关机中' ? 'error' : (info.color || 'awake')
+  const desc = appDescMap[info.name] || info.name + '：' + info.desc
   return {
     key: colorKey,
     color: colorMap[colorKey] || colorMap.awake,
     appName: info.name,
-    desc: info.desc,
-    // sleeping 态不脉冲（人睡了灯也别闪）
+    desc,
     pulse: colorKey !== 'sleeping',
   }
 })

@@ -34,13 +34,15 @@ export const useMusicStore = defineStore('music', () => {
       if (res.success) {
         const prevFilename = currentSong.value?.filename
         songs.value = res.music
-        // 如果当前歌曲不在新列表中，重置
         if (prevFilename && !songs.value.some((s) => s.filename === prevFilename)) {
           currentIndex.value = -1
           isPlaying.value = false
         } else if (prevFilename) {
-          // 保持 currentIndex 同步
           currentIndex.value = songs.value.findIndex((s) => s.filename === prevFilename)
+        }
+        // 首次加载: 选第一首
+        if (songs.value.length > 0 && currentIndex.value < 0) {
+          currentIndex.value = 0
         }
       }
     } finally {

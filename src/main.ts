@@ -11,6 +11,11 @@ import {
   TitleComponent,
   CalendarComponent,
 } from 'echarts/components'
+// Element Plus 按需引入
+import { ElSelect, ElOption } from 'element-plus'
+import 'element-plus/es/components/select/style/css'
+import 'element-plus/es/components/option/style/css'
+
 import App from './App.vue'
 import router from './routes'
 import { api } from './api'
@@ -36,4 +41,6 @@ setupMock(api)
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
+app.component('ElSelect', ElSelect)
+app.component('ElOption', ElOption)
 app.mount('#app')

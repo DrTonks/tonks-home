@@ -97,7 +97,7 @@ function seek(e: Event) {
 </script>
 
 <template>
-  <Card class="w-[clamp(240px,18vw,320px)] p-4">
+  <Card class="w-[clamp(240px,18vw,320px)] p-4 !overflow-visible">
     <!-- 歌名（花体）/ 歌手 -->
     <div class="text-center mb-3 min-h-[2.5em] flex flex-col justify-center">
       <p class="font-script text-xl font-semibold text-brand-sky-deep line-clamp-1">
@@ -202,11 +202,11 @@ function seek(e: Event) {
       />
     </button>
 
-    <!-- 列表 -->
-    <Transition name="list-expand">
+    <!-- 列表（absolute 浮层 + scale 弹出动画） -->
+    <Transition name="list-drop">
       <div
         v-show="showList"
-        class="mt-2 max-h-32 overflow-y-auto rounded-md bg-muted/30 border border-border/40"
+        class="absolute left-3 right-3 top-full mt-2 max-h-36 overflow-y-auto rounded-md bg-white/95 backdrop-blur-md border border-white/30 shadow-pop z-10 origin-top"
       >
         <button
           v-for="(song, idx) in store.songs"
@@ -251,20 +251,18 @@ function seek(e: Event) {
 </template>
 
 <style scoped>
-.list-expand-enter-active,
-.list-expand-leave-active {
-  transition: all var(--duration-normal) var(--ease-out);
-  overflow: hidden;
+.list-drop-enter-active {
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.list-expand-enter-from,
-.list-expand-leave-to {
+.list-drop-leave-active {
+  transition: all 0.15s ease-in;
+}
+.list-drop-enter-from {
   opacity: 0;
-  max-height: 0;
-  margin-top: 0;
+  transform: scaleY(0.7) translateY(-8px);
 }
-.list-expand-enter-to,
-.list-expand-leave-from {
-  opacity: 1;
-  max-height: 8rem;
+.list-drop-leave-to {
+  opacity: 0;
+  transform: scaleY(0.8) translateY(-4px);
 }
 </style>

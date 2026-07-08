@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Calendar, MapPin, Trophy, ExternalLink } from 'lucide-vue-next'
-import { getImageUrl, type FeaturedTimeline } from '@/api/blog'
+import { type FeaturedTimeline } from '@/api/blog'
 
 const props = defineProps<{ timeline: FeaturedTimeline }>()
 
@@ -59,18 +59,6 @@ const accentColor = props.timeline.color || 'hsl(var(--secondary))'
     >
       {{ timeline.description }}
     </p>
-
-    <!-- 图片 -->
-    <div v-if="timeline.images?.length" class="flex gap-1.5 mt-2">
-      <img
-        v-for="img in timeline.images.slice(0, 3)"
-        :key="img"
-        :src="getImageUrl(img)"
-        :alt="timeline.title"
-        class="w-12 h-12 rounded object-cover ring-1 ring-border/40"
-        loading="lazy"
-      />
-    </div>
 
     <!-- 链接 -->
     <div v-if="timeline.links?.length" class="flex items-center gap-3 mt-2">

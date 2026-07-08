@@ -51,6 +51,12 @@
 }
 
 @layer utilities {
+  /* 磨砂玻璃 blur（所有卡片共享） */
+  .glass-blur {
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
   /* 毛玻璃卡片 — 主表面 */
   .glass-card {
     background: var(--glass-bg);
@@ -136,6 +142,23 @@
 :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+/* Element Plus select 弹层 */
+.el-popper.is-light.time-popper {
+  border-radius: 10px !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+  backdrop-filter: blur(16px);
+  background: rgba(255,255,255,0.96) !important;
+}
+.el-popper.is-light.time-popper .el-select-dropdown__item {
+  font-size: 11px;
+  padding: 6px 12px;
+}
+.el-popper.is-light.time-popper .el-select-dropdown__item.is-selected {
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 /* 移除默认 button 样式 */
