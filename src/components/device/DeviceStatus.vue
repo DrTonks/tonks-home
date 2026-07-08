@@ -153,7 +153,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
     </div>
 
     <!-- 状态点 + 应用名 -->
-    <div class="flex items-center gap-2.5 mb-3">
+    <div class="flex items-center gap-2.5 mb-3 justify-center sm:justify-start">
       <StatusDot :color="currentState.color" :pulse="currentState.pulse" />
       <span
         class="font-heavy text-xl font-bold tracking-tight transition-colors duration-normal"
@@ -164,7 +164,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
     </div>
 
     <!-- 描述 -->
-    <p class="text-[13px] leading-relaxed text-muted-foreground line-clamp-2 mb-4 min-h-[2.6em]">
+    <p class="text-[13px] leading-relaxed text-muted-foreground line-clamp-2 mb-4 min-h-[2.6em] text-center sm:text-left">
       {{ currentState.desc }}
     </p>
 

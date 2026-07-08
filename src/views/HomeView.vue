@@ -43,8 +43,10 @@ function toggle() {
       isCollapsing.value = false
       isAnimating.value = false
     }, COLLAPSE_TOTAL)
+    localStorage.setItem('home_expanded', '0')
   } else {
     isExpanded.value = true
+    localStorage.setItem('home_expanded', '1')
     setTimeout(() => {
       isAnimating.value = false
     }, EXPAND_TOTAL)
@@ -83,6 +85,10 @@ onMounted(() => {
   window.addEventListener('resize', onResize)
   if (!isMobile.value) {
     window.addEventListener('mousemove', onGlobalMouseMove)
+  }
+  // 记住展开状态：上次展开 → 自动展开
+  if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
+    setTimeout(() => toggle(), 1000)
   }
 })
 
@@ -131,7 +137,7 @@ const componentListMobile = [
         <!-- 简介：头像下方 -->
         <Transition name="intro-fade">
           <div v-if="!isExpanded" class="bio-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
-            <p class="font-kai text-[20px] tracking-wider text-brand-mint-deep">将点滴的美好谱写成诗</p>
+            <p class="text-[20px] tracking-wider text-brand-mint-deep" style="font-family: KaiTi, STKaiti, serif;">将点滴的美好谱写成诗</p>
           </div>
         </Transition>
       </div>
@@ -192,7 +198,7 @@ const componentListMobile = [
       style="background: url('/assets/ph-bg.jpg') center/cover no-repeat;"
     >
       <AvatarCore :size="80" />
-      <div class="w-full max-w-sm flex flex-col gap-4 mt-2">
+      <div class="w-[calc(100%-2rem)] flex flex-col gap-4 mt-2 [&>*]:!w-full">
         <component v-for="(C, i) in componentListMobile" :key="i" :is="C" />
       </div>
     </div>
@@ -201,7 +207,7 @@ const componentListMobile = [
     <Transition name="fade">
       <div
         v-if="!isMobile && !isExpanded"
-        class="absolute bottom-[8%] left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/70 tracking-[0.2em] uppercase pointer-events-none z-30"
+        class="absolute bottom-[8%] left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/85 tracking-[0.2em] uppercase pointer-events-none z-30"
       >
         点击头像展开 · Click to expand
       </div>
@@ -335,31 +341,31 @@ const componentListMobile = [
 
 /* 收起: 5 个区域各自朝中心方向移动 + 缩放消失 */
 /* 0=左上(热力图) -> 右下 */
-.collapse-0 { animation: col-tl 0.65s ease-in forwards; }
+.collapse-0 { animation: col-tl 0.6s ease-in forwards; }
 @keyframes col-tl {
   from { opacity: 1; transform: translate(0, 0) scale(1); }
   to   { opacity: 0; transform: translate(20rem, 10rem) scale(0.2); }
 }
 /* 1=左下(日历) -> 右上 */
-.collapse-1 { animation: col-bl 0.65s ease-in forwards; }
+.collapse-1 { animation: col-bl 0.6s ease-in forwards; }
 @keyframes col-bl {
   from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to   { opacity: 0; transform: translate(20rem, -10rem) scale(0.2); }
+  to   { opacity: 0; transform: translate(25rem, -15rem) scale(0.2); }
 }
 /* 2=中下(博客) -> 正上 */
-.collapse-2 { animation: col-bc 0.65s ease-in forwards; }
+.collapse-2 { animation: col-bc 0.6s ease-in forwards; }
 @keyframes col-bc {
   from { opacity: 1; transform: translate(-50%, 0) scale(1); }
   to   { opacity: 0; transform: translate(-50%, -7rem) scale(0.2); }
 }
 /* 3=右下(音乐) -> 左上 */
-.collapse-3 { animation: col-br 0.65s ease-in forwards; }
+.collapse-3 { animation: col-br 0.6s ease-in forwards; }
 @keyframes col-br {
   from { opacity: 1; transform: translate(0, 0) scale(1); }
   to   { opacity: 0; transform: translate(-20rem, -10rem) scale(0.2); }
 }
 /* 4=右上(设备) -> 左下 */
-.collapse-4 { animation: col-tr 0.65s ease-in forwards; }
+.collapse-4 { animation: col-tr 0.6s ease-in forwards; }
 @keyframes col-tr {
   from { opacity: 1; transform: translate(0, 0) scale(1); }
   to   { opacity: 0; transform: translate(-10rem, 10rem) scale(0.2); }

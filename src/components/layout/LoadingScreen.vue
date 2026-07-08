@@ -17,6 +17,12 @@ const emit = defineEmits<{ done: [] }>()
 const PRELOAD_IMAGES = [
   '/assets/avatar.jpg',
   '/assets/pet/idle.png',
+  '/assets/pet/happy.png',
+  '/assets/pet/angry.png',
+  '/assets/pet/sleep.png',
+  '/assets/pet/halfClosed.png',
+  '/assets/pet/almostClosed.png',
+  '/assets/pet/blink.png',
 ]
 
 let imgLoadedCount = 0
