@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { Card } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { getGitHubStats, type TopLanguage } from '@/api/github'
 
 const languages = ref<TopLanguage[]>([])
@@ -71,11 +70,10 @@ const option = computed(() => {
     </h2>
 
     <div v-if="loading" class="flex items-center justify-center h-[160px]">
-      <Skeleton class="w-[140px] h-[140px] rounded-full" />
+      <div class="w-[120px] h-[120px] rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
     </div>
 
     <template v-else-if="available">
-      <!-- 饼图（更大，无中心文字） -->
       <div class="relative w-full h-[160px]">
         <VChart :option="option" autoresize style="height: 140px; width: 100%" />
       </div>

@@ -28,23 +28,39 @@ const ringsSpeed = computed(() => musicStore.isPlaying ? 1 : 0.7)
 const ringsBaseRadius = computed(() => musicStore.isPlaying ? 0.35 : 0.18)
 const isAnimating = ref(false)
 
-// 展开总时长 = 头像旋转 + 最后区域延迟 + 单区域过渡
 const EXPAND_TOTAL = 1400 + 720 + 800
+const COLLAPSE_TOTAL = 700
+const isCollapsing = ref(false)
 
 function toggle() {
-  if (isAnimating.value || isExpanded.value) return
+  if (isAnimating.value) return
   isAnimating.value = true
-  isExpanded.value = true
-  setTimeout(() => {
-    isAnimating.value = false
-  }, EXPAND_TOTAL)
+
+  if (isExpanded.value) {
+    isCollapsing.value = true
+    setTimeout(() => {
+      isExpanded.value = false
+      isCollapsing.value = false
+      isAnimating.value = false
+    }, COLLAPSE_TOTAL)
+  } else {
+    isExpanded.value = true
+    setTimeout(() => {
+      isAnimating.value = false
+    }, EXPAND_TOTAL)
+  }
 }
 
-// 头像旋转 class
 const avatarSpinClass = computed(() => {
-  if (!isAnimating.value) return ''
-  return isExpanded.value ? 'spin-forward' : 'spin-backward'
+  if (!isAnimating.value || isCollapsing.value) return ''
+  return 'spin-forward'
 })
+
+// 收起动画：各区域朝中心方向移动（5 个独立 keyframe）
+function regionCollapseClass(idx: number): string {
+  if (!isCollapsing.value) return ''
+  return `collapse-${idx}`
+}
 
 function onResize() {
   detectMobile()
@@ -76,16 +92,8 @@ onBeforeUnmount(() => {
 })
 
 const componentListMobile = [
-  HeatmapPanel,
-  LanguagePanel,
   DeviceStatus,
-  CalendarMonth,
-  TodayCard,
-  UpcomingHolidays,
-  TodoList,
   BlogUpdates,
-  MusicVinyl,
-  MusicControls,
 ] as const
 </script>
 
@@ -98,22 +106,39 @@ const componentListMobile = [
     />
     <AdminAuth />
     <GestureToggle v-if="!isMobile" @palm="toggle" />
-    <DesktopPet v-if="isExpanded" />
+    <Transition name="pet-fade">
+      <DesktopPet v-if="isExpanded && !isCollapsing" />
+    </Transition>
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">
-      <!-- 中心头像 -->
+      <!-- 中心头像 + 名称简介（名称在上方发光，简介在下方） -->
       <div class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
         <div class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2">
           <div :class="['avatar-spin-layer', avatarSpinClass]">
             <AvatarCore :size="110" @click="toggle" />
           </div>
         </div>
+        <!-- 名称：头像上方，大号发光（位置用 CSS class 定位，不用 inline style，否则 transition 无法覆盖） -->
+        <Transition name="name-up">
+          <div v-if="!isExpanded" class="name-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
+            <p class="font-script text-[66px] tracking-wider text-brand-sky-bright"
+               style="text-shadow: 0 0 12px hsl(var(--color-sky) / 0.6), 0 0 30px hsl(var(--color-sky) / 0.35), 0 0 60px hsl(var(--color-sky) / 0.15), 0 2px 4px rgba(0,0,0,0.15);">
+              DrTonks
+            </p>
+          </div>
+        </Transition>
+        <!-- 简介：头像下方 -->
+        <Transition name="intro-fade">
+          <div v-if="!isExpanded" class="bio-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
+            <p class="font-kai text-[20px] tracking-wider text-brand-mint-deep">将点滴的美好谱写成诗</p>
+          </div>
+        </Transition>
       </div>
 
       <!-- 区域 0：左上（热力图 + 技术栈） -->
       <div class="region-anchor region-tl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }]">
+        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(0)]">
           <div class="flex gap-3">
             <HeatmapPanel />
             <LanguagePanel />
@@ -123,7 +148,7 @@ const componentListMobile = [
 
       <!-- 区域 1：左下（日历 bento：左月视图 | 右 星期+节日+待办，等高） -->
       <div class="region-anchor region-bl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }]">
+        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(1)]">
           <div class="flex gap-3 items-stretch">
             <CalendarMonth />
             <div class="flex flex-col gap-2 flex-1">
@@ -137,14 +162,14 @@ const componentListMobile = [
 
       <!-- 区域 2：中下（博客） -->
       <div class="region-anchor region-bc global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }]">
+        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(2)]">
           <BlogUpdates />
         </div>
       </div>
 
       <!-- 区域 3：右下（胶片 + 控制） -->
       <div class="region-anchor region-br global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }]">
+        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(3)]">
           <div class="flex gap-3 items-center">
             <MusicVinyl />
             <MusicControls />
@@ -154,16 +179,17 @@ const componentListMobile = [
 
       <!-- 区域 4：右上（设备状态） -->
       <div class="region-anchor region-tr">
-        <div :class="['region-inner', { visible: isExpanded }]">
+        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(4)]">
           <DeviceStatus />
         </div>
       </div>
     </template>
 
-    <!-- 移动端：纵向卡片栈 -->
+    <!-- 移动端：纵向卡片栈 + 背景图 -->
     <div
       v-else
       class="relative min-h-dvh flex flex-col items-center gap-4 px-4 py-8 sm:py-12"
+      style="background: url('/assets/ph-bg.jpg') center/cover no-repeat;"
     >
       <AvatarCore :size="80" />
       <div class="w-full max-w-sm flex flex-col gap-4 mt-2">
@@ -271,6 +297,82 @@ const componentListMobile = [
 }
 
 /* ===== 通用过渡 ===== */
+/* 名称/简介 固定位置（用 CSS class，不用 inline style，否则 Vue transition 无法动画 transform） */
+.name-label  { transform: translate(-50%, -200px); }
+.bio-label   { transform: translate(-50%, 120px); }
+
+/* 名称：向上偏移消失 + 下方重新出现 */
+.name-up-leave-active {
+  transition: all 0.5s ease-in !important;
+}
+.name-up-leave-to {
+  opacity: 0 !important;
+  transform: translate(-50%, -260px) !important;
+}
+.name-up-enter-active {
+  transition: all 0.4s ease-out 0.2s;
+}
+.name-up-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -160px);
+}
+
+/* 简介 */
+.intro-fade-leave-active {
+  transition: all 0.4s ease-in !important;
+}
+.intro-fade-leave-to {
+  opacity: 0 !important;
+  transform: translate(-50%, 180px) !important;
+}
+.intro-fade-enter-active {
+  transition: all 1s ease-out 0.2s;
+}
+.intro-fade-enter-from {
+  opacity: 0;
+  transform: translate(-50%, 150px);
+}
+
+/* 收起: 5 个区域各自朝中心方向移动 + 缩放消失 */
+/* 0=左上(热力图) -> 右下 */
+.collapse-0 { animation: col-tl 0.65s ease-in forwards; }
+@keyframes col-tl {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to   { opacity: 0; transform: translate(20rem, 10rem) scale(0.2); }
+}
+/* 1=左下(日历) -> 右上 */
+.collapse-1 { animation: col-bl 0.65s ease-in forwards; }
+@keyframes col-bl {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to   { opacity: 0; transform: translate(20rem, -10rem) scale(0.2); }
+}
+/* 2=中下(博客) -> 正上 */
+.collapse-2 { animation: col-bc 0.65s ease-in forwards; }
+@keyframes col-bc {
+  from { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -7rem) scale(0.2); }
+}
+/* 3=右下(音乐) -> 左上 */
+.collapse-3 { animation: col-br 0.65s ease-in forwards; }
+@keyframes col-br {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to   { opacity: 0; transform: translate(-20rem, -10rem) scale(0.2); }
+}
+/* 4=右上(设备) -> 左下 */
+.collapse-4 { animation: col-tr 0.65s ease-in forwards; }
+@keyframes col-tr {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to   { opacity: 0; transform: translate(-10rem, 10rem) scale(0.2); }
+}
+
+/* 桌宠淡出 */
+.pet-fade-leave-active {
+  transition: opacity 0.5s ease-in;
+}
+.pet-fade-leave-to {
+  opacity: 0;
+}
+
 /* 全局微 3D */
 .global-3d {
   --gx: 0;

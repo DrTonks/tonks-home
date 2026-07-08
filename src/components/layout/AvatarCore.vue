@@ -1,40 +1,16 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
 withDefaults(
   defineProps<{
     size?: number
   }>(),
-  {
-    size: 100,
-  },
+  { size: 100 },
 )
 
 const emit = defineEmits<{ click: [] }>()
 
-const jpgLoaded = ref(false)
-const gifLoaded = ref(false)
-const useGif = ref(false)
-const loadFailed = ref(false)
-
-onMounted(() => {
-  // 先加载 jpg（占位）
-  const jpg = new Image()
-  jpg.src = '/assets/avatar.jpg'
-  jpg.onload = () => {
-    jpgLoaded.value = true
-  }
-  // 异步加载 gif，加载完替换
-  const gif = new Image()
-  gif.src = '/assets/avatar.gif'
-  gif.onload = () => {
-    gifLoaded.value = true
-    useGif.value = true
-  }
-  gif.onerror = () => {
-    loadFailed.value = true
-  }
-})
+const gifReady = ref(false)
 </script>
 
 <template>
@@ -44,27 +20,24 @@ onMounted(() => {
     aria-label="点击展开主页"
     @click="emit('click')"
   >
-    <!-- jpg 始终占据空间，gif 加载后叠加并淡入替换 -->
+    <!-- jpg 始终显示（已被 LoadingScreen 缓存，瞬间加载） -->
     <img
-      v-show="jpgLoaded"
       src="/assets/avatar.jpg"
       alt="Tonks"
-      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
-      :class="useGif ? 'opacity-0' : 'opacity-100'"
+      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+      :class="gifReady ? 'opacity-0' : 'opacity-100'"
+      style="transition: opacity 0.5s"
       draggable="false"
     />
+    <!-- gif 加载后淡入覆盖 -->
     <img
-      v-if="gifLoaded"
       src="/assets/avatar.gif"
       alt="Tonks"
-      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
-      :class="useGif ? 'opacity-100' : 'opacity-0'"
+      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+      :class="gifReady ? 'opacity-100' : 'opacity-0'"
+      style="transition: opacity 0.5s"
       draggable="false"
-    />
-    <!-- 加载占位 -->
-    <div
-      v-if="!jpgLoaded"
-      class="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/40 animate-pulse"
+      @load="gifReady = true"
     />
     <!-- 装饰光环 -->
     <div
