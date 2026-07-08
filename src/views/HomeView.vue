@@ -30,16 +30,14 @@ const isAnimating = ref(false)
 
 // 展开总时长 = 头像旋转 + 最后区域延迟 + 单区域过渡
 const EXPAND_TOTAL = 1400 + 720 + 800
-const COLLAPSE_TOTAL = 700 + 4 * 60 + 700
 
 function toggle() {
-  if (isAnimating.value) return
+  if (isAnimating.value || isExpanded.value) return
   isAnimating.value = true
-  isExpanded.value = !isExpanded.value
-  const total = isExpanded.value ? EXPAND_TOTAL : COLLAPSE_TOTAL
+  isExpanded.value = true
   setTimeout(() => {
     isAnimating.value = false
-  }, total)
+  }, EXPAND_TOTAL)
 }
 
 // 头像旋转 class
@@ -100,7 +98,7 @@ const componentListMobile = [
     />
     <AdminAuth />
     <GestureToggle v-if="!isMobile" @palm="toggle" />
-    <DesktopPet />
+    <DesktopPet v-if="isExpanded" />
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">
@@ -183,16 +181,6 @@ const componentListMobile = [
       </div>
     </Transition>
 
-    <!-- 收起按钮 -->
-    <Transition name="fade">
-      <button
-        v-if="!isMobile && isExpanded"
-        class="absolute top-6 right-6 text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 px-3 py-1.5 rounded-md bg-card/60 backdrop-blur-sm border border-border/40 z-40"
-        @click="toggle"
-      >
-        <span class="tracking-[0.15em] uppercase">收起</span>
-      </button>
-    </Transition>
   </main>
 </template>
 
@@ -291,8 +279,8 @@ const componentListMobile = [
   perspective: 2000px;
 }
 .global-tilt {
-  transform: rotateY(calc(var(--gx) * -1deg)) rotateX(calc(var(--gy) * 1deg));
-  transition: transform 1s cubic-bezier(0.23, 1, 0.32, 1);
+  transform: rotateY(calc(var(--gx) * -4deg)) rotateX(calc(var(--gy) * 3deg));
+  transition: transform 1.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .fade-enter-active,

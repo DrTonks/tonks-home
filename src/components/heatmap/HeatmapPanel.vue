@@ -95,7 +95,7 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
       <!-- 标题 + tab 切换同一行（带滑动指示器） -->
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
-          最近项目活动
+          近期项目活动
         </h2>
         <div class="flex items-center gap-2">
           <!-- Element Plus 下拉框 -->

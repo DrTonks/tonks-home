@@ -33,7 +33,7 @@ const option = computed(() => {
   return {
     tooltip: {
       formatter: '{b}: {c} stars ({d}%)',
-      backgroundColor: 'rgba(28, 40, 51, 0.95)',
+      backgroundColor: 'rgba(28, 40, 51, 0.7)',
       borderWidth: 0,
       padding: [8, 12],
       textStyle: { color: '#fff', fontSize: 12 },
@@ -67,7 +67,7 @@ const option = computed(() => {
 <template>
   <Card class="w-[clamp(200px,16vw,260px)] p-4">
     <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep mb-2">
-      鼓捣过什么
+      最近在鼓捣什么
     </h2>
 
     <div v-if="loading" class="flex items-center justify-center h-[160px]">

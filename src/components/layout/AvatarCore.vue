@@ -44,35 +44,28 @@ onMounted(() => {
     aria-label="点击展开主页"
     @click="emit('click')"
   >
-    <!-- gif 优先（加载完后替换 jpg） -->
+    <!-- jpg 始终占据空间，gif 加载后叠加并淡入替换 -->
     <img
-      v-if="useGif && gifLoaded"
-      src="/assets/avatar.gif"
-      alt="Tonks"
-      class="w-full h-full object-cover pointer-events-none select-none"
-      draggable="false"
-    />
-    <!-- jpg 占位 -->
-    <img
-      v-else-if="jpgLoaded"
+      v-show="jpgLoaded"
       src="/assets/avatar.jpg"
       alt="Tonks"
-      class="w-full h-full object-cover pointer-events-none select-none"
+      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
+      :class="useGif ? 'opacity-0' : 'opacity-100'"
+      draggable="false"
+    />
+    <img
+      v-if="gifLoaded"
+      src="/assets/avatar.gif"
+      alt="Tonks"
+      class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-500"
+      :class="useGif ? 'opacity-100' : 'opacity-0'"
       draggable="false"
     />
     <!-- 加载占位 -->
     <div
-      v-else
-      class="w-full h-full bg-gradient-to-br from-primary/40 to-secondary/40 animate-pulse"
+      v-if="!jpgLoaded"
+      class="absolute inset-0 bg-gradient-to-br from-primary/40 to-secondary/40 animate-pulse"
     />
-    <!-- 加载失败兜底 -->
-    <div
-      v-if="loadFailed && !useGif"
-      class="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs"
-    >
-      Tonks
-    </div>
-
     <!-- 装饰光环 -->
     <div
       class="absolute inset-0 rounded-full pointer-events-none ring-1 ring-primary/30 shadow-[0_0_24px_hsl(var(--primary)/0.3)]"

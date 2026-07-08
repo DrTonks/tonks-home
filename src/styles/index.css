@@ -161,6 +161,17 @@
   font-weight: 600;
 }
 
+/* 桌宠 — 从天而降（全局，不受 scoped 重命名影响） */
+@keyframes pet-drop {
+  0%   { transform: translateY(-120vh); opacity: 0.3; filter: blur(2px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+.drop-enter {
+  animation: pet-drop 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s forwards;
+}
+.drop-layer { position: relative; }
+
 /* 移除默认 button 样式 */
 button {
   background: none;
