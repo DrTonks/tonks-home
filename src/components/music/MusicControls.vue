@@ -242,10 +242,11 @@ function seek(e: Event) {
     <audio
       ref="audio"
       :src="currentSrc"
-      preload="metadata"
+      preload="none"
       @timeupdate="onTimeUpdate"
       @loadedmetadata="onLoadedMetadata"
       @ended="onEnded"
+      @error="() => { store.isPlaying = false }"
     />
   </Card>
 </template>

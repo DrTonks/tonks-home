@@ -51,6 +51,11 @@ rsync -avz --delete dist/ user@8.137.145.5:/var/www/tonks-home/
 
     # API 反代到 sleepy 后端
     ProxyPreserveHost On
+
+    # ★ 关键：允许 Range 请求穿透代理（音乐流/视频拖动必须）
+    SetEnvIf Range "(.*)" Range-Header=$0
+    RequestHeader set Range %{Range-Header}e env=Range-Header
+
     ProxyPass /api/ http://127.0.0.1:9010/
     ProxyPassReverse /api/ http://127.0.0.1:9010/
 
@@ -58,9 +63,12 @@ rsync -avz --delete dist/ user@8.137.145.5:/var/www/tonks-home/
     ProxyPass /images/ http://127.0.0.1:9010/images/
     ProxyPassReverse /images/ http://127.0.0.1:9010/images/
 
-    # 音乐接口（/music/<filename>）反代
-    ProxyPass /music/ http://127.0.0.1:9010/music/
-    ProxyPassReverse /music/ http://127.0.0.1:9010/music/
+    # 音乐接口（/music/<filename>）反代 — 必须转发 Range
+    <Location /music/>
+        ProxyPass http://127.0.0.1:9010/music/
+        ProxyPassReverse http://127.0.0.1:9010/music/
+        RequestHeader set Range %{Range-Header}e env=Range-Header
+    </Location>
 
     # SPA 路由 fallback：所有未匹配的路径返回 index.html
     <Directory /var/www/tonks-home>

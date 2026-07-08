@@ -65,11 +65,6 @@ function onRemove() {
         <div class="absolute left-0 -top-[1.5px] w-[5px] h-[5px] rounded-full bg-red-500/80 shadow-sm" />
       </div>
     </div>
-
-    <p class="text-[10px] text-muted-foreground tabular-nums">
-      {{ store.isPlaying ? '播放中' : '已暂停' }}
-    </p>
-
     <MusicUploadDialog v-model:open="showUpload" />
   </Card>
 </template>
