@@ -18,10 +18,10 @@ withDefaults(
     class="relative shrink-0"
     :style="{ width: `${size}px`, height: `${size}px` }"
   >
-    <!-- 黑胶主体 -->
+    <!-- 黑胶主体：始终挂载动画，用 play-state 控制暂停/播放，保留角度 -->
     <div
-      class="absolute inset-0 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#0a0a0a] shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
-      :class="spinning ? 'animate-[spin_8s_linear_infinite] motion-reduce:animate-none' : ''"
+      class="absolute inset-0 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#0a0a0a] shadow-[0_4px_16px_rgba(0,0,0,0.3)] animate-[spin_8s_linear_infinite] motion-reduce:animate-none"
+      :style="{ animationPlayState: spinning ? 'running' : 'paused' }"
     >
       <!-- 黑胶纹路（同心圆） -->
       <div class="absolute inset-1 rounded-full border border-white/[0.04]" />
