@@ -3,15 +3,25 @@ import { cn } from '@/lib/utils'
 
 const props = defineProps<{ class?: string }>()
 
+// 缓存 rect，避免每次 mousemove 触发 layout（getBoundingClientRect 会强制回流）
+let cache: { left: number; top: number; w: number; h: number } | null = null
+
+function onMouseEnter(e: MouseEvent) {
+  const el = e.currentTarget as HTMLElement
+  const r = el.getBoundingClientRect()
+  cache = { left: r.left, top: r.top, w: r.width, h: r.height }
+}
+
 function onMouseMove(e: MouseEvent) {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2  // -1 to 1
-  const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+  if (!cache) return
+  const x = ((e.clientX - cache.left) / cache.w - 0.5) * 2
+  const y = ((e.clientY - cache.top) / cache.h - 0.5) * 2
   ;(e.currentTarget as HTMLElement).style.setProperty('--mx', x.toFixed(3))
   ;(e.currentTarget as HTMLElement).style.setProperty('--my', y.toFixed(3))
 }
 
 function onMouseLeave(e: MouseEvent) {
+  cache = null
   ;(e.currentTarget as HTMLElement).style.setProperty('--mx', '0')
   ;(e.currentTarget as HTMLElement).style.setProperty('--my', '0')
 }
@@ -25,6 +35,7 @@ function onMouseLeave(e: MouseEvent) {
         props.class,
       )
     "
+    @mouseenter="onMouseEnter"
     @mousemove="onMouseMove"
     @mouseleave="onMouseLeave"
   >
@@ -42,7 +53,6 @@ function onMouseLeave(e: MouseEvent) {
 .card-3d {
   --mx: 0;
   --my: 0;
-  transform-style: preserve-3d;
   transform: perspective(1000px) rotateY(calc(var(--mx) * 5deg)) rotateX(calc(var(--my) * -5deg));
   transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease-out, border-color 0.3s ease-out;
 }

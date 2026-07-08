@@ -205,15 +205,23 @@ function resetIdleTimers() {
 }
 
 // 粒子特效
-const particles = ref<Array<{ id: number; x: number; y: number; delay: number }>>([])
+const particles = ref<Array<{ id: number; originX: number; originY: number; dx: number; dy: number; delay: number }>>([])
 let particleId = 0
 
-function spawnParticles(count: number) {
+function spawnParticles(count: number, clickX?: number, clickY?: number) {
+  const cx = clickX ?? SIZE / 2
+  const cy = clickY ?? SIZE / 2
+  const zoneLeft = SIZE * 0.2
+  const zoneRight = SIZE * 0.8
+  const clampedX = Math.max(zoneLeft, Math.min(zoneRight, cx))
+
   const newParticles = Array.from({ length: count }, () => ({
     id: ++particleId,
-    x: (Math.random() - 0.5) * 120,
-    y: (Math.random() - 0.5) * 120 - 30,
-    delay: Math.random() * 200,
+    originX: clampedX + (Math.random() - 0.5) * 16,
+    originY: cy + (Math.random() - 0.5) * 16,
+    dx: (Math.random() - 0.5) * 200,
+    dy: (Math.random() - 0.5) * 200 - 50,
+    delay: Math.random() * 120,
   }))
   particles.value = [...particles.value, ...newParticles]
   setTimeout(() => {
@@ -221,12 +229,18 @@ function spawnParticles(count: number) {
   }, 1000)
 }
 
-// 点击升级（带缓冲）
-function handleClick() {
+function handleClick(e: MouseEvent) {
   if (moved.value) { moved.value = false; return }
   resetIdleTimers()
   triggerClickEffect()
-  spawnParticles(8)
+
+  // 用 petRef（层3）定位，比外层 fixed div 更可靠
+  const el = petRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  const relX = e.clientX - rect.left
+  const relY = e.clientY - rect.top
+  spawnParticles(8, relX, relY)
 
   if (clickTimer) clearTimeout(clickTimer)
   clickCount++
@@ -298,8 +312,8 @@ onMounted(() => {
   resetIdleTimers()
   lastTick = performance.now()
   rafId = requestAnimationFrame(tick)
-  // 展开时模拟粒子爆发
-  setTimeout(() => spawnParticles(10), 300)
+  // 展开时粒子从中心爆发
+  setTimeout(() => spawnParticles(10, SIZE / 2, SIZE / 2), 300)
 })
 
 onBeforeUnmount(() => {
@@ -313,10 +327,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- 层1：定位 + 事件 -->
+  <!-- 层1：定位 + 事件（需显式宽高，fixed 元素不以内容撑开） -->
   <div
     class="fixed z-50 select-none cursor-grab active:cursor-grabbing"
-    :style="{ left: `${pos.x}px`, top: `${pos.y}px` }"
+    :style="{ left: `${pos.x}px`, top: `${pos.y}px`, width: `${SIZE}px`, height: `${SIZE}px` }"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
@@ -331,13 +345,13 @@ onBeforeUnmount(() => {
         <span
           v-for="p in particles"
           :key="p.id"
-          class="pet-particle absolute w-4 h-4 rounded-full pointer-events-none z-50"
+          class="pet-particle absolute w-2.5 h-2.5 rounded-full pointer-events-none z-50"
           :style="{
-            '--px': `${p.x}px`,
-            '--py': `${p.y}px`,
+            '--dx': `${p.dx}px`,
+            '--dy': `${p.dy}px`,
             '--delay': `${p.delay}ms`,
-            left: '50%',
-            top: '50%',
+            left: `${p.originX}px`,
+            top: `${p.originY}px`,
           }"
         />
         <img
@@ -358,10 +372,11 @@ onBeforeUnmount(() => {
   animation: pet-particle 0.8s ease-out forwards;
   animation-delay: var(--delay);
   background: #fff !important;
-  box-shadow: 0 0 10px 3px rgba(255,255,255,0.8);
+  box-shadow: 0 0 6px 2px rgba(255,255,255,0.7);
 }
 @keyframes pet-particle {
-  from { opacity: 1; transform: translate(0, 0) scale(1.2); }
-  to   { opacity: 0; transform: translate(var(--px), var(--py)) scale(0); }
+  0%   { opacity: 1; transform: scale(1.3); }
+  40%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
 }
 </style>
