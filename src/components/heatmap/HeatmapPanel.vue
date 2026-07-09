@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Bot, Github } from 'lucide-vue-next'
 import { ElSelect, ElOption } from 'element-plus'
 import 'element-plus/es/components/select/style/css'
@@ -40,8 +40,7 @@ const activeTab = ref<'agent' | 'github'>('agent')
 const displayTab = ref<'agent' | 'github'>('agent')
 const chartVisible = ref(true)
 const timeRange = ref<3 | 6 | 12>(3)  // 月份
-const tabsListRef = ref<HTMLElement | null>(null)
-const indicatorStyle = ref({ left: '0px', width: '0px' })
+const indicatorStyle = ref({ left: '0%', width: '50%' })
 
 // 根据时间范围过滤数据
 function filterByMonths<T extends { date: string }>(items: T[], months: number): T[] {
@@ -68,19 +67,15 @@ function switchTab(tab: 'agent' | 'github') {
 }
 
 function updateIndicator() {
-  nextTick(() => {
-    const list = tabsListRef.value
-    if (!list) return
-    const active = (list.querySelector('[data-state="active"]') as HTMLElement | null)
-      ?? (list.querySelector('[role="tab"]') as HTMLElement | null)
-    if (!active) return
-    const listRect = list.getBoundingClientRect()
-    const activeRect = active.getBoundingClientRect()
+  if (!githubAvailable) {
+    indicatorStyle.value = { left: '0%', width: '100%' }
+  } else {
+    const isAgent = activeTab.value === 'agent'
     indicatorStyle.value = {
-      left: `${activeRect.left - listRect.left}px`,
-      width: `${activeRect.width}px`,
+      left: isAgent ? '0%' : '50%',
+      width: '50%',
     }
-  })
+  }
 }
 
 watch(activeTab, (tab) => {
@@ -113,7 +108,7 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
             <el-option :value="6" label="近 6 月" />
             <el-option :value="12" label="近一年" />
           </el-select>
-          <div ref="tabsListRef" class="relative">
+          <div class="relative">
           <TabsList
             class="h-7 bg-muted/40 backdrop-blur-sm"
             :class="githubAvailable ? 'grid grid-cols-2' : 'grid-cols-1'"

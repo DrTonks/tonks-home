@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useMusicStore } from '@/stores/music'
+import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 
 const emit = defineEmits<{ rage: [] }>()
 
@@ -21,6 +22,7 @@ const FRAMES: Record<Mood | Singing, string> = {
 }
 
 const musicStore = useMusicStore()
+const { getFrequencyData } = useAudioAnalyzer()
 const BLINK_FRAMES = {
   halfClosed: '/assets/pet/halfClosed.png',
   almostClosed: '/assets/pet/almostClosed.png',
@@ -429,11 +431,32 @@ function spawnSingingNotes(count: number) {
   }, 2500)
 }
 
-// 监听音乐播放状态
+// 监听音频信号：有实际声音时才进入唱歌，而不是播放按钮一按就唱
+let singingCheckTimer: ReturnType<typeof setInterval> | null = null
+let singingWasActive = false
+
 watch(() => musicStore.isPlaying, (playing) => {
   if (rageActive.value) return
-  if (playing) startSinging()
-  else handleMusicStop()
+  if (playing) {
+    // 轮询检测音频信号，有波形数据后才启动唱歌
+    singingWasActive = false
+    if (singingCheckTimer) clearInterval(singingCheckTimer)
+    singingCheckTimer = setInterval(() => {
+      const data = getFrequencyData()
+      const hasSignal = data.some((v) => v > 0)
+      if (hasSignal && !singingWasActive) {
+        singingWasActive = true
+        startSinging()
+      }
+      if (!hasSignal && singingWasActive) {
+        // 声音停了（切歌间隙等短暂静音不计入，由 isPlaying=false 处理）
+      }
+    }, 250)
+  } else {
+    if (singingCheckTimer) { clearInterval(singingCheckTimer); singingCheckTimer = null }
+    singingWasActive = false
+    handleMusicStop()
+  }
 })
 
 function startRage() {
@@ -621,6 +644,7 @@ onBeforeUnmount(() => {
   if (rageAnimId !== null) cancelAnimationFrame(rageAnimId)
   stopSleepZs()
   stopAllSinging()
+  if (singingCheckTimer) clearInterval(singingCheckTimer)
 })
 </script>
 
