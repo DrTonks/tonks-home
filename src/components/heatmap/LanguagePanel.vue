@@ -72,13 +72,14 @@ const option = computed(() => {
       最近在鼓捣什么
     </h2>
 
-    <div v-if="loading" class="flex items-center justify-center h-[160px]">
-      <div class="w-[120px] h-[120px] rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
+    <div v-if="loading" class="relative flex items-center justify-center h-[160px]">
+      <div class="w-20 h-20 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
+      <span class="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/70 tracking-wide whitespace-nowrap">拉取 GitHub 数据中</span>
     </div>
 
     <template v-else-if="available">
       <div class="relative w-full h-[160px]">
-        <VChart :option="option" autoresize style="height: 140px; width: 100%" />
+        <VChart :option="option" autoresize style="height: 160px; width: 100%" />
       </div>
 
       <!-- 语言列表（仅名称，无 stars 数字） -->

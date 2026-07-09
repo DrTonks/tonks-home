@@ -65,8 +65,7 @@ export default {
       },
       fontFamily: {
         sans: ['Geist Sans', 'PingFang SC', '思源黑体', 'system-ui', 'sans-serif'],
-        serif: ['"Noto Serif SC"', 'serif'],               // 思源宋体
-        kai: ['"LXGW WenKai Screen"', 'cursive'],           // 霞鹜文楷（花体）
+        kai: ['KaiTi', 'STKaiti', 'SimKai', 'Kai', '楷体', 'cursive'],  // 系统楷体
         heavy: ['"Smiley Sans"', 'sans-serif'],             // 得意黑
         script: ['Caveat', 'cursive'],                      // 英文花体
         mono: ['JetBrains Mono', 'Geist Mono', 'ui-monospace', 'monospace'],
