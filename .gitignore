@@ -39,3 +39,6 @@ node_modules/.tmp/
 # Deploy scripts (contain credentials — do not commit)
 scripts/deploy.config.json
 scripts/deploy.js
+
+# Docs
+API文档.md

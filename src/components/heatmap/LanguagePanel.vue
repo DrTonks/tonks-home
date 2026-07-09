@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
+import { initECharts } from '@/plugins/echarts'
 import { Card } from '@/components/ui/card'
 import { getGitHubStats, type TopLanguage } from '@/api/github'
+
+initECharts()
 
 const languages = ref<TopLanguage[]>([])
 const loading = ref(true)

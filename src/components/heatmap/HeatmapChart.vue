@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import VChart from 'vue-echarts'
+import { initECharts } from '@/plugins/echarts'
 import type { AgentActivity } from '@/api/agent'
 import type { ContributionDay } from '@/api/github'
+
+initECharts()
 
 type Mode = 'agent' | 'github'
 

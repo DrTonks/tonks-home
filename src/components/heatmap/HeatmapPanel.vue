@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { Bot, Github } from 'lucide-vue-next'
+import { ElSelect, ElOption } from 'element-plus'
+import 'element-plus/es/components/select/style/css'
+import 'element-plus/es/components/option/style/css'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'

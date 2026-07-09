@@ -18,14 +18,17 @@ const isMobile = window.matchMedia('(max-width: 768px)').matches
 
 const PRELOAD_IMAGES = [
   '/assets/avatar.jpg',
-  '/assets/pet/idle.png',
-  '/assets/pet/happy.png',
-  '/assets/pet/angry.png',
-  '/assets/pet/sleep.png',
-  '/assets/pet/halfClosed.png',
-  '/assets/pet/almostClosed.png',
-  '/assets/pet/blink.png',
-  ...(isMobile ? ['/assets/ph-bg.jpg'] : []),
+  ...(isMobile
+    ? ['/assets/ph-bg.jpg']
+    : [
+        '/assets/pet/idle.png',
+        '/assets/pet/happy.png',
+        '/assets/pet/angry.png',
+        '/assets/pet/halfClosed.png',
+        '/assets/pet/almostClosed.png',
+        '/assets/pet/blink.png',
+      ]
+  ),
 ]
 
 let imgLoadedCount = 0
@@ -46,6 +49,17 @@ function preloadImages(): Promise<void> {
       img.src = src
     }
   })
+}
+
+/**
+ * 预加载首页 JS chunk（级联下载 echarts-vendor + HomeView）
+ * 在加载动画期间并行拉取，动画结束后首页即渲染，无需再等网络。
+ * 失败不阻塞：router 懒加载会重试。
+ */
+function preloadHomeChunk(): Promise<void> {
+  return import('@/views/HomeView.vue')
+    .then(() => { console.log('[Loading] JS chunks preloaded') })
+    .catch((err) => { console.warn('[Loading] JS preload failed, will retry on navigation:', err) })
 }
 
 // WAAPI 动画
@@ -111,7 +125,9 @@ async function fadeContainer() {
 }
 
 onMounted(async () => {
+  // 图片 + JS chunk 并行预加载
   const preloadPromise = preloadImages()
+  const jsPreloadPromise = preloadHomeChunk()
 
   // 等 SVG 渲染完成再获取 hex 元素
   await new Promise((r) => requestAnimationFrame(r))
@@ -175,6 +191,7 @@ onMounted(async () => {
   spinnerTick()
 
   await preloadPromise
+  await jsPreloadPromise
 
   // 加载完成：切换为绿色（代表通过/完成）
   clearInterval(spinnerTimer)
