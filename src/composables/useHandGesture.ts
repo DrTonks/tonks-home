@@ -1,6 +1,4 @@
-import { ref, onBeforeUnmount, type Ref } from 'vue'
-
-export type GestureType = 'palm' | 'fist' | 'none'
+import { ref, onBeforeUnmount, nextTick, type Ref } from 'vue'
 
 interface Landmark {
   x: number
@@ -13,13 +11,19 @@ interface Landmark {
  * - 按需加载 MediaPipe（dynamic import）
  * - 复用 stream，避免重复 getUserMedia
  * - 跳帧检测（仅新帧才 detectForVideo）
- * - 张开手掌判定：四指尖到手腕平均距离 > 0.4
- * - 3 帧防抖（连续 3 帧才触发）
+ * - 3 帧防抖
  * - visibilitychange 暂停
+ *
+ * 支持手势：
+ *   palm  — 张开手掌（四指尖到手腕平均距离 > 0.4）
+ *   pinch — 拇指食指捏合（指尖距离 < 0.05）
+ *   snap  — 打响指   （拇指与中指先捏紧→快速分离，上升沿触发）
  */
 export function useHandGesture(
   videoRef: Ref<HTMLVideoElement | null>,
   onPalm: () => void,
+  onPinch?: () => void,
+  onSnap?: () => void,
 ) {
   const isActive = ref(false)
   const isLoading = ref(false)
@@ -30,8 +34,15 @@ export function useHandGesture(
   let stream: MediaStream | null = null
   let rafId: number | null = null
   let lastVideoTime = -1
+
+  // 各手势防抖计数器
   let palmFrameCount = 0
-  let lastGesture: GestureType = 'none'
+  let pinchFrameCount = 0
+  let lastPalm = false
+  let lastPinch = false
+
+  // 打响指状态机：追踪拇指尖(4) ↔ 中指尖(12) 距离
+  let snapPinching = false
 
   async function start() {
     if (isActive.value || isLoading.value) return
@@ -39,16 +50,18 @@ export function useHandGesture(
     error.value = ''
 
     try {
-      // 1. 摄像头
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       })
+
+      isActive.value = true
+      await nextTick()
+
       if (videoRef.value) {
         videoRef.value.srcObject = stream
         await videoRef.value.play()
       }
 
-      // 2. 按需加载 MediaPipe
       const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
       const vision = await FilesetResolver.forVisionTasks(
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
@@ -63,7 +76,6 @@ export function useHandGesture(
         numHands: 1,
       })
 
-      isActive.value = true
       isLoading.value = false
       rafId = requestAnimationFrame(detect)
     } catch (e: unknown) {
@@ -74,6 +86,44 @@ export function useHandGesture(
     }
   }
 
+  /** 打响指：拇指(4)与中指(12)先贴近→快速分离 */
+  function detectSnap(landmarks: Landmark[]) {
+    if (!onSnap) return
+    const thumb = landmarks[4]
+    const middle = landmarks[12]
+    if (!thumb || !middle) return
+
+    const d = Math.hypot(thumb.x - middle.x, thumb.y - middle.y)
+    const isPinching = d < 0.06
+
+    if (snapPinching && !isPinching && d > 0.12) {
+      onSnap()
+    }
+    snapPinching = isPinching
+  }
+
+  /** 拇指食指捏合：拇指(4)与食指(8)指尖距离 < 0.05 */
+  function isPinching(landmarks: Landmark[]): boolean {
+    const thumb = landmarks[4]
+    const index = landmarks[8]
+    if (!thumb || !index) return false
+    return Math.hypot(thumb.x - index.x, thumb.y - index.y) < 0.05
+  }
+
+  /** 张开手掌：四指尖到手腕平均距离 > 0.4 */
+  function isPalmOpen(landmarks: Landmark[]): boolean {
+    const wrist = landmarks[0]
+    if (!wrist) return false
+    const tips = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]]
+    if (tips.some((t) => !t)) return false
+
+    let totalDist = 0
+    for (const tip of tips) {
+      totalDist += Math.hypot(tip.x - wrist.x, tip.y - wrist.y)
+    }
+    return totalDist / tips.length > 0.4
+  }
+
   function detect() {
     if (!isActive.value || !handLandmarker || !videoRef.value) return
     const video = videoRef.value
@@ -82,23 +132,43 @@ export function useHandGesture(
       try {
         const result = handLandmarker.detectForVideo(video, performance.now())
         if (result.landmarks && result.landmarks.length > 0) {
-          const gesture = detectGesture(result.landmarks[0] as Landmark[])
-          // 防抖：连续 3 帧检测到 palm 才触发
-          if (gesture === 'palm') {
+          const landmarks = result.landmarks[0] as Landmark[]
+
+          // 打响指（独立检测）
+          detectSnap(landmarks)
+
+          // 张开手掌（3 帧防抖）
+          const palm = isPalmOpen(landmarks)
+          if (palm) {
             palmFrameCount++
-            if (palmFrameCount >= 3 && lastGesture !== 'palm') {
-              lastGesture = 'palm'
+            if (palmFrameCount >= 3 && !lastPalm) {
+              lastPalm = true
               onPalm()
             }
           } else {
             palmFrameCount = 0
-            if (gesture === 'none' || gesture === 'fist') {
-              lastGesture = gesture
+            lastPalm = false
+          }
+
+          // 拇指食指捏合（3 帧防抖，与 palm 互斥：捏合时不触发 palm）
+          if (onPinch) {
+            const pinch = isPinching(landmarks)
+            if (pinch) {
+              pinchFrameCount++
+              if (pinchFrameCount >= 5 && !lastPinch) {
+                lastPinch = true
+                onPinch()
+              }
+            } else {
+              pinchFrameCount = 0
+              lastPinch = false
             }
           }
         } else {
           palmFrameCount = 0
-          lastGesture = 'none'
+          pinchFrameCount = 0
+          lastPalm = false
+          lastPinch = false
         }
       } catch {
         // detectForVideo 偶尔会抛错（视频未就绪），忽略
@@ -107,23 +177,6 @@ export function useHandGesture(
     if (isActive.value) {
       rafId = requestAnimationFrame(detect)
     }
-  }
-
-  function detectGesture(landmarks: Landmark[]): GestureType {
-    // 关键点：0=手腕，4=拇指尖，8=食指尖，12=中指尖，16=无名指尖，20=小指尖
-    const wrist = landmarks[0]
-    if (!wrist) return 'none'
-    const tips = [landmarks[8], landmarks[12], landmarks[16], landmarks[20]]
-    if (tips.some((t) => !t)) return 'none'
-    // 四指尖到手腕平均距离（归一化坐标）
-    let totalDist = 0
-    for (const tip of tips) {
-      totalDist += Math.hypot(tip.x - wrist.x, tip.y - wrist.y)
-    }
-    const avgDist = totalDist / tips.length
-    if (avgDist > 0.4) return 'palm'
-    if (avgDist < 0.25) return 'fist'
-    return 'none'
   }
 
   function stop() {
@@ -148,7 +201,10 @@ export function useHandGesture(
       handLandmarker = null
     }
     palmFrameCount = 0
-    lastGesture = 'none'
+    pinchFrameCount = 0
+    lastPalm = false
+    lastPinch = false
+    snapPinching = false
   }
 
   function onVisibilityChange() {

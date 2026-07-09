@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   Play,
   Pause,
@@ -10,8 +10,12 @@ import {
   Repeat1,
   ListMusic,
   ChevronDown,
+  Volume2,
+  Volume1,
+  VolumeX,
 } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
+import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn, formatTime } from '@/lib/utils'
@@ -22,6 +26,107 @@ const audio = ref<HTMLAudioElement | null>(null)
 const currentTime = ref(0)
 const duration = ref(0)
 const showList = ref(false)
+
+// 音量控制
+const volume = ref(Number(localStorage.getItem('music_volume') ?? 0.7))
+const prevVolume = ref(volume.value)
+const isMuted = ref(false)
+
+function setVolume(v: number) {
+  volume.value = Math.min(1, Math.max(0, v))
+  if (audio.value) audio.value.volume = volume.value
+  localStorage.setItem('music_volume', String(volume.value))
+  isMuted.value = volume.value === 0
+}
+
+function toggleMute() {
+  if (isMuted.value || volume.value === 0) {
+    setVolume(prevVolume.value || 0.7)
+  } else {
+    prevVolume.value = volume.value
+    setVolume(0)
+  }
+}
+
+const showVolume = ref(false)
+const volumePopoverRef = ref<HTMLElement | null>(null)
+const volumeBtnRef = ref<HTMLElement | null>(null)
+const listPopoverRef = ref<HTMLElement | null>(null)
+const listBtnRef = ref<HTMLElement | null>(null)
+
+function toggleVolumePopover() {
+  showVolume.value = !showVolume.value
+}
+
+function closeVolumePopover() {
+  showVolume.value = false
+}
+
+function closeListPopover() {
+  showList.value = false
+}
+
+// 点击弹窗外任意位置关闭
+function onDocClick(e: MouseEvent) {
+  const target = e.target as Node
+  if (showVolume.value && !volumePopoverRef.value?.contains(target) && !volumeBtnRef.value?.contains(target)) {
+    closeVolumePopover()
+  }
+  if (showList.value && !listPopoverRef.value?.contains(target) && !listBtnRef.value?.contains(target)) {
+    closeListPopover()
+  }
+}
+
+onMounted(() => document.addEventListener('click', onDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
+
+function volFromY(track: HTMLElement, clientY: number) {
+  const rect = track.getBoundingClientRect()
+  return 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+}
+
+function onVolumeTrackClick(e: MouseEvent) {
+  const track = e.currentTarget as HTMLElement
+  setVolume(volFromY(track, e.clientY))
+}
+
+const isDragging = ref(false)
+let volumeDragCleanup: (() => void) | null = null
+function onVolumeTrackMouseDown(e: MouseEvent) {
+  isDragging.value = true
+  const track = e.currentTarget as HTMLElement
+  setVolume(volFromY(track, e.clientY))
+  const handler = (ev: MouseEvent) => setVolume(volFromY(track, ev.clientY))
+  const cleanup = () => {
+    document.removeEventListener('mousemove', handler)
+    document.removeEventListener('mouseup', cleanup)
+    volumeDragCleanup = null
+    isDragging.value = false
+  }
+  volumeDragCleanup = cleanup
+  document.addEventListener('mousemove', handler)
+  document.addEventListener('mouseup', cleanup)
+}
+
+// 播放模式：列表循环(默认) → 随机 → 单曲循环 → 列表循环 …
+type PlayMode = 'repeat-all' | 'shuffle' | 'repeat-one'
+const playMode = computed<PlayMode>(() => {
+  if (store.repeatMode === 'one') return 'repeat-one'
+  if (store.shuffleMode === 'on') return 'shuffle'
+  return 'repeat-all'
+})
+function cyclePlayMode() {
+  if (playMode.value === 'repeat-all') {
+    store.shuffleMode = 'on'
+    store.repeatMode = 'off'
+  } else if (playMode.value === 'shuffle') {
+    store.shuffleMode = 'off'
+    store.repeatMode = 'one'
+  } else {
+    store.shuffleMode = 'off'
+    store.repeatMode = 'all'
+  }
+}
 
 const currentSrc = computed(() =>
   store.currentSong ? store.getStreamUrl(store.currentSong.filename) : '',
@@ -94,6 +199,16 @@ function seek(e: Event) {
     currentTime.value = value
   }
 }
+
+// 音频可视化：连接 AudioContext + 播放时自动恢复
+const { connect, resume: resumeCtx } = useAudioAnalyzer()
+onMounted(() => {
+  if (audio.value) {
+    audio.value.volume = volume.value
+    connect(audio.value)
+  }
+})
+watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
 </script>
 
 <template>
@@ -134,18 +249,49 @@ function seek(e: Event) {
       </div>
     </div>
 
-    <!-- 5 按钮控制 -->
+    <!-- 控制按钮 -->
     <div class="flex items-center justify-center gap-0.5 mb-3">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        class="h-8 w-8 transition-colors"
-        :class="store.shuffleMode === 'on' ? 'text-primary' : 'text-muted-foreground'"
-        aria-label="随机播放"
-        @click="store.toggleShuffle()"
-      >
-        <Shuffle class="h-3.5 w-3.5" />
-      </Button>
+      <!-- 音量 -->
+      <div ref="volumeBtnRef" class="relative">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="h-8 w-8 transition-colors"
+          :class="showVolume ? 'text-primary' : 'text-muted-foreground'"
+          aria-label="音量"
+          @click="toggleVolumePopover"
+        >
+          <VolumeX v-if="isMuted || volume === 0" class="h-3.5 w-3.5" />
+          <Volume1 v-else-if="volume < 0.5" class="h-3.5 w-3.5" />
+          <Volume2 v-else class="h-3.5 w-3.5" />
+        </Button>
+        <Transition name="volume-drop">
+          <div
+            v-if="showVolume"
+            ref="volumePopoverRef"
+            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-white/95 backdrop-blur-md border border-white/40 shadow-pop z-50"
+            @click.stop
+          >
+            <span class="text-[10px] text-muted-foreground tabular-nums w-5 text-center">{{ Math.round(Number(volume) * 100) }}</span>
+            <div
+              class="relative w-2.5 h-24 rounded-full cursor-pointer"
+              style="background: hsl(var(--muted-foreground) / 0.18)"
+              @click.stop="onVolumeTrackClick"
+              @mousedown.prevent="onVolumeTrackMouseDown"
+            >
+              <div
+                class="absolute bottom-0 left-0 right-0 rounded-full"
+                style="background: hsl(var(--primary))"
+                :style="{ height: `${Number(volume) * 100}%`, transition: isDragging ? 'none' : 'height 0.15s ease-out' }"
+              />
+              <div
+                class="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white border-2 border-primary shadow-sm"
+                :style="{ bottom: `calc(${Number(volume) * 100}% - 6px)`, transition: isDragging ? 'none' : 'bottom 0.15s ease-out' }"
+              />
+            </div>
+          </div>
+        </Transition>
+      </div>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -177,21 +323,24 @@ function seek(e: Event) {
       >
         <SkipForward class="h-4 w-4" />
       </Button>
+      <!-- 播放模式：列表循环(默认) / 随机 / 单曲循环 -->
       <Button
         variant="ghost"
         size="icon-sm"
         class="h-8 w-8 transition-colors"
-        :class="store.repeatMode !== 'off' ? 'text-primary' : 'text-muted-foreground'"
-        aria-label="循环模式"
-        @click="store.cycleRepeat()"
+        :class="playMode !== 'repeat-all' ? 'text-primary' : 'text-muted-foreground'"
+        :aria-label="`播放模式: ${playMode === 'repeat-all' ? '列表循环' : playMode === 'shuffle' ? '随机' : '单曲循环'}`"
+        @click="cyclePlayMode"
       >
-        <Repeat v-if="store.repeatMode !== 'one'" class="h-3.5 w-3.5" />
+        <Repeat v-if="playMode === 'repeat-all'" class="h-3.5 w-3.5" />
+        <Shuffle v-else-if="playMode === 'shuffle'" class="h-3.5 w-3.5" />
         <Repeat1 v-else class="h-3.5 w-3.5" />
       </Button>
     </div>
 
     <!-- 列表展开按钮 -->
     <button
+      ref="listBtnRef"
       class="w-full flex items-center justify-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-1"
       @click="showList = !showList"
     >
@@ -206,6 +355,7 @@ function seek(e: Event) {
     <Transition name="list-drop">
       <div
         v-show="showList"
+        ref="listPopoverRef"
         class="absolute left-3 right-3 top-full mt-2 max-h-36 overflow-y-auto rounded-md bg-white/95 backdrop-blur-md border border-white/30 shadow-pop z-10 origin-top"
       >
         <button
@@ -265,5 +415,20 @@ function seek(e: Event) {
 .list-drop-leave-to {
   opacity: 0;
   transform: scaleY(0.8) translateY(-4px);
+}
+
+.volume-drop-enter-active {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.volume-drop-leave-active {
+  transition: all 0.12s ease-in;
+}
+.volume-drop-enter-from {
+  opacity: 0;
+  transform: translate(-50%, 8px) scale(0.85);
+}
+.volume-drop-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 4px) scale(0.9);
 }
 </style>

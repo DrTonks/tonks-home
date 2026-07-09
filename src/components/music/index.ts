@@ -1,3 +1,4 @@
+export { default as AudioVisualizer } from './AudioVisualizer.vue'
 export { default as MusicVinyl } from './MusicVinyl.vue'
 export { default as MusicControls } from './MusicControls.vue'
 export { default as MusicUploadDialog } from './MusicUploadDialog.vue'

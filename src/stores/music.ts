@@ -17,7 +17,7 @@ export const useMusicStore = defineStore('music', () => {
   const isPlaying = ref(false)
   const loading = ref(false)
   const shuffleMode = ref<ShuffleMode>('off')
-  const repeatMode = ref<RepeatMode>('off')
+  const repeatMode = ref<RepeatMode>('all')
 
   const currentSong = computed<MusicFile | null>(() =>
     currentIndex.value >= 0 && currentIndex.value < songs.value.length

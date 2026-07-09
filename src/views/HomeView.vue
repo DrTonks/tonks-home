@@ -11,6 +11,7 @@ import { HeatmapPanel, LanguagePanel } from '@/components/heatmap'
 import { useMusicStore } from '@/stores/music'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
+import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
 
 // --- 移动端 ---
 const isMobile = ref(false)
@@ -111,13 +112,23 @@ const componentListMobile = [
       :rings-base-radius="ringsBaseRadius"
     />
     <AdminAuth />
-    <GestureToggle v-if="!isMobile" @palm="toggle" />
+    <GestureToggle
+      v-if="!isMobile"
+      @palm="!isExpanded && toggle()"
+      @pinch="isExpanded && toggle()"
+      @snap="musicStore.togglePlay()"
+    />
     <Transition name="pet-fade">
       <DesktopPet v-if="isExpanded && !isCollapsing" />
     </Transition>
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">
+      <!-- 音频可视化：环形频谱，环住头像 -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+        <AudioVisualizer :size="360" :inner-radius="72" :bar-max-length="75" />
+      </div>
+
       <!-- 中心头像 + 名称简介（名称在上方发光，简介在下方） -->
       <div class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
         <div class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2">

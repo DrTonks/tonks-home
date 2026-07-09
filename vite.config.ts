@@ -40,7 +40,6 @@ export default defineConfig({
         manualChunks: {
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'echarts-vendor': ['echarts', 'vue-echarts'],
-          'gsap-vendor': ['gsap'],
           'mediapipe-vendor': ['@mediapipe/tasks-vision'],
         },
       },

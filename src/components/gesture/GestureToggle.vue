@@ -13,13 +13,20 @@ import {
 import { Button } from '@/components/ui/button'
 import { useHandGesture } from '@/composables/useHandGesture'
 
-const emit = defineEmits<{ palm: [] }>()
+const emit = defineEmits<{
+  palm: []
+  pinch: []
+  snap: []
+}>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const showPermission = ref(false)
 
-const { isActive, isLoading, error, start, stop } = useHandGesture(videoRef, () =>
-  emit('palm'),
+const { isActive, isLoading, error, start, stop } = useHandGesture(
+  videoRef,
+  () => emit('palm'),
+  () => emit('pinch'),
+  () => emit('snap'),
 )
 
 async function requestPermission() {
