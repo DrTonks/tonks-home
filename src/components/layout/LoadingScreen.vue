@@ -14,6 +14,8 @@ const hexes = ref<SVGPolygonElement[]>([])
 const emit = defineEmits<{ done: [] }>()
 
 // 预加载关键资源
+const isMobile = window.matchMedia('(max-width: 768px)').matches
+
 const PRELOAD_IMAGES = [
   '/assets/avatar.jpg',
   '/assets/pet/idle.png',
@@ -23,6 +25,7 @@ const PRELOAD_IMAGES = [
   '/assets/pet/halfClosed.png',
   '/assets/pet/almostClosed.png',
   '/assets/pet/blink.png',
+  ...(isMobile ? ['/assets/ph-bg.jpg'] : []),
 ]
 
 let imgLoadedCount = 0
