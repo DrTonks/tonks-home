@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import AvatarCore from '@/components/layout/AvatarCore.vue'
 import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
 import DesktopPet from '@/components/layout/DesktopPet.vue'
+import CRTShutdown from '@/components/layout/CRTShutdown.vue'
 import { AdminAuth } from '@/components/auth'
 import { GestureToggle } from '@/components/gesture'
 import { DeviceStatus } from '@/components/device'
@@ -23,7 +25,16 @@ function detectMobile() {
 const isExpanded = ref(false)
 
 // --- 音乐状态（驱动 MagicRings 参数） ---
+const router = useRouter()
 const musicStore = useMusicStore()
+const showCRT = ref(false)
+
+function onPetRage() {
+  showCRT.value = true
+  setTimeout(() => {
+    router.push('/404')
+  }, 900)
+}
 const ringsOpacity = computed(() => isExpanded.value ? 0.5 : 0)
 const ringsSpeed = computed(() => musicStore.isPlaying ? 1 : 0.7)
 const ringsBaseRadius = computed(() => musicStore.isPlaying ? 0.35 : 0.18)
@@ -119,8 +130,9 @@ const componentListMobile = [
       @snap="musicStore.togglePlay()"
     />
     <Transition name="pet-fade">
-      <DesktopPet v-if="isExpanded && !isCollapsing" />
+      <DesktopPet v-if="isExpanded && !isCollapsing" @rage="onPetRage" />
     </Transition>
+    <CRTShutdown :show="showCRT" />
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">

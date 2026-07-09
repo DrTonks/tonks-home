@@ -29,7 +29,6 @@ const showList = ref(false)
 
 // 音量控制
 const volume = ref(Number(localStorage.getItem('music_volume') ?? 0.7))
-const prevVolume = ref(volume.value)
 const isMuted = ref(false)
 
 function setVolume(v: number) {
@@ -37,15 +36,6 @@ function setVolume(v: number) {
   if (audio.value) audio.value.volume = volume.value
   localStorage.setItem('music_volume', String(volume.value))
   isMuted.value = volume.value === 0
-}
-
-function toggleMute() {
-  if (isMuted.value || volume.value === 0) {
-    setVolume(prevVolume.value || 0.7)
-  } else {
-    prevVolume.value = volume.value
-    setVolume(0)
-  }
 }
 
 const showVolume = ref(false)
@@ -91,7 +81,6 @@ function onVolumeTrackClick(e: MouseEvent) {
 }
 
 const isDragging = ref(false)
-let volumeDragCleanup: (() => void) | null = null
 function onVolumeTrackMouseDown(e: MouseEvent) {
   isDragging.value = true
   const track = e.currentTarget as HTMLElement
@@ -100,10 +89,8 @@ function onVolumeTrackMouseDown(e: MouseEvent) {
   const cleanup = () => {
     document.removeEventListener('mousemove', handler)
     document.removeEventListener('mouseup', cleanup)
-    volumeDragCleanup = null
     isDragging.value = false
   }
-  volumeDragCleanup = cleanup
   document.addEventListener('mousemove', handler)
   document.addEventListener('mouseup', cleanup)
 }

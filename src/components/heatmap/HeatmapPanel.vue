@@ -71,7 +71,8 @@ function updateIndicator() {
   nextTick(() => {
     const list = tabsListRef.value
     if (!list) return
-    const active = list.querySelector('[data-state="active"]') as HTMLElement
+    const active = (list.querySelector('[data-state="active"]') as HTMLElement | null)
+      ?? (list.querySelector('[role="tab"]') as HTMLElement | null)
     if (!active) return
     const listRect = list.getBoundingClientRect()
     const activeRect = active.getBoundingClientRect()

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import LoadingScreen from '@/components/layout/LoadingScreen.vue'
 
-const loading = ref(true)
+const route = useRoute()
+const loading = ref(route.name !== 'not-found')
 </script>
 
 <template>
