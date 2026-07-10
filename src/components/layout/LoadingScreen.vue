@@ -24,6 +24,7 @@ const PRELOAD_IMAGES = [
         '/assets/pet/idle.png',
         '/assets/pet/happy.png',
         '/assets/pet/angry.png',
+        '/assets/pet/threat.png',
         '/assets/pet/halfClosed.png',
         '/assets/pet/almostClosed.png',
         '/assets/pet/blink.png',

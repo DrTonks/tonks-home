@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 interface Star {
   id: number
@@ -14,9 +14,10 @@ const stars = ref<Star[]>([])
 const show404 = ref(false)
 const showStars = ref(false)
 
+let t1: ReturnType<typeof setTimeout>, t2: ReturnType<typeof setTimeout>
 onMounted(() => {
-  setTimeout(() => { show404.value = true }, 400)
-  setTimeout(() => {
+  t1 = setTimeout(() => { show404.value = true }, 400)
+  t2 = setTimeout(() => {
     showStars.value = true
     stars.value = Array.from({ length: 30 }, (_, i) => ({
       id: i,
@@ -28,6 +29,7 @@ onMounted(() => {
     }))
   }, 1200)
 })
+onBeforeUnmount(() => { clearTimeout(t1); clearTimeout(t2) })
 </script>
 
 <template>
