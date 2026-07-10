@@ -526,6 +526,7 @@ function handleClick(e: MouseEvent) {
     // 超时未点够 → 恢复 idle
     if (clickTimer) clearTimeout(clickTimer)
     clickTimer = setTimeout(() => {
+      resetClickTiers()
       resetRageThreshold()
       if (mood.value === 'threat') {
         mood.value = 'idle'
@@ -559,7 +560,7 @@ function handleClick(e: MouseEvent) {
 
   clickTimer = setTimeout(() => {
     resetClickTiers()
-    if (mood.value !== 'cry' && mood.value !== 'sleep') {
+    if (mood.value !== 'cry' && mood.value !== 'sleep' && mood.value !== 'threat') {
       mood.value = 'idle'
       showFrame.value = FRAMES.idle
       scheduleBlink()

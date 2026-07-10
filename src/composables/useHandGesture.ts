@@ -43,19 +43,23 @@ export function useHandGesture(
 
   // 打响指状态机：追踪拇指尖(4) ↔ 中指尖(12) 距离
   let snapPinching = false
+  let cancelled = false
 
   async function start() {
     if (isActive.value || isLoading.value) return
     isLoading.value = true
     error.value = ''
+    cancelled = false
 
     try {
       // 1. 摄像头 + 模型并行准备
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       })
+      if (cancelled) { stop(); return }
 
       const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
+      if (cancelled) { stop(); return }
       const vision = await FilesetResolver.forVisionTasks(
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
       )
@@ -80,6 +84,7 @@ export function useHandGesture(
       if (!handLandmarker) throw lastErr
 
       // 2. 一切就绪后才显示摄像头预览
+      if (cancelled) { stop(); return }
       isActive.value = true
       await nextTick()
 
@@ -89,6 +94,7 @@ export function useHandGesture(
       }
 
       isLoading.value = false
+      document.addEventListener('visibilitychange', onVisibilityChange)
       rafId = requestAnimationFrame(detect)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '摄像头启动失败'
@@ -192,6 +198,7 @@ export function useHandGesture(
   }
 
   function stop() {
+    cancelled = true
     isActive.value = false
     if (rafId !== null) {
       cancelAnimationFrame(rafId)
@@ -212,6 +219,7 @@ export function useHandGesture(
       }
       handLandmarker = null
     }
+    document.removeEventListener('visibilitychange', onVisibilityChange)
     palmFrameCount = 0
     pinchFrameCount = 0
     lastPalm = false
@@ -229,11 +237,8 @@ export function useHandGesture(
       rafId = requestAnimationFrame(detect)
     }
   }
-  document.addEventListener('visibilitychange', onVisibilityChange)
-
   onBeforeUnmount(() => {
     stop()
-    document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
   return { isActive, isLoading, error, start, stop }

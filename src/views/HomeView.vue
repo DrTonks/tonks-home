@@ -17,7 +17,7 @@ import { MusicVinyl, MusicControls } from '@/components/music'
 import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
 
 // --- 移动端 ---
-const isMobile = ref(false)
+const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
 function detectMobile() {
   isMobile.value = window.matchMedia('(max-width: 768px)').matches
 }
@@ -140,6 +140,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onGlobalMouseMove)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
+  stopSignalCheck()
 })
 
 const componentListMobile = [

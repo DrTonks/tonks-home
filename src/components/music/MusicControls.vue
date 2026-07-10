@@ -188,11 +188,18 @@ function seek(e: Event) {
 }
 
 // 音频可视化：连接 AudioContext + 播放时自动恢复
-const { connect, resume: resumeCtx } = useAudioAnalyzer()
+const { connect, disconnect, resume: resumeCtx } = useAudioAnalyzer()
 onMounted(() => {
   if (audio.value) {
     audio.value.volume = volume.value
     connect(audio.value)
+  }
+})
+onBeforeUnmount(() => {
+  disconnect()
+  // 清理可能残留的音量拖拽监听器
+  if (isDragging.value) {
+    isDragging.value = false
   }
 })
 watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
