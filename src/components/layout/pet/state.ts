@@ -18,9 +18,9 @@ export function phys(breathAmp: number, breathHz: number, bobAmp: number, bobHz:
 export const PHYSICS: Record<Mood, ReturnType<typeof phys>> = {
   idle:   phys(0.012, 0.12, 1.5, 0.08, 0),
   happy:  phys(0.016, 0.14, 2.0, 0.10, 0),
-  angry:  phys(0.028, 0.65, 0,   0,    1.4),
-  threat: phys(0.034, 0.75, 0,   0,    2.4),
-  cry:    phys(0.020, 0.18, 0,   0,    0.5),
+  angry:  phys(0.018, 0.35, 0,   0,    0.4),
+  threat: phys(0.012, 0.12, 0,   0,    0.4),
+  cry:    phys(0.020, 0.18, 0,   0,    0.4),
   sleep:  phys(0.008, 0.06, 0,   0,    0),
 }
 
@@ -43,6 +43,7 @@ export const CRY_AFTER_MS = 2 * 60 * 1000
 export const SLEEP_AFTER_MS = 4 * 60 * 1000
 export const RAGE_CLICK_MIN = 4
 export const RAGE_CLICK_MAX = 10
+export const TURN_FRAME_PATH = '/assets/pet/turnside.png'
 export const NOTE_SYMBOLS = ['♪', '♫', '♩', '♬']
 
 export function rollThreshold(min: number, max: number) { return Math.floor(min + Math.random() * (max - min + 1)) }
@@ -71,6 +72,8 @@ export function createPetState() {
   const rageActive = ref(false)
   const rageScale = ref(1)
   const singingState: Ref<Singing | null> = ref(null)
+  const turnDirection = ref<'left' | 'right' | null>(null)  // null=正面, left=镜面, right=原图
+  const tracking = ref(false)  // 光标跟踪模式
   const particles = ref<Particle[]>([])
   const sleepZs = ref<SleepZ[]>([])
   const singingNotes = ref<SingingNote[]>([])
@@ -86,6 +89,13 @@ export function createPetState() {
     sleepZTrainer: null as ReturnType<typeof setInterval> | null,
     rafId: null as number | null,
     rageAnimId: null as number | null,
+    // 转身/鼠标跟踪
+    turnOneShot: null as ((e: MouseEvent) => void) | null,
+    trackingEndTimer: null as ReturnType<typeof setTimeout> | null,
+    blinking: false,
+    blinkStepId: null as ReturnType<typeof setTimeout> | null,
+    actionRafId: null as number | null,
+    singingRafId: null as number | null,
   }
 
   const c = {
@@ -97,9 +107,11 @@ export function createPetState() {
     rageThreshold: rollThreshold(RAGE_CLICK_MIN, RAGE_CLICK_MAX), rageClicks: 0,
     musicStopped: false,
     startClientX: 0, startClientY: 0, startPosX: 0, startPosY: 0,
+    mouseX: 0, mouseY: 0, mouseLastMove: 0,  // 鼠标跟踪
+    lastTrackingEnd: 0,  // tracking 结束时间戳，用于 2min 冷却
   }
 
-  return { mood, showFrame, pos, dragging, moved, clickScale, action, actionProgress, singingAngry, rageActive, rageScale, singingState, particles, sleepZs, singingNotes, t, c }
+  return { mood, showFrame, pos, dragging, moved, clickScale, action, actionProgress, singingAngry, rageActive, rageScale, singingState, turnDirection, tracking, particles, sleepZs, singingNotes, t, c }
 }
 
 export type PetState = ReturnType<typeof createPetState>

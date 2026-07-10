@@ -1,12 +1,13 @@
 /**
  * 桌宠核心逻辑：物理/眨眼/动作/情绪/点击升级/闲置计时/拖拽/粒子/暴怒
  */
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
 import {
   type PetState,
   W, H, PHYSICS, FRAMES, BLINK_SEQ, TIER_CONFIG,
   CLICK_TIMEOUT_MS, CRY_AFTER_MS, SLEEP_AFTER_MS,
+  RAGE_CLICK_MIN, RAGE_CLICK_MAX,
   rollThreshold, scale,
 } from './state'
 
@@ -24,24 +25,22 @@ export function usePetCore(
   }
 
   function resetRageThreshold() {
-    c.rageThreshold = rollThreshold(4, 10)
+    c.rageThreshold = rollThreshold(RAGE_CLICK_MIN, RAGE_CLICK_MAX)
     c.rageClicks = 0
   }
 
-  // ===== 物理样式 =====
-  const physStyle = computed(() => {
+  // ===== 物理计算（纯函数，每帧在 tick 内调用，不依赖 Vue 响应式） =====
+  function calcPhysTransform(): string {
     const p = PHYSICS[state.mood.value]
     const breath = Math.sin(c.phase) * p.breathAmp
     const bob = p.bobAmp > 0 ? Math.sin(c.phase * (p.bobHz / Math.max(0.01, p.breathHz))) * p.bobAmp : 0
-    const shake = p.shake > 0 ? Math.sin(c.shakePhase * 4) * p.shake : 0
+    const shake = Math.sin(c.shakePhase * 4) * (state.rageActive.value ? 2.4 : p.shake)
     const ap = state.actionProgress.value
     const wave = Math.sin(Math.max(0, ap) * Math.PI * 2)
     const sway = state.action.value === 'sway' ? wave * scale(5) : 0
     const bounce = state.action.value === 'bounce' ? -Math.abs(wave) * scale(8) : 0
-    return {
-      transform: `scale(${(1 + breath) * state.rageScale.value}) translateY(${bob + bounce}px) translateX(${shake + sway}px)`,
-    }
-  })
+    return `scale(${(1 + breath) * state.rageScale.value}) translateY(${bob + bounce}px) translateX(${shake + sway}px)`
+  }
 
   // ===== 帧循环 =====
   function tick(now: number) {
@@ -51,26 +50,28 @@ export function usePetCore(
     c.phase += dt * p.breathHz * Math.PI * 2
     c.shakePhase += dt * 4 * Math.PI * 2
     if (petRef.value) {
-      petRef.value.style.transform = physStyle.value.transform
+      petRef.value.style.transform = calcPhysTransform()
     }
     t.rafId = requestAnimationFrame(tick)
   }
 
   // ===== 眨眼 =====
   function scheduleBlink() {
-    if (state.singingState.value) return
+    if (state.singingState.value || state.turnDirection.value !== null) return
     if (t.blinkTimer) clearTimeout(t.blinkTimer)
     t.blinkTimer = setTimeout(() => {
-      if (state.dragging.value || state.mood.value === 'sleep') { scheduleBlink(); return }
+      if (t.blinking || state.turnDirection.value !== null || state.dragging.value || state.mood.value === 'sleep') { scheduleBlink(); return }
+      t.blinking = true
       let idx = 0
       function step() {
         if (idx >= BLINK_SEQ.length) {
           state.showFrame.value = FRAMES[state.mood.value]
+          t.blinking = false
           scheduleBlink()
           return
         }
         state.showFrame.value = BLINK_SEQ[idx++].src
-        setTimeout(step, BLINK_SEQ[idx - 1]?.duration || 80)
+        t.blinkStepId = setTimeout(step, BLINK_SEQ[idx - 1]?.duration || 80)
       }
       step()
     }, 3500 + Math.random() * 5000)
@@ -78,26 +79,27 @@ export function usePetCore(
 
   // ===== 动作（sway/bounce） =====
   function scheduleAction() {
-    if (state.singingState.value) return
+    if (state.singingState.value || state.turnDirection.value !== null) return
     if (t.actionTimer) clearTimeout(t.actionTimer)
     t.actionTimer = setTimeout(() => {
-      if (state.dragging.value || state.mood.value === 'sleep' || state.mood.value === 'cry') { scheduleAction(); return }
+      if (state.turnDirection.value !== null || state.dragging.value || state.mood.value === 'sleep' || state.mood.value === 'cry') { scheduleAction(); return }
       state.action.value = Math.random() < 0.55 ? 'sway' : 'bounce'
       state.actionProgress.value = 0
-      if (state.mood.value === 'idle') {
+      if (state.mood.value === 'idle' && !state.turnDirection.value) {
         state.showFrame.value = Math.random() < 0.45 ? FRAMES.happy : FRAMES.idle
       }
       const dur = 1400
       const step = () => {
         state.actionProgress.value += 16 / dur
-        if (state.actionProgress.value < 1) requestAnimationFrame(step)
+        if (state.actionProgress.value < 1) t.actionRafId = requestAnimationFrame(step)
         else {
           state.action.value = 'idle'
-          if (state.mood.value === 'idle') state.showFrame.value = FRAMES.idle
+          t.actionRafId = null
+          if (state.mood.value === 'idle' && !state.turnDirection.value) state.showFrame.value = FRAMES.idle
           scheduleAction()
         }
       }
-      requestAnimationFrame(step)
+      t.actionRafId = requestAnimationFrame(step)
     }, 4500 + Math.random() * 6500)
   }
 
@@ -174,9 +176,17 @@ export function usePetCore(
   // ===== 暴怒 =====
   function startRage() {
     state.rageActive.value = true
+    state.turnDirection.value = null
+    state.tracking.value = false
+    t.blinking = false
+    if (t.turnOneShot) { window.removeEventListener('mousemove', t.turnOneShot); t.turnOneShot = null }
     if (t.clickTimer) { clearTimeout(t.clickTimer); t.clickTimer = null }
     if (t.blinkTimer) { clearTimeout(t.blinkTimer); t.blinkTimer = null }
+    if (t.blinkStepId) { clearTimeout(t.blinkStepId); t.blinkStepId = null }
     if (t.actionTimer) { clearTimeout(t.actionTimer); t.actionTimer = null }
+    if (t.actionRafId !== null) { cancelAnimationFrame(t.actionRafId); t.actionRafId = null }
+    if (t.singingRafId !== null) { cancelAnimationFrame(t.singingRafId); t.singingRafId = null }
+    if (t.singingTimer) { clearTimeout(t.singingTimer); t.singingTimer = null }
     if (t.idleTimer) { clearTimeout(t.idleTimer); t.idleTimer = null }
     if (t.sleepTimer) { clearTimeout(t.sleepTimer); t.sleepTimer = null }
     state.rageScale.value = 1
@@ -185,12 +195,23 @@ export function usePetCore(
     function animRage(now: number) {
       const tt = Math.min(1, (now - start) / dur)
       c.shakePhase += 0.6
-      state.rageScale.value = 1 + tt * 0.6
+      state.rageScale.value = 1 + tt * 1
       if (tt < 1) {
         t.rageAnimId = requestAnimationFrame(animRage)
       } else {
         emit('rage')
         t.rageAnimId = null
+        state.rageActive.value = false
+        // 重置怒气状态，防止无限循环；恢复日常计时器
+        resetClickTiers()
+        resetRageThreshold()
+        state.mood.value = 'idle'
+        state.showFrame.value = FRAMES.idle
+        state.singingState.value = null
+        state.singingNotes.value = []
+        resetIdleTimers()
+        scheduleBlink()
+        scheduleAction()
       }
     }
     t.rageAnimId = requestAnimationFrame(animRage)
@@ -201,11 +222,21 @@ export function usePetCore(
     if (state.moved.value) { state.moved.value = false; return }
     if (state.rageActive.value) return
 
-    // 唱歌模式在外部路由，这里不处理
     if (state.singingState.value) return
 
-    resetIdleTimers()
-    // triggerClickEffect 由外部调用
+    // tracking 模式点击 → 直接退出 tracking，回 idle（不升级情绪）
+    if (state.tracking.value) {
+      if (t.trackingEndTimer) { clearTimeout(t.trackingEndTimer); t.trackingEndTimer = null }
+      state.tracking.value = false
+      state.turnDirection.value = null
+      state.showFrame.value = FRAMES.idle
+      state.mood.value = 'idle'
+      t.blinking = false
+      scheduleBlink()
+      scheduleAction()
+      resetIdleTimers()
+      return
+    }
 
     if (state.mood.value === 'sleep') {
       stopSleepZs()
@@ -223,6 +254,8 @@ export function usePetCore(
       }, CLICK_TIMEOUT_MS)
       return
     }
+
+    resetIdleTimers()
 
     const el = petRef.value
     if (!el) return
@@ -268,12 +301,14 @@ export function usePetCore(
 
     t.clickTimer = setTimeout(() => {
       resetClickTiers()
+      resetRageThreshold()
       const m = state.mood.value
-      if (m !== 'cry' && m !== 'sleep' && m !== 'threat') {
+      if (m !== 'cry' && m !== 'sleep') {
         state.mood.value = 'idle'
         state.showFrame.value = FRAMES.idle
         scheduleBlink()
         scheduleAction()
+        if (m === 'threat') onResumeSinging()
       }
     }, CLICK_TIMEOUT_MS)
   }
@@ -281,6 +316,17 @@ export function usePetCore(
   // ===== 拖拽 =====
   function onPointerDown(e: PointerEvent) {
     if (state.mood.value === 'threat' || state.rageActive.value) return
+    // tracking 模式拖拽 → 退出 tracking 进日常
+    if (state.tracking.value) {
+      if (t.trackingEndTimer) { clearTimeout(t.trackingEndTimer); t.trackingEndTimer = null }
+      state.tracking.value = false
+      state.turnDirection.value = null
+      state.showFrame.value = FRAMES.idle
+      state.mood.value = 'idle'
+      t.blinking = false
+      scheduleBlink()
+      scheduleAction()
+    }
     if (!state.singingState.value) resetIdleTimers()
     state.dragging.value = true; state.moved.value = false
     c.startClientX = e.clientX; c.startClientY = e.clientY
@@ -331,17 +377,18 @@ export function usePetCore(
 
   onBeforeUnmount(() => {
     if (t.blinkTimer) clearTimeout(t.blinkTimer)
+    if (t.blinkStepId) clearTimeout(t.blinkStepId)
     if (t.clickTimer) clearTimeout(t.clickTimer)
     if (t.idleTimer) clearTimeout(t.idleTimer)
     if (t.sleepTimer) clearTimeout(t.sleepTimer)
     if (t.actionTimer) clearTimeout(t.actionTimer)
+    if (t.actionRafId !== null) cancelAnimationFrame(t.actionRafId)
     if (t.rafId !== null) cancelAnimationFrame(t.rafId)
     if (t.rageAnimId !== null) cancelAnimationFrame(t.rageAnimId)
     stopSleepZs()
   })
 
   return {
-    physStyle,
     scheduleBlink, scheduleAction, resetIdleTimers,
     spawnParticles, startSleepZs, stopSleepZs,
     startRage, handleClick,

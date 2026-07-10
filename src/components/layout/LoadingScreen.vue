@@ -25,6 +25,7 @@ const PRELOAD_IMAGES = [
         '/assets/pet/happy.png',
         '/assets/pet/angry.png',
         '/assets/pet/threat.png',
+        '/assets/pet/cry.png',
         '/assets/pet/halfClosed.png',
         '/assets/pet/almostClosed.png',
         '/assets/pet/blink.png',
@@ -32,6 +33,7 @@ const PRELOAD_IMAGES = [
         '/assets/pet/singing-2.png',
         '/assets/pet/singing-3.png',
         '/assets/pet/singing-4.png',
+        '/assets/pet/turnside.png',
       ]
   ),
 ]

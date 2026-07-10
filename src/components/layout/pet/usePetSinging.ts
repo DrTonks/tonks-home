@@ -60,36 +60,51 @@ export function usePetSinging(state: PetState, onSingingExit: () => void) {
       if (Math.random() < 0.5) {
         state.action.value = Math.random() < 0.5 ? 'sway' : 'bounce'
         state.actionProgress.value = 0
+        if (t.singingRafId !== null) cancelAnimationFrame(t.singingRafId)
         const dur = 1200
         const tick = () => {
           state.actionProgress.value += 16 / dur
-          if (state.actionProgress.value < 1) requestAnimationFrame(tick)
-          else { state.action.value = 'idle'; state.actionProgress.value = 0 }
+          if (state.actionProgress.value < 1) t.singingRafId = requestAnimationFrame(tick)
+          else { state.action.value = 'idle'; state.actionProgress.value = 0; t.singingRafId = null }
         }
-        requestAnimationFrame(tick)
+        t.singingRafId = requestAnimationFrame(tick)
       }
       scheduleSingingNext()
     }, 700 + Math.random() * 2300)
   }
 
-  function startSinging() {
+  async function startSinging() {
     if (state.mood.value === 'threat') return
+    if (state.singingState.value) return  // 已在唱歌，防并发
     c.musicStopped = false
+    // 清日常计时器 + 关 blink 锁
     if (t.sleepZTrainer) { clearInterval(t.sleepZTrainer); t.sleepZTrainer = null }
     if (t.blinkTimer) { clearTimeout(t.blinkTimer); t.blinkTimer = null }
     if (t.actionTimer) { clearTimeout(t.actionTimer); t.actionTimer = null }
+    if (t.actionRafId !== null) { cancelAnimationFrame(t.actionRafId); t.actionRafId = null }
     if (t.idleTimer) { clearTimeout(t.idleTimer); t.idleTimer = null }
     if (t.sleepTimer) { clearTimeout(t.sleepTimer); t.sleepTimer = null }
+    if (t.clickTimer) { clearTimeout(t.clickTimer); t.clickTimer = null }
+    if (t.trackingEndTimer) { clearTimeout(t.trackingEndTimer); t.trackingEndTimer = null }
+    if (t.blinkStepId) { clearTimeout(t.blinkStepId); t.blinkStepId = null }
+    if (t.turnOneShot) { window.removeEventListener('mousemove', t.turnOneShot); t.turnOneShot = null }
+    t.blinking = false
+    state.turnDirection.value = null
+    // singingState 必须在 tracking 之前设置，防止 cooling watcher 误记录
     state.mood.value = 'idle'
     state.singingState.value = 'singing-1'
+    state.tracking.value = false
+    state.showFrame.value = FRAMES.idle
+    await new Promise((r) => setTimeout(r, 300))
     state.showFrame.value = FRAMES['singing-1']
     spawnSingingNotes(5)
     state.action.value = 'bounce'
     state.actionProgress.value = 0
+    if (t.singingRafId !== null) cancelAnimationFrame(t.singingRafId)
     ;(function tick() {
       state.actionProgress.value += 16 / 1200
-      if (state.actionProgress.value < 1) requestAnimationFrame(tick)
-      else { state.action.value = 'idle'; state.actionProgress.value = 0 }
+      if (state.actionProgress.value < 1) t.singingRafId = requestAnimationFrame(tick)
+      else { state.action.value = 'idle'; state.actionProgress.value = 0; t.singingRafId = null }
     })()
     scheduleSingingNext()
   }
@@ -106,8 +121,11 @@ export function usePetSinging(state: PetState, onSingingExit: () => void) {
 
   function stopAllSinging() {
     if (t.singingTimer) { clearTimeout(t.singingTimer); t.singingTimer = null }
+    if (t.singingRafId !== null) { cancelAnimationFrame(t.singingRafId); t.singingRafId = null }
     state.singingState.value = null
+    state.singingAngry.value = false
     state.singingNotes.value = []
+    stopSignalCheck()
   }
 
   function tryResumeSinging() {
@@ -120,7 +138,7 @@ export function usePetSinging(state: PetState, onSingingExit: () => void) {
     if (state.rageActive.value) return
     if (playing) startSignalCheck()
     else { stopSignalCheck(); handleMusicStop() }
-  })
+  }, { immediate: true })
 
   watch(hasSignal, (active) => {
     if (!store.isPlaying || state.rageActive.value) return
