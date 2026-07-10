@@ -60,8 +60,8 @@ function preloadImages(): Promise<void> {
  * 在加载动画期间并行拉取，动画结束后首页即渲染，无需再等网络。
  * 失败不阻塞：router 懒加载会重试。
  */
-function preloadHomeChunk(): Promise<void> {
-  return import('@/views/HomeView.vue').catch(() => { /* will retry on navigation */ })
+async function preloadHomeChunk() {
+  try { await import('@/views/HomeView.vue') } catch { /* will retry on navigation */ }
 }
 
 // WAAPI 动画
