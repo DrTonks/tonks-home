@@ -61,9 +61,7 @@ function preloadImages(): Promise<void> {
  * 失败不阻塞：router 懒加载会重试。
  */
 function preloadHomeChunk(): Promise<void> {
-  return import('@/views/HomeView.vue')
-    .then(() => { console.log('[Loading] JS chunks preloaded') })
-    .catch((err) => { console.warn('[Loading] JS preload failed, will retry on navigation:', err) })
+  return import('@/views/HomeView.vue').catch(() => { /* will retry on navigation */ })
 }
 
 // WAAPI 动画
@@ -140,8 +138,6 @@ onMounted(async () => {
   // 用 querySelectorAll 代替 :ref（v-for 内 ref 函数可能不触发）
   const els = Array.from(svgRef.value?.querySelectorAll<SVGPolygonElement>('.ld-hex') || [])
   hexes.value = els
-  console.log('[Loading] hexes found:', els.length)
-
   // ===== 环形参数（reveal 之前就着色，确保一开始就可见） =====
   const ring = [115, 116, 117, 135, 154, 171, 189, 188, 187, 168, 150, 132]
   const RING_LEN = ring.length

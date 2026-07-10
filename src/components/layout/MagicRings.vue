@@ -235,15 +235,19 @@ onMounted(() => {
   mount.addEventListener('mouseleave', onMouseLeave)
   mount.addEventListener('click', onClick)
 
+  let lastT = 0
   const animate = (t: number) => {
     frameId = requestAnimationFrame(animate)
     const p = propsRef.value
+    if (!lastT) lastT = t
+    const dt = Math.min(0.1, (t - lastT) * 0.001)
+    lastT = t
     smoothMouseRef.value[0] += (mouseRef.value[0] - smoothMouseRef.value[0]) * 0.08
     smoothMouseRef.value[1] += (mouseRef.value[1] - smoothMouseRef.value[1]) * 0.08
     hoverAmountRef.value += ((isHoveredRef.value ? 1 : 0) - hoverAmountRef.value) * 0.08
     burstRef.value *= 0.95
     if (burstRef.value < 0.001) burstRef.value = 0
-    uniforms.uTime.value = t * 0.001 * p.speed
+    uniforms.uTime.value += dt * p.speed
     uniforms.uAttenuation.value = p.attenuation
     uniforms.uColor.value.set(p.color)
     uniforms.uColorTwo.value.set(p.colorTwo)

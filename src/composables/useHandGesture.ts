@@ -50,10 +50,36 @@ export function useHandGesture(
     error.value = ''
 
     try {
+      // 1. 摄像头 + 模型并行准备
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       })
 
+      const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+      )
+
+      const modelPaths = [
+        '/models/hand_landmarker.task',
+        'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      ]
+      let lastErr: unknown = null
+      for (const modelPath of modelPaths) {
+        try {
+          handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: modelPath, delegate: 'GPU' },
+            runningMode: 'VIDEO',
+            numHands: 1,
+          })
+          break
+        } catch (e) {
+          lastErr = e
+        }
+      }
+      if (!handLandmarker) throw lastErr
+
+      // 2. 一切就绪后才显示摄像头预览
       isActive.value = true
       await nextTick()
 
@@ -61,20 +87,6 @@ export function useHandGesture(
         videoRef.value.srcObject = stream
         await videoRef.value.play()
       }
-
-      const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
-      )
-      handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath:
-            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        numHands: 1,
-      })
 
       isLoading.value = false
       rafId = requestAnimationFrame(detect)

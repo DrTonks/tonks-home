@@ -39,7 +39,7 @@ onMounted(() => {
     </div>
 
     <p v-if="show404" class="mt-6 text-sm tracking-[0.3em] text-white/40 animate-fade-in-up">
-      Page Not Found
+      Not Found
     </p>
 
     <a

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AvatarCore from '@/components/layout/AvatarCore.vue'
 import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
@@ -11,6 +11,7 @@ import { DeviceStatus } from '@/components/device'
 import { BlogUpdates } from '@/components/blog'
 import { HeatmapPanel, LanguagePanel } from '@/components/heatmap'
 import { useMusicStore } from '@/stores/music'
+import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
 import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
@@ -36,9 +37,40 @@ function onPetRage() {
   }, 900)
 }
 const ringsOpacity = computed(() => isExpanded.value ? 0.5 : 0)
-const ringsSpeed = computed(() => musicStore.isPlaying ? 1 : 0.7)
-const ringsBaseRadius = computed(() => musicStore.isPlaying ? 0.35 : 0.18)
+
+// 魔法环参数 — 有实际音频信号才变化（与桌宠唱歌、音频可视化共用 hasSignal）
+const { hasSignal, startSignalCheck, stopSignalCheck } = useAudioAnalyzer()
+const ringsSpeed = ref(0.7)
+const ringsBaseRadius = ref(0.18)
 const isAnimating = ref(false)
+let ringsTargetSpeed = 0.7
+let ringsTargetRadius = 0.18
+let ringsSmoothId: number | null = null
+
+function setRingsTarget(active: boolean) {
+  ringsTargetSpeed = active ? 1 : 0.7
+  ringsTargetRadius = active ? 0.35 : 0.18
+  if (!ringsSmoothId) {
+    ringsSmoothId = requestAnimationFrame(function tick() {
+      ringsSpeed.value += (ringsTargetSpeed - ringsSpeed.value) * 0.05
+      ringsBaseRadius.value += (ringsTargetRadius - ringsBaseRadius.value) * 0.05
+      if (Math.abs(ringsTargetSpeed - ringsSpeed.value) > 0.001 || Math.abs(ringsTargetRadius - ringsBaseRadius.value) > 0.001) {
+        ringsSmoothId = requestAnimationFrame(tick)
+      } else {
+        ringsSmoothId = null
+      }
+    })
+  }
+}
+
+watch(() => musicStore.isPlaying, (playing) => {
+  if (playing) startSignalCheck()
+  else { stopSignalCheck(); setRingsTarget(false) }
+})
+
+watch(hasSignal, (active) => {
+  if (musicStore.isPlaying) setRingsTarget(active)
+})
 
 const EXPAND_TOTAL = 1400 + 720 + 800
 const COLLAPSE_TOTAL = 700
@@ -107,6 +139,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onGlobalMouseMove)
+  if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
 })
 
 const componentListMobile = [

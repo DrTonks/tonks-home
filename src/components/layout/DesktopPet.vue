@@ -22,7 +22,7 @@ const FRAMES: Record<Mood | Singing, string> = {
 }
 
 const musicStore = useMusicStore()
-const { getFrequencyData } = useAudioAnalyzer()
+const { hasSignal, startSignalCheck, stopSignalCheck } = useAudioAnalyzer()
 const BLINK_FRAMES = {
   halfClosed: '/assets/pet/halfClosed.png',
   almostClosed: '/assets/pet/almostClosed.png',
@@ -30,9 +30,9 @@ const BLINK_FRAMES = {
 }
 
 const BLINK_SEQ: Array<{ src: string; duration: number }> = [
-  { src: BLINK_FRAMES.halfClosed, duration: 70 },
-  { src: BLINK_FRAMES.almostClosed, duration: 60 },
-  { src: BLINK_FRAMES.closed, duration: 110 },
+  { src: BLINK_FRAMES.halfClosed, duration: 80 },
+  { src: BLINK_FRAMES.almostClosed, duration: 70 },
+  { src: BLINK_FRAMES.closed, duration: 190 },
 ]
 
 // ===== 桌宠尺寸（图片 2:3 竖长方形） =====
@@ -431,32 +431,21 @@ function spawnSingingNotes(count: number) {
   }, 2500)
 }
 
-// 监听音频信号：有实际声音时才进入唱歌，而不是播放按钮一按就唱
-let singingCheckTimer: ReturnType<typeof setInterval> | null = null
-let singingWasActive = false
-
+// 监听音频信号：有实际声音时才唱歌 / 变化魔法环
 watch(() => musicStore.isPlaying, (playing) => {
   if (rageActive.value) return
   if (playing) {
-    // 轮询检测音频信号，有波形数据后才启动唱歌
-    singingWasActive = false
-    if (singingCheckTimer) clearInterval(singingCheckTimer)
-    singingCheckTimer = setInterval(() => {
-      const data = getFrequencyData()
-      const hasSignal = data.some((v) => v > 0)
-      if (hasSignal && !singingWasActive) {
-        singingWasActive = true
-        startSinging()
-      }
-      if (!hasSignal && singingWasActive) {
-        // 声音停了（切歌间隙等短暂静音不计入，由 isPlaying=false 处理）
-      }
-    }, 250)
+    startSignalCheck()
   } else {
-    if (singingCheckTimer) { clearInterval(singingCheckTimer); singingCheckTimer = null }
-    singingWasActive = false
+    stopSignalCheck()
     handleMusicStop()
   }
+})
+
+// 信号变化 → 唱歌/停止
+watch(hasSignal, (active) => {
+  if (!musicStore.isPlaying || rageActive.value) return
+  if (active) startSinging()
 })
 
 function startRage() {
@@ -644,7 +633,6 @@ onBeforeUnmount(() => {
   if (rageAnimId !== null) cancelAnimationFrame(rageAnimId)
   stopSleepZs()
   stopAllSinging()
-  if (singingCheckTimer) clearInterval(singingCheckTimer)
 })
 </script>
 

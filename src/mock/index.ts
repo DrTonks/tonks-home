@@ -76,7 +76,7 @@ export function setupMock(api: AxiosInstance) {
 
     if (route) {
       const data = route.handler(config)
-      console.log(`[Mock] ${method} ${url} →`, data)
+      // mock response
       // 用自定义 adapter 直接返回 mock 数据，跳过真实请求
       config.adapter = () =>
         Promise.resolve<AxiosResponse>({
