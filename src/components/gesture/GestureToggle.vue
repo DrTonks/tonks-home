@@ -54,7 +54,7 @@ async function requestPermission() {
       v-if="!isActive"
       variant="ghost"
       size="icon"
-      class="h-9 w-9 rounded-full bg-card/60 backdrop-blur-sm border border-border/40 hover:bg-card hover:border-primary/40 transition-all"
+      class="h-9 w-9 rounded-full bg-card backdrop-blur-sm border border-border hover:bg-card hover:border-primary/40 transition-all"
       :disabled="isLoading"
       aria-label="启用手势识别"
       @click="showPermission = true"

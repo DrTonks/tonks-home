@@ -31,7 +31,7 @@ function onMouseLeave(e: MouseEvent) {
   <div
     :class="
       cn(
-        'relative rounded-lg bg-white/20 text-card-foreground shadow-card glass-blur glass-edge glass-noise overflow-hidden card-3d duration-normal ease-out-expo',
+        'relative rounded-lg bg-card text-card-foreground shadow-card glass-blur glass-edge glass-noise overflow-hidden card-3d duration-normal ease-out-expo',
         props.class,
       )
     "

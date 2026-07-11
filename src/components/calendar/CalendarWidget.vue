@@ -126,7 +126,7 @@ onMounted(() => {
   <Card class="w-[clamp(280px,22vw,360px)] p-4">
     <!-- 今日卡 -->
     <div
-      class="flex items-stretch gap-2 mb-4 rounded-md bg-muted/30 p-3 border border-border/40"
+      class="flex items-stretch gap-2 mb-4 rounded-md bg-muted p-3 border border-border"
     >
       <div class="flex-1">
         <p class="text-[10px] text-muted-foreground uppercase tracking-[0.15em]">
@@ -138,7 +138,7 @@ onMounted(() => {
       </div>
       <div
         v-if="nextHoliday"
-        class="flex-1 text-right border-l border-border/40 pl-2 flex flex-col justify-center"
+        class="flex-1 text-right border-l border-border pl-2 flex flex-col justify-center"
       >
         <p class="text-[10px] text-muted-foreground uppercase tracking-[0.15em] truncate">
           {{ nextHoliday.name }}

@@ -9,7 +9,7 @@ const accentColor = props.timeline.color || 'hsl(var(--secondary))'
 
 <template>
   <article
-    class="relative rounded-md p-3 pl-4 bg-muted/20 overflow-hidden transition-colors hover:bg-muted/30"
+    class="relative rounded-md p-3 pl-4 bg-muted overflow-hidden transition-colors hover:bg-muted"
     :style="{ borderLeft: `3px solid ${accentColor}` }"
   >
     <!-- 标题 -->

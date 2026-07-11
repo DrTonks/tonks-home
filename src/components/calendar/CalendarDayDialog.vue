@@ -105,7 +105,7 @@ async function removeEvent(id: string) {
         <div
           v-for="e in events"
           :key="e.id"
-          class="flex items-center gap-2 p-2 rounded-md bg-muted/30"
+          class="flex items-center gap-2 p-2 rounded-md bg-muted"
         >
           <span
             class="w-1.5 h-1.5 rounded-full shrink-0"

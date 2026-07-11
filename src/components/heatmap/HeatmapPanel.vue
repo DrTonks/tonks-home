@@ -121,7 +121,7 @@ const legend = computed(() => {
           </el-select>
           <div class="relative">
           <TabsList
-            class="h-7 content-center bg-muted/40 backdrop-blur-sm"
+            class="h-7 content-center bg-muted backdrop-blur-sm"
             :class="githubAvailable ? 'grid grid-cols-2' : 'grid-cols-1'"
           >
             <TabsTrigger value="agent" class="text-[11px] leading-none gap-1 px-2 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">

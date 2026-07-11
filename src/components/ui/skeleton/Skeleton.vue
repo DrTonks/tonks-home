@@ -7,7 +7,7 @@ const props = defineProps<{ class?: string }>()
 <template>
   <div
     :class="
-      cn('rounded-md bg-muted/60 animate-pulse pointer-events-none select-none', props.class)
+      cn('rounded-md bg-muted animate-pulse pointer-events-none select-none', props.class)
     "
   />
 </template>

@@ -66,17 +66,17 @@ onBeforeUnmount(() => {
       Not Found
     </p>
 
-    <p href="/" v-if="show404" class="mt-4 text-xs tracking-[0.2em] text-white/20 animate-fade-in-up" style="animation-delay: 0.3s">
+    <a href="/" v-if="show404" class="mt-4 text-xs tracking-[0.2em] hover:text-white/60 text-white/20 animate-fade-in-up" style="animation-delay: 0.3s">
       回到首页 · {{ countdown }} 秒后自动返回
-    </p>
+    </a>
 
-    <a
+    <p
       v-if="show404"
       class="mt-10 text-xs tracking-[0.2em] text-white/25 hover:text-white/60 transition-colors duration-500 animate-fade-in-up"
       style="animation-delay: 0.6s"
     >
       不许忘记我。
-    </a>
+    </p>
 
     <template v-if="showStars">
       <span

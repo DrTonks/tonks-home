@@ -11,7 +11,7 @@ defineProps<{ project: FeaturedProject }>()
     <div class="flex gap-3">
       <!-- 缩略图 -->
       <div
-        class="shrink-0 w-20 h-20 rounded-md overflow-hidden bg-muted ring-1 ring-border/40"
+        class="shrink-0 w-20 h-20 rounded-md overflow-hidden bg-muted ring-1 ring-border"
       >
         <img
           v-if="project.image"

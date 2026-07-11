@@ -11,6 +11,13 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const svgRef = ref<SVGSVGElement | null>(null)
 const hexes = ref<SVGPolygonElement[]>([])
 
+// 首屏主题（index.html 内联脚本已在渲染前预置 .dark）：
+// 暗色 = 白色发光蜂窝网格 + 白光扫描 + 白金完成；亮色 = 原始天蓝系 + 绿色完成
+const isDark = document.documentElement.classList.contains('dark')
+const hexStroke = isDark ? 'rgba(255,255,255,0.5)' : 'hsl(207 70% 65%)'
+const hexBaseFill = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(200,225,245,0.25)'
+const glowColor = isDark ? 'rgba(255,255,255,0.08)' : 'hsl(var(--color-sky) / 0.2)'
+
 const emit = defineEmits<{ done: [] }>()
 
 // 预加载关键资源
@@ -144,12 +151,19 @@ onMounted(async () => {
   // ===== 环形参数（reveal 之前就着色，确保一开始就可见） =====
   const ring = [115, 116, 117, 135, 154, 171, 189, 188, 187, 168, 150, 132]
   const RING_LEN = ring.length
-  const COLORS = [
-    'rgba(200,150,60,0.4)',     // 0 暗琥珀，略深于默认格做区分
-    'rgba(230,175,70,0.6)',     // 1
-    'rgba(245,195,80,0.82)',    // 2
-    'hsl(42,95%,62%)',          // 3 最亮·亮金
-  ]
+  const COLORS = isDark
+    ? [  // 暗色：白色不透明度四阶，表现白光扫过蜂窝
+        'rgba(255,255,255,0.22)',   // 0 起步·淡白
+        'rgba(255,255,255,0.45)',   // 1
+        'rgba(255,255,255,0.72)',   // 2
+        'rgba(255,255,255,1)',      // 3 最亮·纯白扫描点
+      ]
+    : [  // 亮色：原始天蓝四阶
+        'rgba(175,210,238,0.45)',   // 0 略深于默认格，做区分
+        'rgba(160,210,240,0.55)',   // 1
+        'rgba(110,185,230,0.78)',   // 2
+        'hsl(207,70%,65%)',         // 3 最亮·亮蓝
+      ]
   const intensities = new Array(RING_LEN).fill(0)
   let cursor = 0
 
@@ -196,10 +210,11 @@ onMounted(async () => {
   await preloadPromise
   await jsPreloadPromise
 
-  // 加载完成：切换为暖白金（代表通过/完成，替代原绿色）
+  // 加载完成：亮圈表示完成。暗色用亮金（白光扫描后定格金色）；亮色用原始绿色（通过/完成）
   clearInterval(spinnerTimer)
+  const doneColor = isDark ? 'hsl(45, 100%, 62%)' : 'hsl(145, 50%, 55%)'
   ring.forEach(i => {
-    if (hexes.value[i]) hexes.value[i].style.fill = 'hsl(45, 90%, 78%)'
+    if (hexes.value[i]) hexes.value[i].style.fill = doneColor
   })
 
   await playCollapse()
@@ -213,7 +228,7 @@ onMounted(async () => {
 <template>
   <div ref="containerRef" class="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden" style="background: hsl(var(--background))">
     <div class="absolute inset-0 pointer-events-none"
-      style="background: radial-gradient(ellipse at center, hsl(42 90% 60% / 0.18) 0%, transparent 55%);"
+      :style="`background: radial-gradient(ellipse at center, ${glowColor} 0%, transparent 55%);`"
     />
 
     <svg
@@ -228,8 +243,8 @@ onMounted(async () => {
           :key="`${l}-${r}`"
           class="ld-hex"
           points="0,-50 43.3,-25 43.3,25 0,50 -43.3,25 -43.3,-25"
-          fill="rgba(210,180,110,0.14)"
-          stroke="hsl(42 85% 60%)"
+          :fill="hexBaseFill"
+          :stroke="hexStroke"
           stroke-width="0.8"
           :transform="`translate(${l % 2 ? HEX_W * (r - 1) : HEX_W * (r - 1) + HEX_W / 2}, ${HEX_H * (l - 1)})`"
           style="stroke-dasharray: 100; stroke-dashoffset: 100; stroke-opacity: 0;"

@@ -131,7 +131,7 @@ const option = computed(() => {
         <span
           v-for="lang in languages.slice(0, 6)"
           :key="lang.name"
-          class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted/40 text-foreground"
+          class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-foreground"
         >
           <span
             class="w-1.5 h-1.5 rounded-full"

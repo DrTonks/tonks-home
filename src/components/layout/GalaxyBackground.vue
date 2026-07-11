@@ -33,10 +33,10 @@ onUnmounted(() => {
 })
 
 const active = computed(() => music.isPlaying && hasSignal.value)
-const starSpeed = computed(() => (active.value ? 1.1 : 0.5))
-const glowIntensity = computed(() => (active.value ? 0.34 : 0.2))
+const starSpeed = computed(() => (active.value ? 1 : 0.4))
+const glowIntensity = computed(() => (active.value ? 0.3 : 0.1))
 const hueShift = computed(() => (active.value ? 224 : 210))
-const twinkleIntensity = computed(() => (active.value ? 0.6 : 0.35))
+const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
 </script>
 
 <template>

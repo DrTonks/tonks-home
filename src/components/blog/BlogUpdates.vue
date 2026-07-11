@@ -95,16 +95,16 @@ onMounted(async () => {
     <Tabs v-model="activeTab">
       <!-- 带滑动指示器的导航栏 -->
       <div class="relative mb-3">
-        <TabsList class="grid grid-cols-3 w-full h-8 bg-muted/40 backdrop-blur-sm relative">
-          <TabsTrigger value="article" class="text-[11px] gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+        <TabsList class="grid grid-cols-3 w-full h-8 content-center bg-muted backdrop-blur-sm relative">
+          <TabsTrigger value="article" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
             <FileText class="h-3 w-3" />
             文章
           </TabsTrigger>
-          <TabsTrigger value="project" class="text-[11px] gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+          <TabsTrigger value="project" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
             <FolderGit2 class="h-3 w-3" />
             项目
           </TabsTrigger>
-          <TabsTrigger value="timeline" class="text-[11px] gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+          <TabsTrigger value="timeline" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
             <History class="h-3 w-3" />
             时光机
           </TabsTrigger>

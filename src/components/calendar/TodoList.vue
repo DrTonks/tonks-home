@@ -119,7 +119,7 @@ onMounted(() => fetchTodos())
           type="text"
           placeholder="新增待办…"
           maxlength="100"
-          class="flex-1 h-8 px-2.5 text-xs rounded-md border border-border/60 bg-background focus:outline-none focus:border-primary/50"
+          class="flex-1 h-8 px-2.5 text-xs rounded-md border border-border bg-background focus:outline-none focus:border-primary/50"
         />
         <Button
           variant="default"

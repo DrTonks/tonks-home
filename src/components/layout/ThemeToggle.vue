@@ -11,7 +11,7 @@ function onToggle(e: MouseEvent) {
 
 <template>
   <button
-    class="theme-toggle fixed top-5 right-5 z-40 h-9 w-9 rounded-full flex items-center justify-center bg-card/60 backdrop-blur-sm border border-border/40 hover:border-primary/40 transition-all"
+    class="theme-toggle fixed top-5 right-5 z-40 h-9 w-9 rounded-full flex items-center justify-center bg-card backdrop-blur-sm border border-border hover:border-primary/40 transition-all"
     :aria-label="theme.isDark ? '切换到亮色主题' : '切换到暗色主题'"
     @click="onToggle"
   >

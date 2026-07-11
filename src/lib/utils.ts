@@ -30,6 +30,7 @@ export function timeAgo(ts: number | null | undefined): string {
   if (!ts) return '未知'
   const diff = Date.now() - ts * 1000
   const sec = Math.floor(diff / 1000)
+  if (sec < 1) return '刚刚'  // 负数=上报端时钟略快于本地，钳为"刚刚"避免出现"-2 秒前"
   if (sec < 60) return `${sec} 秒前`
   if (sec < 3600) return `${Math.floor(sec / 60)} 分钟前`
   if (sec < 86400) return `${Math.floor(sec / 3600)} 小时前`

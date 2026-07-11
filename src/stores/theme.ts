@@ -7,7 +7,7 @@ const STORAGE_KEY = 'theme'
 const mql = window.matchMedia('(prefers-color-scheme: dark)')
 
 export const useThemeStore = defineStore('theme', () => {
-  const mode = ref<ThemeMode>((localStorage.getItem(STORAGE_KEY) as ThemeMode) || 'system')
+  const mode = ref<ThemeMode>((localStorage.getItem(STORAGE_KEY) as ThemeMode) || 'light')
   const systemDark = ref(mql.matches)
 
   const isDark = computed(
@@ -16,6 +16,10 @@ export const useThemeStore = defineStore('theme', () => {
 
   function applyClass() {
     document.documentElement.classList.toggle('dark', isDark.value)
+    // 同步移动端浏览器 UI 颜色（地址栏/状态栏），避免与深色页面割裂
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', isDark.value ? '#0a1120' : '#F5F0F2')
   }
 
   function setMode(m: ThemeMode) {
