@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getAgentActivity, type AgentActivity } from '@/api/agent'
 import { getGitHubStats, type ContributionDay } from '@/api/github'
 import HeatmapChart from './HeatmapChart.vue'
+import { useThemeStore } from '@/stores/theme'
 
 const agentActivities = ref<AgentActivity[]>([])
 const githubDays = ref<ContributionDay[]>([])
@@ -67,7 +68,7 @@ function switchTab(tab: 'agent' | 'github') {
 }
 
 function updateIndicator() {
-  if (!githubAvailable) {
+  if (!githubAvailable.value) {
     indicatorStyle.value = { left: '0%', width: '100%' }
   } else {
     const isAgent = activeTab.value === 'agent'
@@ -84,8 +85,18 @@ watch(activeTab, (tab) => {
 })
 onMounted(() => { updateIndicator() })
 
-const agentLegend = ['#E6F2FB', '#B3D9F0', '#7CB9E8', '#4A95CC', '#1F6FA5']
-const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
+const theme = useThemeStore()
+const legend = computed(() => {
+  const dark = theme.isDark
+  if (displayTab.value === 'agent') {
+    return dark
+      ? ['#3a4656', '#0e3a5c', '#1a5c8c', '#2f86c2', '#5aa8dd']
+      : ['#E6F2FB', '#B3D9F0', '#7CB9E8', '#4A95CC', '#1F6FA5']
+  }
+  return dark
+    ? ['#3a4656', '#0e4429', '#006d32', '#26a641', '#39d353']
+    : ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
+})
 </script>
 
 <template>
@@ -110,20 +121,21 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
           </el-select>
           <div class="relative">
           <TabsList
-            class="h-7 bg-muted/40 backdrop-blur-sm"
+            class="h-7 content-center bg-muted/40 backdrop-blur-sm"
             :class="githubAvailable ? 'grid grid-cols-2' : 'grid-cols-1'"
           >
-            <TabsTrigger value="agent" class="text-[11px] gap-1 px-2 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+            <TabsTrigger value="agent" class="text-[11px] leading-none gap-1 px-2 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
               <Bot class="h-3 w-3" />
               Agent
             </TabsTrigger>
-            <TabsTrigger v-if="githubAvailable" value="github" class="text-[11px] gap-1 px-2 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+            <TabsTrigger v-if="githubAvailable" value="github" class="text-[11px] leading-none gap-1 px-2 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
               <Github class="h-3 w-3" />
               GitHub
             </TabsTrigger>
           </TabsList>
-          <!-- 玻璃滑动指示器 -->
+          <!-- 玻璃滑动指示器（仅亮色显示）-->
           <div
+            v-if="!theme.isDark"
             class="absolute bottom-0 h-0.5 bg-primary/80 rounded-full transition-all duration-300 ease-out"
             :style="{ left: indicatorStyle.left, width: indicatorStyle.width }"
           />
@@ -149,7 +161,7 @@ const githubLegend = ['#EEF7F2', '#C5E2D5', '#8DC4B0', '#5FA888', '#3D8068']
         </div>
         <div class="flex items-center justify-end gap-1 mt-1 text-[9px] text-muted-foreground">
           <span>Less</span>
-          <span v-for="(c, i) in (displayTab === 'agent' ? agentLegend : githubLegend)" :key="i" class="w-2.5 h-2.5 rounded-sm" :style="{ background: c }" />
+          <span v-for="(c, i) in legend" :key="i" class="w-2.5 h-2.5 rounded-sm" :style="{ background: c }" />
           <span>More</span>
         </div>
       </div>

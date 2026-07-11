@@ -39,10 +39,7 @@ function onMouseLeave(e: MouseEvent) {
     @mousemove="onMouseMove"
     @mouseleave="onMouseLeave"
   >
-    <div
-      class="absolute inset-0 pointer-events-none rounded-lg"
-      style="background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 40%, transparent 65%, rgba(255,255,255,0.06) 100%);"
-    />
+    <div class="card-sheen absolute inset-0 pointer-events-none rounded-lg" />
     <div class="relative z-[1]">
       <slot />
     </div>
@@ -62,5 +59,8 @@ function onMouseLeave(e: MouseEvent) {
     0 1px 3px rgba(26, 37, 48, 0.08),
     0 6px 16px rgba(26, 37, 48, 0.10),
     0 16px 40px rgba(26, 37, 48, 0.12);
+}
+.card-sheen {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, transparent 40%, transparent 65%, rgba(255, 255, 255, 0.06) 100%);
 }
 </style>

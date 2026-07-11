@@ -28,6 +28,7 @@
   --color-red: 0 72% 60%;
   --color-green: 142 50% 55%;
   --color-violet: 270 50% 68%;      /* 紫罗兰 — 点缀 */
+  --color-event-work: var(--color-sky);  /* 日历 work 事件色：亮色=天蓝 */
 
   /* === Semantic === */
   --background: var(--color-paper);
@@ -94,6 +95,97 @@
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/**
+ * 暗色主题草案（配合 Galaxy 银河星空背景）
+ * ——————————————————————————————————————————————
+ * 仅定义变量，尚未接入任何切换开关（不上线）。预览方式：
+ * 在浏览器给 <html> 或 <body> 加 class="dark"。
+ *
+ * 设计目标：
+ * 1. 背景近全黑，交给 Galaxy 星空承载，--background 只作兜底；
+ * 2. 文字整体反转为浅色分层（近白→次→弱），避免纯白刺眼；
+ * 3. 品牌蓝/绿/琥珀在黑底上「提亮 + 增饱和」，否则原本的深蓝(sky-deep)
+ *    标题与链接会看不见；
+ * 4. 玻璃卡片由「白玻璃」翻成「深色玻璃」，顶部高光大幅减弱，
+ *    阴影在黑底不可见，改用更深投影 + 极淡外描边让卡片浮出星空。
+ */
+.dark {
+  /* === 蓝绿系 —— 黑底上提亮、增饱和 === */
+  --color-sky: 40 92% 62%;          /* 暗色主色(primary) 改暖金：反馈 primary 相关处（状态/进度条/播放键/当前日期/大字）还是蓝 */
+  --color-sky-bright: 42 96% 72%;
+  --color-sky-deep: 40 90% 72%;     /* 暗色下标题/链接暖金对比色 */
+  --color-sky-soft: 207 40% 38%;    /* 装饰用，暗色压暗 */
+
+  --color-mint: 44 88% 66%;         /* 暗色下绿→暖金并提亮（日历 personal / 节日 / 次强调）*/
+  --color-mint-soft: 40 50% 50%;
+  --color-mint-deep: 40 84% 70%;    /* 暗色下栏目文字暖金 */
+
+  --color-amber: 40 78% 66%;
+  --color-amber-soft: 40 55% 50%;
+
+  --color-silver: 210 12% 42%;
+  --color-paper: 222 45% 6%;        /* 深空底（兜底，实际被 Galaxy 覆盖）*/
+
+  /* === 文字色 —— 反转为浅色分层 === */
+  --color-ink-1: 210 22% 92%;       /* 主文字：近白微蓝 */
+  --color-ink-2: 210 16% 74%;       /* 次文字 */
+  --color-ink-3: 210 12% 56%;       /* 弱文字/占位 */
+
+  /* === 功能色 —— 黑底提亮 === */
+  --color-red: 0 78% 68%;
+  --color-green: 142 55% 62%;
+  --color-violet: 270 62% 76%;
+  --color-event-work: 200 85% 62%;  /* 暗色 work 事件用青蓝，区分于暖金的 personal/holiday */
+
+  /* === Semantic === */
+  --background: 222 47% 5%;          /* 近黑深空 */
+  --foreground: var(--color-ink-1);
+
+  --card: 216 32% 13% / 0.45;        /* 深色玻璃：透出一点星光 */
+  --card-foreground: var(--color-ink-1);
+
+  --popover: 220 34% 11% / 0.94;     /* 下拉/弹层：不透明深色 */
+  --popover-foreground: var(--color-ink-1);
+
+  --primary: var(--color-sky);
+  --primary-foreground: 220 45% 8%;  /* 亮蓝按钮上用深色字更清晰 */
+
+  --secondary: var(--color-mint);
+  --secondary-foreground: 210 20% 90%;  /* 暗色：被当独立文字用（award/tag/假期高亮），改浅色可见 */
+
+  --muted: 210 18% 60% / 0.12;
+  --muted-foreground: var(--color-ink-2);
+
+  --accent: var(--color-amber);
+  --accent-foreground: 220 45% 8%;
+
+  --destructive: var(--color-red);
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 210 25% 72% / 0.14;      /* 暗玻璃描边：微亮 */
+  --input: 210 22% 60% / 0.22;
+  --ring: var(--color-sky);
+
+  --color-link: var(--color-sky-deep);
+
+  /* === 玻璃材质 —— 白玻璃翻深玻璃 === */
+  --glass-bg: rgba(22, 30, 46, 0.45);
+  --glass-bg-strong: rgba(16, 22, 34, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.14);  /* 顶部高光弱化 */
+
+  /* === 阴影 —— 黑底投影不可见，改深投影 + 极淡外描边 === */
+  --shadow-card:
+    0 1px 3px rgba(0, 0, 0, 0.40),
+    0 8px 24px rgba(0, 0, 0, 0.50),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-pop:
+    0 8px 30px rgba(0, 0, 0, 0.60),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-glow-primary: 0 0 26px hsl(var(--color-sky) / 0.55);
+  --shadow-glow-secondary: 0 0 26px hsl(var(--color-mint) / 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {

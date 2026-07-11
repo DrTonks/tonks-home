@@ -237,3 +237,126 @@ a {
 a:hover {
   color: hsl(var(--color-sky-bright));
 }
+
+/* ============================================================
+   暗色主题覆盖（配合 tokens.css 的 .dark 变量，尚未接入切换开关）
+   仅处理「不随语义变量自动适配」的全局工具类与第三方弹层。
+   ============================================================ */
+
+/* 顶部高光线：白 0.9 在黑底上太亮，减弱 */
+.dark .top-highlight::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent
+  );
+}
+
+/* 玻璃渐变描边：暗色下顶缘高光减弱、下缘转为更深，避免描边发白刺眼 */
+.dark .glass-edge::after {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.30),
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0) 58%,
+    rgba(0, 0, 0, 0.22)
+  );
+}
+
+/* 颗粒噪点：暗色下 overlay 会偏亮，改用 soft-light 并降透明度 */
+.dark .glass-noise::before {
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+}
+
+/* Element Plus 时间下拉弹层：白色 → 深色玻璃 */
+.dark .el-popper.is-light.time-popper {
+  background: rgba(20, 26, 38, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5) !important;
+}
+.dark .el-popper.is-light.time-popper .el-select-dropdown__item {
+  color: hsl(var(--color-ink-2));
+}
+.dark .el-popper.is-light.time-popper .el-select-dropdown__item.is-selected {
+  color: hsl(var(--primary));
+}
+
+/* 组件级暗色覆盖（放全局的原因：<style scoped> 里 `:global(.dark) 后代`
+   会被 Vue 丢掉后半段选择器、编译成裸 `.dark{}` 而失效并泄漏到根元素）。
+   这些类名（card-sheen/card-3d/sleep-z/time-select）足够独特，全局安全；
+   用 html.dark 前缀提高优先级，压过各组件 scoped 的默认规则。 */
+html.dark .card-sheen {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, transparent 42%, transparent 66%, rgba(255, 255, 255, 0.02) 100%);
+}
+html.dark .card-3d:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 1px 3px rgba(0, 0, 0, 0.40),
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    0 16px 40px rgba(0, 0, 0, 0.50);
+}
+html.dark .sleep-z {
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.20);
+}
+html.dark .time-select .el-input__wrapper {
+  background: rgba(255, 255, 255, 0.06);
+}
+html.dark .time-select .el-input__wrapper:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================================
+   主题切换圆形扩散过渡（View Transitions）
+   旧主题静止垫底，新主题用 clip-path 从点击点（--vt-x/--vt-y）
+   圆形扩散到 --vt-r（由 theme store 设置）。用 CSS @keyframes 而非
+   WAAPI pseudoElement，兼容性更好。
+   ============================================================ */
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  z-index: 0;
+}
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  z-index: 1;
+  animation: vt-clip-reveal 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes vt-clip-reveal {
+  from {
+    clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   暗色中心头像自发光呼吸（AvatarCore 外层发光层专用）
+   仅暗色挂载该层（模板 hidden dark:block），暖金辉光柔和脉动。
+   ============================================================ */
+@keyframes avatar-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 16px 1px hsl(var(--primary) / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px 5px hsl(var(--primary) / 0.62);
+  }
+}
+.animate-avatar-glow {
+  animation: avatar-glow 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-avatar-glow {
+    animation: none;
+    box-shadow: 0 0 22px 2px hsl(var(--primary) / 0.5);
+  }
+}

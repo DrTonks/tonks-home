@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+
+// 进入 404 即强制暗色并记住（404 是星空暗色设计；用户不喜欢可右上角自行切回）
+useThemeStore().setMode('dark')
 
 interface Star {
   id: number

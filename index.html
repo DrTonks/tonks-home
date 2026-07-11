@@ -32,6 +32,18 @@
     />
     <!-- Caveat 本地化 -->
     <link rel="preload" href="/fonts/caveat.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- 防闪烁：首屏渲染前依据 localStorage / 系统偏好预置 .dark -->
+    <script>
+      (function () {
+        try {
+          var m = localStorage.getItem('theme') || 'system'
+          var dark =
+            m === 'dark' ||
+            (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

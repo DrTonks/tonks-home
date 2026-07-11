@@ -67,7 +67,7 @@ function getEvents(date: string | null): CalendarEvent[] {
 }
 
 function eventDotColor(type: string): string {
-  if (type === 'work') return 'hsl(var(--color-sky))'
+  if (type === 'work') return 'hsl(var(--color-event-work))'
   if (type === 'personal') return 'hsl(var(--color-mint))'
   if (type === 'holiday') return 'hsl(var(--color-amber))'
   return 'hsl(var(--muted-foreground))'
@@ -113,7 +113,7 @@ function getDayOfHoliday(date: string): number {
         class="fixed z-[100] pointer-events-none -translate-x-1/2 -translate-y-full"
         :style="{ left: `${hoverCell.x}px`, top: `${hoverCell.y}px` }"
       >
-        <div class="bg-[#1A2530] text-white text-[11px] px-2 py-1.5 rounded-md shadow-lg whitespace-nowrap border border-white/10 leading-relaxed">
+        <div class="bg-[#1A2530] dark:bg-[#26384a] text-white text-[11px] px-2 py-1.5 rounded-md shadow-lg whitespace-nowrap border border-white/10 dark:border-white/20 leading-relaxed">
           <div v-for="(l, i) in hoverCell.labels" :key="i">{{ l }}</div>
         </div>
       </div>
@@ -140,10 +140,10 @@ function getDayOfHoliday(date: string): number {
             !isToday(cell.date) && getHolidayInfo(cell.date) &&
               (() => {
                 const hi = getHolidayInfo(cell.date)!
-                if (hi.isMiddle) return 'rounded-none bg-secondary/15 text-secondary-foreground font-semibold border-y-2 border-secondary/40'
-                if (hi.isFirst) return 'rounded-r-none bg-secondary/15 text-secondary-foreground font-semibold border-2 border-secondary/40 border-r-0'
-                if (hi.isLast) return 'rounded-l-none bg-secondary/15 text-secondary-foreground font-semibold border-2 border-secondary/40 border-l-0'
-                return 'border-2 border-secondary text-secondary-foreground bg-secondary/15 font-semibold'
+                if (hi.isMiddle) return 'rounded-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-y-2 border-secondary/40 dark:border-secondary/70'
+                if (hi.isFirst) return 'rounded-r-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-2 border-secondary/40 dark:border-secondary/70 border-r-0'
+                if (hi.isLast) return 'rounded-l-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-2 border-secondary/40 dark:border-secondary/70 border-l-0'
+                return 'border-2 border-secondary text-secondary-foreground bg-secondary/15 dark:bg-secondary/30 font-semibold'
               })(),
             !isToday(cell.date) && !getHolidayInfo(cell.date) && cell.date &&
               'text-foreground hover:bg-primary/15 hover:text-primary',

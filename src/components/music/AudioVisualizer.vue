@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { useMusicStore } from '@/stores/music'
+import { useThemeStore } from '@/stores/theme'
 
 const props = withDefaults(defineProps<{
   size?: number
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<{
 })
 
 const store = useMusicStore()
+const theme = useThemeStore()
 const { getFrequencyData } = useAudioAnalyzer()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -67,6 +69,14 @@ function neighborBoost(data: Float32Array): Float32Array {
  */
 function barColor(value: number): string {
   const v = Math.min(1, Math.max(0, value))
+  if (theme.isDark) {
+    // 暗色：低音纯白 → 高音淡橙/金（深空背景上更醒目）
+    const h = 42                  // 暖橙金色相
+    const s = v * 90              // 0(纯白) → 90%
+    const l = 100 - v * 26        // 100%(白) → 74%
+    const a = 0.5 + v * 0.5       // 50% → 100%
+    return `hsla(${h}, ${s}%, ${l}%, ${a})`
+  }
   const h = 230 - v * 50          // 230(深蓝) → 180(亮青)
   const s = 35 + v * 50           // 35% → 85%
   const l = 22 + v * 45           // 22% → 67%
@@ -142,7 +152,7 @@ function draw() {
   // ── 内圈基线 ──
   ctx.beginPath()
   ctx.arc(cx, cy, innerR, 0, 2 * Math.PI)
-  ctx.strokeStyle = 'hsla(207, 40%, 65%, 0.15)'
+  ctx.strokeStyle = theme.isDark ? 'rgba(255, 255, 255, 0.14)' : 'hsla(207, 40%, 65%, 0.15)'
   ctx.lineWidth = 0.8
   ctx.stroke()
 

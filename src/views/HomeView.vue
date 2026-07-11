@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AvatarCore from '@/components/layout/AvatarCore.vue'
 import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
+import GalaxyBackground from '@/components/layout/GalaxyBackground.vue'
+import ThemeToggle from '@/components/layout/ThemeToggle.vue'
 import DesktopPet from '@/components/layout/DesktopPet.vue'
 import CRTShutdown from '@/components/layout/CRTShutdown.vue'
 import { AdminAuth } from '@/components/auth'
@@ -11,6 +13,7 @@ import { DeviceStatus } from '@/components/device'
 import { BlogUpdates } from '@/components/blog'
 import { HeatmapPanel, LanguagePanel } from '@/components/heatmap'
 import { useMusicStore } from '@/stores/music'
+import { useThemeStore } from '@/stores/theme'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
@@ -28,6 +31,7 @@ const isExpanded = ref(false)
 // --- 音乐状态（驱动 MagicRings 参数） ---
 const router = useRouter()
 const musicStore = useMusicStore()
+const theme = useThemeStore()
 const showCRT = ref(false)
 
 function onPetRage() {
@@ -152,10 +156,13 @@ const componentListMobile = [
 <template>
   <main ref="mainRef" class="relative w-full min-h-dvh overflow-hidden bg-background isolate global-3d">
     <BackgroundLayer
+      v-if="!theme.isDark"
       :rings-opacity="ringsOpacity"
       :rings-speed="ringsSpeed"
       :rings-base-radius="ringsBaseRadius"
     />
+    <GalaxyBackground v-else />
+    <ThemeToggle />
     <AdminAuth />
     <GestureToggle
       v-if="!isMobile"
@@ -248,11 +255,11 @@ const componentListMobile = [
       </div>
     </template>
 
-    <!-- 移动端：纵向卡片栈 + 背景图 -->
+    <!-- 移动端：纵向卡片栈 + 背景图（暗色隐藏照片，露出 Galaxy 星空） -->
     <div
       v-else
       class="relative min-h-dvh flex flex-col items-center gap-4 px-4 py-8 sm:py-12"
-      style="background: url('/assets/ph-bg.jpg') center/cover no-repeat;"
+      :style="theme.isDark ? undefined : { background: `url('/assets/ph-bg.jpg') center/cover no-repeat` }"
     >
       <AvatarCore :size="80" />
       <div class="w-[calc(100%-2rem)] flex flex-col gap-4 mt-2 [&>*]:!w-full">

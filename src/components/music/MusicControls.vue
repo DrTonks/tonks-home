@@ -263,7 +263,7 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
           <div
             v-if="showVolume"
             ref="volumePopoverRef"
-            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-white/95 backdrop-blur-md border border-white/40 shadow-pop z-50"
+            class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-white/95 dark:bg-popover backdrop-blur-md border border-white/40 dark:border-white/15 shadow-pop z-50"
             @click.stop
           >
             <span class="text-[10px] text-muted-foreground tabular-nums w-5 text-center">{{ Math.round(Number(volume) * 100) }}</span>
@@ -350,7 +350,7 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
       <div
         v-show="showList"
         ref="listPopoverRef"
-        class="absolute left-3 right-3 top-full mt-2 max-h-36 overflow-y-auto rounded-md bg-white/95 backdrop-blur-md border border-white/30 shadow-pop z-10 origin-top"
+        class="absolute left-3 right-3 top-full mt-2 max-h-36 overflow-y-auto rounded-md bg-white/95 dark:bg-popover backdrop-blur-md border border-white/30 dark:border-white/15 shadow-pop z-10 origin-top"
       >
         <button
           v-for="(song, idx) in store.songs"

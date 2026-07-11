@@ -31,7 +31,7 @@ const upcoming = computed<Upcoming[]>(() => {
   }
   for (const e of events.value) {
     if (e.date >= todayStr) {
-      const c = e.type === 'work' ? 'hsl(var(--color-sky))' : 'hsl(var(--color-mint))'
+      const c = e.type === 'work' ? 'hsl(var(--color-event-work))' : 'hsl(var(--color-mint))'
       all.push({ name: e.name, date: e.date, color: c, diffLabel: '' })
     }
   }

@@ -47,7 +47,7 @@ watch(open, (val) => {
 })
 
 function typeColor(type: string): string {
-  if (type === 'work') return 'hsl(var(--color-sky))'
+  if (type === 'work') return 'hsl(var(--color-event-work))'
   if (type === 'personal') return 'hsl(var(--color-mint))'
   return 'hsl(var(--color-silver))'
 }

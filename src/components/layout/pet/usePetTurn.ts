@@ -8,7 +8,7 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
   const { t, c } = state
   const MOUSE_IDLE_MS = 10000
   const MOUSE_MAX_IDLE_MS = 120000
-  const TURN_COOLDOWN_MS = 120000  // tracking 结束后的转身冷却
+  const TURN_COOLDOWN_MS = 60000  // tracking 结束后的转身冷却
   const TRACKING_MIN_MS = 5000
   const TRACKING_MAX_MS = 10000
 
@@ -100,7 +100,7 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
     const idleTime = performance.now() - c.mouseLastMove
     if (idleTime < MOUSE_IDLE_MS) return
 
-    // tracking 结束 2min 冷却期内不触发转身
+    // tracking 结束 1min 冷却期内不触发转身
     if (c.lastTrackingEnd && performance.now() - c.lastTrackingEnd < TURN_COOLDOWN_MS) return
 
     if (idleTime >= MOUSE_MAX_IDLE_MS) {
@@ -141,7 +141,7 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
     if (m === 'cry' || m === 'sleep') resetMouseTracking()
   })
 
-  // tracking → false 时记录时间戳（2min 冷却）。唱歌退出不算真正的 tracking 结束
+  // tracking → false 时记录时间戳（1min 冷却）。唱歌退出不算真正的 tracking 结束
   watch(() => state.tracking.value, (v, prev) => {
     if (!v && prev && !state.singingState.value) c.lastTrackingEnd = performance.now()
   })

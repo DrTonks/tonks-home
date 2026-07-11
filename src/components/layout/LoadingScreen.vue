@@ -145,10 +145,10 @@ onMounted(async () => {
   const ring = [115, 116, 117, 135, 154, 171, 189, 188, 187, 168, 150, 132]
   const RING_LEN = ring.length
   const COLORS = [
-    'rgba(175,210,238,0.45)',   // 0 略深于默认格，做区分
-    'rgba(160,210,240,0.55)',   // 1
-    'rgba(110,185,230,0.78)',   // 2
-    'hsl(207,70%,65%)',         // 3 最亮
+    'rgba(200,150,60,0.4)',     // 0 暗琥珀，略深于默认格做区分
+    'rgba(230,175,70,0.6)',     // 1
+    'rgba(245,195,80,0.82)',    // 2
+    'hsl(42,95%,62%)',          // 3 最亮·亮金
   ]
   const intensities = new Array(RING_LEN).fill(0)
   let cursor = 0
@@ -196,10 +196,10 @@ onMounted(async () => {
   await preloadPromise
   await jsPreloadPromise
 
-  // 加载完成：切换为绿色（代表通过/完成）
+  // 加载完成：切换为暖白金（代表通过/完成，替代原绿色）
   clearInterval(spinnerTimer)
   ring.forEach(i => {
-    if (hexes.value[i]) hexes.value[i].style.fill = 'hsl(145, 50%, 55%)'
+    if (hexes.value[i]) hexes.value[i].style.fill = 'hsl(45, 90%, 78%)'
   })
 
   await playCollapse()
@@ -213,7 +213,7 @@ onMounted(async () => {
 <template>
   <div ref="containerRef" class="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden" style="background: hsl(var(--background))">
     <div class="absolute inset-0 pointer-events-none"
-      style="background: radial-gradient(ellipse at center, hsl(var(--color-sky) / 0.2) 0%, transparent 55%);"
+      style="background: radial-gradient(ellipse at center, hsl(42 90% 60% / 0.18) 0%, transparent 55%);"
     />
 
     <svg
@@ -228,8 +228,8 @@ onMounted(async () => {
           :key="`${l}-${r}`"
           class="ld-hex"
           points="0,-50 43.3,-25 43.3,25 0,50 -43.3,25 -43.3,-25"
-          fill="rgba(200,225,245,0.25)"
-          stroke="hsl(207 70% 65%)"
+          fill="rgba(210,180,110,0.14)"
+          stroke="hsl(42 85% 60%)"
           stroke-width="0.8"
           :transform="`translate(${l % 2 ? HEX_W * (r - 1) : HEX_W * (r - 1) + HEX_W / 2}, ${HEX_H * (l - 1)})`"
           style="stroke-dasharray: 100; stroke-dashoffset: 100; stroke-opacity: 0;"

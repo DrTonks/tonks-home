@@ -59,7 +59,7 @@ defineProps<{ project: FeaturedProject }>()
     <!-- 奖项 -->
     <div
       v-if="project.award"
-      class="flex items-center gap-1.5 text-[11px] text-secondary-foreground"
+      class="flex items-center gap-1.5 text-[11px] text-secondary-foreground dark:text-accent"
     >
       <Trophy class="h-3 w-3" />
       <span>{{ project.award }}</span>
