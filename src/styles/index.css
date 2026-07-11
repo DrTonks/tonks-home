@@ -145,6 +145,41 @@
     );
     pointer-events: none;
   }
+
+  /* Apple 风格渐变描边：上缘高光、下缘微暗，模拟顶部来光 */
+  .glass-edge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.72),
+      rgba(255, 255, 255, 0.18) 28%,
+      rgba(255, 255, 255, 0) 56%,
+      rgba(12, 22, 32, 0.06)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* 颗粒噪点：抑制大面积模糊的色带，增加细腻材质感 */
+  .glass-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='gn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gn)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
 }
 
 /* 焦点环（可访问性） */

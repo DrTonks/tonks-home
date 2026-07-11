@@ -13,8 +13,12 @@ interface Star {
 const stars = ref<Star[]>([])
 const show404 = ref(false)
 const showStars = ref(false)
+const countdown = ref(15)
 
 let t1: ReturnType<typeof setTimeout>, t2: ReturnType<typeof setTimeout>
+let redirectTimer: ReturnType<typeof setTimeout>
+let countdownTimer: ReturnType<typeof setInterval>
+
 onMounted(() => {
   t1 = setTimeout(() => { show404.value = true }, 400)
   t2 = setTimeout(() => {
@@ -28,8 +32,22 @@ onMounted(() => {
       duration: 2.5 + Math.random() * 5,
     }))
   }, 1200)
+
+  countdownTimer = setInterval(() => {
+    if (countdown.value > 0) countdown.value--
+  }, 1000)
+
+  redirectTimer = setTimeout(() => {
+    window.location.href = '/'
+  }, 15000)
 })
-onBeforeUnmount(() => { clearTimeout(t1); clearTimeout(t2) })
+
+onBeforeUnmount(() => {
+  clearTimeout(t1)
+  clearTimeout(t2)
+  clearTimeout(redirectTimer)
+  clearInterval(countdownTimer)
+})
 </script>
 
 <template>
@@ -44,13 +62,16 @@ onBeforeUnmount(() => { clearTimeout(t1); clearTimeout(t2) })
       Not Found
     </p>
 
+    <p href="/" v-if="show404" class="mt-4 text-xs tracking-[0.2em] text-white/20 animate-fade-in-up" style="animation-delay: 0.3s">
+      回到首页 · {{ countdown }} 秒后自动返回
+    </p>
+
     <a
       v-if="show404"
-      href="/"
       class="mt-10 text-xs tracking-[0.2em] text-white/25 hover:text-white/60 transition-colors duration-500 animate-fade-in-up"
       style="animation-delay: 0.6s"
     >
-      回到首页
+      不许忘记我。
     </a>
 
     <template v-if="showStars">

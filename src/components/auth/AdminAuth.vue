@@ -19,6 +19,7 @@ const showLogin = ref(false)
 const showLogoutConfirm = ref(false)
 const secret = ref('')
 const error = ref('')
+const submitting = ref(false)
 
 function openLogin() {
   secret.value = ''
@@ -26,14 +27,27 @@ function openLogin() {
   showLogin.value = true
 }
 
-function submitLogin() {
-  if (!secret.value.trim()) {
+async function submitLogin() {
+  const s = secret.value.trim()
+  if (!s) {
     error.value = '请输入密钥'
     return
   }
-  admin.login(secret.value.trim())
-  showLogin.value = false
-  secret.value = ''
+  submitting.value = true
+  error.value = ''
+  try {
+    const ok = await admin.login(s)
+    if (ok) {
+      showLogin.value = false
+      secret.value = ''
+    } else {
+      error.value = '密钥不正确，请重试'
+    }
+  } catch {
+    error.value = '验证失败，请检查网络后重试'
+  } finally {
+    submitting.value = false
+  }
 }
 
 function confirmLogout() {
@@ -80,7 +94,8 @@ function confirmLogout() {
         <input
           v-model="secret"
           type="password"
-          class="w-full px-3 py-2 text-sm bg-background/60 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          :disabled="submitting"
+          class="w-full px-3 py-2 text-sm bg-background/60 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-60"
           placeholder="管理员密钥"
           @keyup.enter="submitLogin"
         />
@@ -88,9 +103,11 @@ function confirmLogout() {
       </div>
       <DialogFooter>
         <DialogClose as-child>
-          <Button variant="ghost">取消</Button>
+          <Button variant="ghost" :disabled="submitting">取消</Button>
         </DialogClose>
-        <Button @click="submitLogin">登录</Button>
+        <Button :disabled="submitting" @click="submitLogin">
+          {{ submitting ? '验证中…' : '登录' }}
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>

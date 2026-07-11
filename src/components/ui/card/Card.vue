@@ -31,7 +31,7 @@ function onMouseLeave(e: MouseEvent) {
   <div
     :class="
       cn(
-        'relative rounded-lg border border-white/15 bg-white/20 text-card-foreground shadow-card glass-blur overflow-hidden card-3d duration-normal ease-out-expo',
+        'relative rounded-lg bg-white/20 text-card-foreground shadow-card glass-blur glass-edge glass-noise overflow-hidden card-3d duration-normal ease-out-expo',
         props.class,
       )
     "
@@ -54,13 +54,13 @@ function onMouseLeave(e: MouseEvent) {
   --mx: 0;
   --my: 0;
   transform: perspective(1000px) rotateY(calc(var(--mx) * 5deg)) rotateX(calc(var(--my) * -5deg));
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease-out, border-color 0.3s ease-out;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease-out;
 }
 .card-3d:hover {
   box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
     0 1px 3px rgba(26, 37, 48, 0.08),
     0 6px 16px rgba(26, 37, 48, 0.10),
     0 16px 40px rgba(26, 37, 48, 0.12);
-  border-color: rgba(255, 255, 255, 0.3);
 }
 </style>
