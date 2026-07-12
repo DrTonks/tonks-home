@@ -1,27 +1,28 @@
 {
   "greeting": {
     "morning": [
-      "早上好。"
+      "早上好。",
+      "/assets/emoji/happy-1.jpg",
+      "/assets/emoji/happy-2.jpg"
     ],
     "afternoon": [
-      "很高兴见到你。"
+      "很高兴见到你。",
+      "/assets/emoji/happy-1.jpg",
+      "/assets/emoji/happy-2.jpg"
     ],
     "evening": [
       "晚上好。",
-      "需要关灯吗？右上角可以切换暗色主题。"
+      "/assets/emoji/happy-1.jpg",
+      "/assets/emoji/happy-2.jpg"
     ],
     "night": [
       "我们会再见面的。",
-      "夜深了。"
+      "夜深了。",
+      "/assets/emoji/sleep.jpg"
     ]
   },
   "click": {
-    "idle": ["？", "...", "。。。"],
-    "happy": ["^ ^"],
-    "angry": ["可以了", "怎么这么无聊", "停。"],
-    "threat": ["..."],
-    "cry": ["呜……"],
-    "sleep": ["唔……"]
+    "idle": ["？", "...", "。。。"]
   },
   "idle": [
     "这里万籁俱寂...太安静了。别留下我。",
@@ -29,10 +30,10 @@
     "^ ^",
     "你在忙什么？"
   ],
-  "happy": ["^ ^", "很高兴见到你。"],
-  "angry": ["💢", "...", "。。。"],
-  "sleep": ["zzZ"],
-  "cry": ["不准忘记我", "你在哪里？"],
-  "threat": ["· · ·"],
-  "turn": ["在想什么事？", "在忙吗？", "..."]
+  "happy": ["^ ^", "你好!", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
+  "angry": ["。。。", "/assets/emoji/angry2.jpg"],
+  "sleep": ["zzZ", "/assets/emoji/sleep.jpg"],
+  "cry": ["不准忘记我", "你在哪？","/assets/emoji/cry.jpg"],
+  "threat": ["· · ·", "/assets/emoji/angry.jpg"],
+  "turn": ["/assets/emoji/cry.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"]
 }

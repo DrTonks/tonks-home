@@ -125,12 +125,7 @@ function handleClick(e: MouseEvent) {
     singing.spawnSingingNotes(5)
     return
   }
-  // 点击气泡：非音乐模式、且上一个气泡已结束（缓冲，避免高频点击刷屏）
-  if (!bubble.isMusicMode() && !bubble.visible.value) {
-    // 点击反应按当前情绪分（idle/happy/angry/threat/cry/sleep）
-    const clickMap = dialogue.click as Record<string, string[]>
-    bubble.say(pick(clickMap[state.mood.value] ?? clickMap.idle ?? []))
-  }
+  // 点击的说话反馈交给情绪变化：core 改 mood → watch(mood) 说对应情绪句/表情（不再单独用 click 句库）
   core.handleClick(e)
 }
 
@@ -193,6 +188,7 @@ onBeforeUnmount(() => {
           :text="bubble.text.value"
           :original="bubble.original.value"
           :translation="bubble.translation.value"
+          :emoji="bubble.emoji.value"
           :placement="placement"
         />
         <!-- 粒子 -->

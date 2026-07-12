@@ -9,7 +9,7 @@
  */
 import { ref } from 'vue'
 
-export type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes'
+export type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes' | 'emoji'
 
 const THINK_MS = 600 // "..." 思考缓冲
 const THINK_MIN_LEN = 4 // 句子 ≥ 此长度才走思考态（短句直接打字，免拖沓）
@@ -17,6 +17,12 @@ const TYPE_SPEED = 45 // 每字毫秒
 const READ_BASE = 2000 // 打字完后的基础停留（阅读）时间
 const READ_PER_CHAR = 250 // 每多一个字符延长的停留时间，让用户多看几眼
 const SAY_COOLDOWN = 300 // 气泡收起后的冷却期，避免连续无缝冒泡，让它"喘口气"
+const EMOJI_MS = 4000 // 表情包固定展示时长（区别于文字：文字随字数）
+
+/** 句库条目是否为表情包图片（public/assets/emoji 下的相对路径，或图片扩展名） */
+export function isEmoji(s: string): boolean {
+  return /\.(png|jpe?g|gif|webp|apng)$/i.test(s) || s.startsWith('/assets/emoji/')
+}
 
 export function useSpeechBubble() {
   const visible = ref(false)
@@ -24,6 +30,7 @@ export function useSpeechBubble() {
   const text = ref('')
   const original = ref('')
   const translation = ref('')
+  const emoji = ref('') // 表情包图片路径（emoji 模式）
 
   let thinkTimer: ReturnType<typeof setTimeout> | null = null
   let hideTimer: ReturnType<typeof setTimeout> | null = null
@@ -48,6 +55,17 @@ export function useSpeechBubble() {
     clearTimers()
     text.value = ''
     visible.value = true
+    // 表情包：先 "..." 思考缓冲（同 ≥4 字文字），再出图，固定 EMOJI_MS
+    if (isEmoji(sentence)) {
+      const showEmoji = () => {
+        mode.value = 'emoji'
+        emoji.value = sentence
+        hideTimer = setTimeout(hide, EMOJI_MS)
+      }
+      mode.value = 'thinking'
+      thinkTimer = setTimeout(showEmoji, THINK_MS)
+      return
+    }
     const showText = () => {
       mode.value = 'typing'
       text.value = sentence
@@ -96,6 +114,7 @@ export function useSpeechBubble() {
     text,
     original,
     translation,
+    emoji,
     say,
     showLyric,
     showNotes,

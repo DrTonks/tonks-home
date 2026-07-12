@@ -11,7 +11,7 @@
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { NOTE_SYMBOLS } from './state'
 
-type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes'
+type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes' | 'emoji'
 type Placement = 'left' | 'right'
 
 const props = withDefaults(
@@ -21,6 +21,7 @@ const props = withDefaults(
     text?: string // typing：完整句子（组件内逐字）
     original?: string // lyric：原文（主）
     translation?: string // lyric：译文（次）
+    emoji?: string // emoji：表情包图片路径
     placement?: Placement
     typeSpeed?: number // 每字毫秒
   }>(),
@@ -30,6 +31,7 @@ const props = withDefaults(
     text: '',
     original: '',
     translation: '',
+    emoji: '',
     placement: 'left',
     typeSpeed: 45,
   },
@@ -83,7 +85,7 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
     <div
       v-if="visible"
       class="pet-bubble"
-      :class="`place-${placement}`"
+      :class="[`place-${placement}`, { 'is-emoji': mode === 'emoji' }]"
       role="status"
       aria-live="polite"
     >
@@ -101,6 +103,15 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
         <span class="lyric-main">{{ original }}</span>
         <span v-if="translation" class="lyric-sub">{{ translation }}</span>
       </span>
+
+      <!-- 表情包：图片，气泡贴合尺寸 -->
+      <img
+        v-else-if="mode === 'emoji'"
+        :src="emoji"
+        class="bubble-emoji"
+        alt="表情"
+        draggable="false"
+      />
 
       <!-- 无歌词时段：彩色跳动音符 -->
       <span v-else class="notes" aria-hidden="true">
@@ -135,23 +146,40 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
   box-shadow: var(--shadow-pop, 0 8px 24px rgba(0, 0, 0, 0.18));
   backdrop-filter: blur(10px) saturate(150%);
   -webkit-backdrop-filter: blur(10px) saturate(150%);
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.5;
   text-align: center;
   pointer-events: none;
   transform-origin: var(--bubble-origin, bottom center);
 }
 
+/* ===== 表情包：气泡贴合图片，去掉文字的内边距 ===== */
+.pet-bubble.is-emoji {
+  padding: 4px;
+  min-width: 0;
+  max-width: none;
+  top: -16px; /* 表情包更高，补偿图片高度 */
+}
+.bubble-emoji {
+  display: block;
+  max-width: 100px;
+  max-height: 100px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
 /* ===== 相对桌宠的方位（桌宠在 petRef 容器内，宽 W=130）=====
    气泡水平出现在桌宠一侧、对齐头部高度；尾巴在朝桌宠那侧、垂直居中，尖角指向桌宠。 */
 .place-left {
   right: calc(100% - 26px);
-  top: 28px;
+  top: 14px;
   --bubble-origin: right center;
 }
 .place-right {
   left: calc(100% - 26px);
-  top: 28px;
+  top: 14px;
   --bubble-origin: left center;
 }
 
@@ -203,11 +231,11 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
   gap: 2px;
 }
 .lyric-main {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 .lyric-sub {
-  font-size: 11px;
+  font-size: 12.5px;
   opacity: 0.72;
 }
 
