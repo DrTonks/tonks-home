@@ -4,6 +4,7 @@ import {
   getMusicList,
   uploadMusic,
   deleteMusic,
+  reorderMusic,
   getMusicStreamUrl,
   type MusicFile,
 } from '@/api/music'
@@ -15,6 +16,8 @@ export const useMusicStore = defineStore('music', () => {
   const songs = ref<MusicFile[]>([])
   const currentIndex = ref(-1)
   const isPlaying = ref(false)
+  const currentTime = ref(0) // 播放进度（秒），由 MusicControls 同步 —— 供 LRC 歌词等复用
+  const duration = ref(0)
   const loading = ref(false)
   const shuffleMode = ref<ShuffleMode>('off')
   const repeatMode = ref<RepeatMode>('all')
@@ -108,8 +111,8 @@ export const useMusicStore = defineStore('music', () => {
   }
 
   // 管理员
-  async function upload(file: File, title?: string, artist?: string) {
-    const res = await uploadMusic(file, title, artist)
+  async function upload(file: File, title?: string, artist?: string, lyrics?: File | null) {
+    const res = await uploadMusic(file, title, artist, lyrics)
     if (res.success) await fetchList()
     return res
   }
@@ -134,6 +137,12 @@ export const useMusicStore = defineStore('music', () => {
     return res
   }
 
+  async function reorder(order: string[]) {
+    const res = await reorderMusic(order)
+    if (res.success) await fetchList() // fetchList 按 filename 保持当前播放曲
+    return res
+  }
+
   function getStreamUrl(filename: string) {
     return getMusicStreamUrl(filename)
   }
@@ -143,6 +152,8 @@ export const useMusicStore = defineStore('music', () => {
     currentIndex,
     currentSong,
     isPlaying,
+    currentTime,
+    duration,
     loading,
     shuffleMode,
     repeatMode,
@@ -158,6 +169,7 @@ export const useMusicStore = defineStore('music', () => {
     stop,
     upload,
     remove,
+    reorder,
     getStreamUrl,
   }
 })

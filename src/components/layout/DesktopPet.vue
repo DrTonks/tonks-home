@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { createPetState, W, H, TURN_FRAME_PATH } from './pet/state'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { createPetState, W, H, TURN_FRAME_PATH, FRAMES } from './pet/state'
 import { usePetCore } from './pet/usePetCore'
 import { usePetSinging } from './pet/usePetSinging'
 import { usePetTurn } from './pet/usePetTurn'
+import SpeechBubble from './pet/SpeechBubble.vue'
+import { useSpeechBubble } from './pet/useSpeechBubble'
+import { usePetLyrics } from './pet/usePetLyrics'
+import dialogue from '@/data/pet-dialogue.json'
 
 const emit = defineEmits<{ rage: [] }>()
 const state = createPetState()
@@ -43,22 +47,129 @@ const singing = usePetSinging(state, () => {
   core.scheduleAction()
 })
 
+// ===== 对话气泡 =====
+const bubble = useSpeechBubble()
+
+// 唱歌时的歌词/音符模式（按播放进度驱动同一个气泡）
+usePetLyrics(state, bubble)
+
+type Placement = 'left' | 'right'
+// 桌宠在视口右半 → 气泡出现在左侧（尾巴指右）；左半 → 气泡在右侧（尾巴指左）
+const placement = computed<Placement>(() =>
+  state.pos.value.x + W / 2 > window.innerWidth / 2 ? 'left' : 'right',
+)
+
+function pick(arr: string[]): string {
+  return arr.length ? arr[Math.floor(Math.random() * arr.length)] : ''
+}
+
+// 能否说"闲聊"话（点击/空闲/问候/转身）——紧张的威胁态不闲聊
+function canDailyTalk(): boolean {
+  return (
+    !state.singingState.value &&
+    !state.rageActive.value &&
+    state.mood.value !== 'threat' &&
+    !bubble.isMusicMode()
+  )
+}
+
+// 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词
+function canEmotionTalk(): boolean {
+  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
+}
+
+// 进页面按时段问候
+function greet() {
+  const h = new Date().getHours()
+  const slot =
+    h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
+  bubble.say(pick(dialogue.greeting[slot as keyof typeof dialogue.greeting]))
+}
+
+// 情绪变化时说对应情绪的台词（含 threat；空句类自动跳过）
+watch(
+  () => state.mood.value,
+  (m) => {
+    if (!canEmotionTalk()) return
+    if (m === 'happy') bubble.say(pick(dialogue.happy))
+    else if (m === 'angry') bubble.say(pick(dialogue.angry))
+    else if (m === 'cry') bubble.say(pick(dialogue.cry))
+    else if (m === 'sleep') bubble.say(pick(dialogue.sleep))
+    else if (m === 'threat') bubble.say(pick(dialogue.threat))
+  },
+)
+
+// 一次性转身（转头看鼠标、非跟踪态）时说一句（doTurn 本就是静止 10s 才触发的低频事件）
+watch(
+  () => state.turnDirection.value,
+  (dir, prev) => {
+    if (dir && !prev && !state.tracking.value && canDailyTalk() && Math.random() < 0.6) {
+      bubble.say(pick(dialogue.turn))
+    }
+  },
+)
+
+let idleTalkTimer: ReturnType<typeof setInterval> | null = null
+
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
   if (state.rageActive.value) return
+  // 拖拽后的伪点击：交给 core 检测并清 moved 标志，不触发任何点击反应/气泡
+  if (state.moved.value) {
+    core.handleClick(e)
+    return
+  }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)
   if (state.singingState.value) {
     singing.spawnSingingNotes(5)
     return
   }
+  // 点击气泡：非音乐模式、且上一个气泡已结束（缓冲，避免高频点击刷屏）
+  if (!bubble.isMusicMode() && !bubble.visible.value) {
+    // 点击反应按当前情绪分（idle/happy/angry/threat/cry/sleep）
+    const clickMap = dialogue.click as Record<string, string[]>
+    bubble.say(pick(clickMap[state.mood.value] ?? clickMap.idle ?? []))
+  }
   core.handleClick(e)
 }
 
-onMounted(() => turn.startMouseSystem())
+// 外部激怒（中指手势等）：进 threat 约 1 秒后直接暴怒（emit rage）
+let provokeTimer: ReturnType<typeof setTimeout> | null = null
+function provoke() {
+  if (state.rageActive.value) return
+  bubble.hide()
+  state.mood.value = 'threat'
+  state.showFrame.value = FRAMES.threat
+  if (provokeTimer) clearTimeout(provokeTimer)
+  provokeTimer = setTimeout(() => {
+    if (state.mood.value === 'threat' && !state.rageActive.value) core.startRage()
+  }, 1000)
+}
+defineExpose({ provoke })
+
+onMounted(() => {
+  turn.startMouseSystem()
+  // 进页面时段问候（等桌宠落地动画）
+  setTimeout(greet, 1600)
+  // 空闲随机冒泡（仅真正 idle 时；避免在 cry/sleep/生气等情绪态反复播 idle 句）
+  idleTalkTimer = setInterval(() => {
+    if (
+      state.mood.value === 'idle' &&
+      canDailyTalk() &&
+      !bubble.visible.value &&
+      Math.random() < 0.55
+    ) {
+      bubble.say(pick(dialogue.idle))
+    }
+  }, 28000)
+})
 
 onBeforeUnmount(() => {
   singing.stopAllSinging()
+  bubble.hide()
+  if (idleTalkTimer) clearInterval(idleTalkTimer)
+  if (provokeTimer) clearTimeout(provokeTimer)
 })
 </script>
 
@@ -75,6 +186,15 @@ onBeforeUnmount(() => {
   >
     <div class="drop-enter drop-layer">
       <div ref="petRef" class="relative !overflow-visible">
+        <!-- 对话气泡 -->
+        <SpeechBubble
+          :visible="bubble.visible.value"
+          :mode="bubble.mode.value"
+          :text="bubble.text.value"
+          :original="bubble.original.value"
+          :translation="bubble.translation.value"
+          :placement="placement"
+        />
         <!-- 粒子 -->
         <span
           v-for="p in state.particles.value"

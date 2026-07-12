@@ -87,7 +87,7 @@ function confirmLogout() {
       <DialogHeader>
         <DialogTitle>管理员登录</DialogTitle>
         <DialogDescription>
-          输入管理员密钥以启用上传/删除等管理功能。密钥将存储在浏览器本地。
+          输入密钥以启用管理功能。
         </DialogDescription>
       </DialogHeader>
       <div class="space-y-2 py-2">

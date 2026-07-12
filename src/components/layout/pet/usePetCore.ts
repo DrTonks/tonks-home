@@ -361,7 +361,8 @@ export function usePetCore(
         state.mood.value = 'idle'; state.showFrame.value = FRAMES.idle
         scheduleBlink(); scheduleAction(); resetIdleTimers()
       }
-      state.moved.value = false
+      // 不在此清 moved：留给紧随其后的 click 事件（handleClick 检测到 moved 后忽略并清除），
+      // 否则伪点击会被当作真点击。下次 onPointerDown 也会重置 moved。
     }
   }
 

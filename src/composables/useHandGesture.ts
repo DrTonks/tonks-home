@@ -18,12 +18,14 @@ interface Landmark {
  *   palm  — 张开手掌（四指尖到手腕平均距离 > 0.4）
  *   pinch — 拇指食指捏合（指尖距离 < 0.05）
  *   snap  — 打响指   （拇指与中指先捏紧→快速分离，上升沿触发）
+ *   middleFinger — 竖中指（中指伸展、其余三指弯曲）→ 激怒桌宠
  */
 export function useHandGesture(
   videoRef: Ref<HTMLVideoElement | null>,
   onPalm: () => void,
   onPinch?: () => void,
   onSnap?: () => void,
+  onMiddleFinger?: () => void,
 ) {
   const isActive = ref(false)
   const isLoading = ref(false)
@@ -38,8 +40,10 @@ export function useHandGesture(
   // 各手势防抖计数器
   let palmFrameCount = 0
   let pinchFrameCount = 0
+  let middleFrameCount = 0
   let lastPalm = false
   let lastPinch = false
+  let lastMiddle = false
 
   // 打响指状态机：追踪拇指尖(4) ↔ 中指尖(12) 距离
   let snapPinching = false
@@ -60,8 +64,11 @@ export function useHandGesture(
 
       const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision')
       if (cancelled) { stop(); return }
-      const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+      // wasm 优先本地（public/mediapipe/wasm，避免从 CDN 下载 ~11MB 拖慢加载）；失败退回 CDN
+      const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm').catch(() =>
+        FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+        ),
       )
 
       const modelPaths = [
@@ -142,6 +149,32 @@ export function useHandGesture(
     return totalDist / tips.length > 0.4
   }
 
+  /** 竖中指：中指伸展、其余三指（食指/无名指/小指）弯曲，且中指为最长伸展指 */
+  function isMiddleFinger(landmarks: Landmark[]): boolean {
+    const wrist = landmarks[0]
+    const midTip = landmarks[12]
+    const midPip = landmarks[10]
+    const idxTip = landmarks[8]
+    const idxPip = landmarks[6]
+    const ringTip = landmarks[16]
+    const ringPip = landmarks[14]
+    const pinkyTip = landmarks[20]
+    const pinkyPip = landmarks[18]
+    if (
+      [wrist, midTip, midPip, idxTip, idxPip, ringTip, ringPip, pinkyTip, pinkyPip].some((p) => !p)
+    ) {
+      return false
+    }
+    const dw = (p: Landmark) => Math.hypot(p.x - wrist.x, p.y - wrist.y)
+    const midExtended = dw(midTip) > dw(midPip) * 1.15 // 中指伸展（指尖比 PIP 明显更远）
+    const idxCurled = dw(idxTip) < dw(idxPip) // 食指弯曲（指尖比 PIP 更近手腕）
+    const ringCurled = dw(ringTip) < dw(ringPip)
+    const pinkyCurled = dw(pinkyTip) < dw(pinkyPip)
+    const midLongest =
+      dw(midTip) > dw(idxTip) && dw(midTip) > dw(ringTip) && dw(midTip) > dw(pinkyTip)
+    return midExtended && idxCurled && ringCurled && pinkyCurled && midLongest
+  }
+
   function detect() {
     if (!isActive.value || !handLandmarker || !videoRef.value) return
     const video = videoRef.value
@@ -182,11 +215,28 @@ export function useHandGesture(
               lastPinch = false
             }
           }
+
+          // 竖中指（3 帧防抖）→ 激怒桌宠
+          if (onMiddleFinger) {
+            const mid = isMiddleFinger(landmarks)
+            if (mid) {
+              middleFrameCount++
+              if (middleFrameCount >= 3 && !lastMiddle) {
+                lastMiddle = true
+                onMiddleFinger()
+              }
+            } else {
+              middleFrameCount = 0
+              lastMiddle = false
+            }
+          }
         } else {
           palmFrameCount = 0
           pinchFrameCount = 0
+          middleFrameCount = 0
           lastPalm = false
           lastPinch = false
+          lastMiddle = false
         }
       } catch {
         // detectForVideo 偶尔会抛错（视频未就绪），忽略
@@ -222,8 +272,10 @@ export function useHandGesture(
     document.removeEventListener('visibilitychange', onVisibilityChange)
     palmFrameCount = 0
     pinchFrameCount = 0
+    middleFrameCount = 0
     lastPalm = false
     lastPinch = false
+    lastMiddle = false
     snapPinching = false
   }
 

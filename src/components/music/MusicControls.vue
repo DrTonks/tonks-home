@@ -10,17 +10,29 @@ import {
   Repeat1,
   ListMusic,
   ChevronDown,
+  ChevronUp,
   Volume2,
   Volume1,
   VolumeX,
 } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
+import { useAdminStore } from '@/stores/admin'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn, formatTime } from '@/lib/utils'
 
 const store = useMusicStore()
+const admin = useAdminStore()
+
+// 管理员排序：把第 idx 项上移(dir=-1)/下移(dir=1)一位，提交完整新顺序
+function moveTrack(idx: number, dir: -1 | 1) {
+  const to = idx + dir
+  if (to < 0 || to >= store.songs.length) return
+  const order = store.songs.map((s) => s.filename)
+  ;[order[idx], order[to]] = [order[to], order[idx]]
+  store.reorder(order)
+}
 
 const audio = ref<HTMLAudioElement | null>(null)
 const currentTime = ref(0)
@@ -128,6 +140,8 @@ watch(
     if (!newName || newName === oldName) return
     currentTime.value = 0
     duration.value = 0
+    store.currentTime = 0
+    store.duration = 0
     requestAnimationFrame(() => {
       if (audio.value) {
         audio.value.load()
@@ -156,10 +170,16 @@ watch(
 )
 
 function onTimeUpdate() {
-  if (audio.value) currentTime.value = audio.value.currentTime
+  if (audio.value) {
+    currentTime.value = audio.value.currentTime
+    store.currentTime = currentTime.value // 同步共享进度（供 LRC 歌词）
+  }
 }
 function onLoadedMetadata() {
-  if (audio.value) duration.value = audio.value.duration
+  if (audio.value) {
+    duration.value = audio.value.duration
+    store.duration = duration.value
+  }
 }
 function onEnded() {
   if (store.repeatMode === 'one') {
@@ -352,10 +372,10 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
         ref="listPopoverRef"
         class="absolute left-3 right-3 top-full mt-2 max-h-36 overflow-y-auto rounded-md bg-white/95 dark:bg-popover backdrop-blur-md border border-white/30 dark:border-white/15 shadow-pop z-10 origin-top"
       >
-        <button
+        <div
           v-for="(song, idx) in store.songs"
           :key="song.filename"
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-primary/10 transition-colors group"
+          class="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-primary/10 transition-colors group cursor-pointer"
           :class="idx === store.currentIndex ? 'bg-primary/15' : ''"
           @click="store.play(idx)"
         >
@@ -373,7 +393,26 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
               {{ song.artist }}
             </p>
           </div>
-        </button>
+          <!-- 管理员排序：上移 / 下移 -->
+          <div v-if="admin.isLoggedIn" class="flex flex-col shrink-0 -my-1">
+            <button
+              class="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              :disabled="idx === 0"
+              aria-label="上移"
+              @click.stop="moveTrack(idx, -1)"
+            >
+              <ChevronUp class="h-3.5 w-3.5" />
+            </button>
+            <button
+              class="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              :disabled="idx === store.songs.length - 1"
+              aria-label="下移"
+              @click.stop="moveTrack(idx, 1)"
+            >
+              <ChevronDown class="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
         <div
           v-if="store.isEmpty"
           class="px-2.5 py-3 text-center text-[11px] text-muted-foreground"

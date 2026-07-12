@@ -40,6 +40,13 @@ function onPetRage() {
     router.push('/404')
   }, 900)
 }
+
+// 桌宠实例：中指手势激怒时调用其 provoke（进 threat 约 1 秒后暴怒）
+const petRef = ref<InstanceType<typeof DesktopPet> | null>(null)
+function onMiddleFinger() {
+  petRef.value?.provoke()
+}
+
 const ringsOpacity = computed(() => isExpanded.value ? 0.5 : 0)
 
 // 魔法环参数 — 有实际音频信号才变化（与桌宠唱歌、音频可视化共用 hasSignal）
@@ -136,7 +143,7 @@ onMounted(() => {
   }
   // 记住展开状态：上次展开 → 自动展开
   if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
-    setTimeout(() => toggle(), 1000)
+    setTimeout(() => toggle(), 1500)
   }
 })
 
@@ -169,9 +176,10 @@ const componentListMobile = [
       @palm="!isExpanded && toggle()"
       @pinch="isExpanded && toggle()"
       @snap="musicStore.togglePlay()"
+      @middle-finger="onMiddleFinger"
     />
     <Transition name="pet-fade">
-      <DesktopPet v-if="isExpanded && !isCollapsing" @rage="onPetRage" />
+      <DesktopPet ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" />
     </Transition>
     <CRTShutdown :show="showCRT" />
 

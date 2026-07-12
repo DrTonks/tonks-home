@@ -17,6 +17,7 @@ const emit = defineEmits<{
   palm: []
   pinch: []
   snap: []
+  middleFinger: []
 }>()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -27,6 +28,7 @@ const { isActive, isLoading, error, start, stop } = useHandGesture(
   () => emit('palm'),
   () => emit('pinch'),
   () => emit('snap'),
+  () => emit('middleFinger'),
 )
 
 async function requestPermission() {

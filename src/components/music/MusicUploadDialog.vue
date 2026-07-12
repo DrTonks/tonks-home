@@ -20,6 +20,7 @@ const store = useMusicStore()
 const uploadTitle = ref('')
 const uploadArtist = ref('')
 const uploadFile = ref<File | null>(null)
+const uploadLyrics = ref<File | null>(null)
 const isUploading = ref(false)
 
 watch(open, (val) => {
@@ -27,6 +28,7 @@ watch(open, (val) => {
     uploadTitle.value = ''
     uploadArtist.value = ''
     uploadFile.value = null
+    uploadLyrics.value = null
   }
 })
 
@@ -45,11 +47,21 @@ function pickFile() {
   input.click()
 }
 
+function pickLyrics() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.lrc,text/plain'
+  input.onchange = () => {
+    if (input.files && input.files[0]) uploadLyrics.value = input.files[0]
+  }
+  input.click()
+}
+
 async function doUpload() {
   if (!uploadFile.value) return
   isUploading.value = true
   try {
-    await store.upload(uploadFile.value, uploadTitle.value, uploadArtist.value)
+    await store.upload(uploadFile.value, uploadTitle.value, uploadArtist.value, uploadLyrics.value)
     open.value = false
   } finally {
     isUploading.value = false
@@ -93,6 +105,17 @@ async function doUpload() {
             class="w-full px-3 py-2 text-sm bg-background/60 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             placeholder="歌手 / 艺术家"
           />
+        </div>
+        <div class="space-y-1.5">
+          <label class="text-xs text-muted-foreground">歌词（可选 · LRC）</label>
+          <button
+            class="w-full px-3 py-2 text-sm text-left bg-background/60 border border-border rounded-md hover:border-primary/50 transition-colors truncate"
+            @click="pickLyrics"
+          >
+            <span :class="uploadLyrics ? 'text-foreground' : 'text-muted-foreground'">
+              {{ uploadLyrics ? uploadLyrics.name : '选择 .lrc 文件（不选则为纯音乐）' }}
+            </span>
+          </button>
         </div>
       </div>
       <DialogFooter>
