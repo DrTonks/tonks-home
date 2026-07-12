@@ -14,22 +14,16 @@ withDefaults(defineProps<{
 
 <template>
   <div class="absolute inset-0 -z-10 overflow-hidden">
-    <div
-      class="absolute inset-0 bg-gradient-to-br from-primary/25 via-primary/8 to-secondary/22 pointer-events-none"
-    />
-    <div class="absolute bottom-[6%] right-[5%] w-[38rem] h-[38rem] rounded-full bg-primary/30 blur-[110px] animate-float-soft pointer-events-none" style="animation-delay: -4s; animation-duration: 9s" />
-    <div class="absolute bottom-[-15%] right-[-15%] w-[38rem] h-[38rem] rounded-full bg-primary/30 blur-[110px] animate-float-soft pointer-events-none" style="animation-delay: -4s; animation-duration: 9s" />
-    <div
-      class="absolute inset-0 opacity-45 pointer-events-none"
-      style="
-        background-image:
-          linear-gradient(hsl(var(--color-sky-soft) / 0.30) 1px, transparent 1px),
-          linear-gradient(90deg, hsl(var(--color-sky-soft) / 0.30) 1px, transparent 1px);
-        background-size: 56px 56px;
-        mask-image: radial-gradient(ellipse at center, black 28%, transparent 80%);
-        -webkit-mask-image: radial-gradient(ellipse at center, black 28%, transparent 80%);
-      "
-    />
+    <!-- 底色微渐变 -->
+    <div class="bg-base absolute inset-0" />
+    <!-- 顶部柔光 -->
+    <div class="bg-topglow absolute" />
+    <!-- 网格 + 交点光点（中心清晰、边缘淡出） -->
+    <div class="bg-grid absolute inset-0" />
+    <!-- 流光斜扫 -->
+    <div class="bg-sweep absolute" />
+    <div class="bg-anti-sweep absolute" />
+    <!-- 魔法环（展开时） -->
     <Transition name="rings-fade">
       <MagicRings
         v-if="ringsOpacity > 0"
@@ -60,14 +54,83 @@ withDefaults(defineProps<{
 </template>
 
 <style scoped>
-.rings-fade-enter-active {
-  transition: opacity 1.5s ease-out;
+/* 底色：站点浅底上叠一层天蓝→薄荷的极淡渐变 */
+.bg-base {
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 0%, hsl(var(--color-sky) / 0.12) 0%, transparent 55%),
+    linear-gradient(160deg, hsl(var(--color-sky) / 0.06) 0%, transparent 45%, hsl(var(--color-mint) / 0.07) 100%);
 }
-.rings-fade-leave-active {
-  transition: opacity 0.8s ease-in;
+/* 顶部柔光 */
+.bg-topglow {
+  top: -20vh;
+  left: 50%;
+  width: 70vw;
+  height: 50vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, hsl(var(--color-sky) / 0.18), transparent 70%);
+  filter: blur(30px);
+  pointer-events: none;
 }
+/* 网格（淡线 + radial mask，调低调淡） */
+.bg-grid {
+  background-image:
+    linear-gradient(hsl(var(--color-sky-soft) / 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--color-sky-soft) / 0.18) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 18%, transparent 78%);
+  mask-image: radial-gradient(ellipse at center, black 18%, transparent 78%);
+  pointer-events: none;
+}
+/* 双流光斜扫（只动 transform，GPU 友好） */
+.bg-sweep {
+  position: absolute;
+  top: -50%;
+  left: -30%;
+  width: 65%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 10%,
+    hsl(var(--color-sky) / 0.18) 40%,
+    hsl(var(--color-mint) / 0.2) 60%,
+    transparent 90%
+  );
+  filter: blur(35px);
+  transform: rotate(18deg);
+  will-change: transform;
+  pointer-events: none;
+  animation: bg-sweep 14s linear infinite;
+}
+.bg-anti-sweep {
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 65%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 10%,
+    hsl(var(--color-mint) / 0.16) 40%,
+    hsl(var(--color-sky) / 0.18) 60%,
+    transparent 90%
+  );
+  filter: blur(35px);
+  transform: rotate(18deg);
+  will-change: transform;
+  pointer-events: none;
+  animation: bg-sweep 18s linear infinite reverse;
+  animation-delay: -7s;
+}
+@keyframes bg-sweep {
+  from { transform: translateX(0) rotate(18deg); }
+  to { transform: translateX(240%) rotate(18deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-sweep, .bg-anti-sweep { animation: none; }
+}
+
+.rings-fade-enter-active { transition: opacity 1.5s ease-out; }
+.rings-fade-leave-active { transition: opacity 0.8s ease-in; }
 .rings-fade-enter-from,
-.rings-fade-leave-to {
-  opacity: 0;
-}
+.rings-fade-leave-to { opacity: 0; }
 </style>

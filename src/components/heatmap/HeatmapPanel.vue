@@ -85,6 +85,7 @@ watch(activeTab, (tab) => {
 })
 onMounted(() => { updateIndicator() })
 
+const props = withDefaults(defineProps<{ compact?: boolean }>(), { compact: false })
 const theme = useThemeStore()
 const legend = computed(() => {
   const dark = theme.isDark
@@ -105,11 +106,12 @@ const legend = computed(() => {
       <!-- 标题 + tab 切换同一行（带滑动指示器） -->
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
-          近期项目活动
+          项目活动
         </h2>
         <div class="flex items-center gap-2">
-          <!-- Element Plus 下拉框 -->
+          <!-- Element Plus 下拉框（紧凑模式隐藏，省标题空间） -->
           <el-select
+            v-if="!props.compact"
             v-model="timeRange"
             size="small"
             class="time-select"

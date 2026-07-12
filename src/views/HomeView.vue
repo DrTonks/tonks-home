@@ -21,8 +21,10 @@ import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
 
 // --- 移动端 ---
 const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
+const isCompact = ref(window.matchMedia('(max-width: 1200px)').matches) // 小屏/平板紧凑缩放
 function detectMobile() {
   isMobile.value = window.matchMedia('(max-width: 768px)').matches
+  isCompact.value = window.matchMedia('(max-width: 1200px)').matches
 }
 
 // --- 展开/收起状态 ---
@@ -47,7 +49,58 @@ function onMiddleFinger() {
   petRef.value?.provoke()
 }
 
-const ringsOpacity = computed(() => isExpanded.value ? 0.5 : 0)
+// 竖食指横扫切主题：左→右从左下角圆形扩散，右→左从右上角（复用现有切换动画）
+function onSwipe(dir: 'left' | 'right') {
+  if (dir === 'right') theme.toggle(0, window.innerHeight)
+  else theme.toggle(window.innerWidth, 0)
+}
+
+// 睁眼动画（仅亮色）
+const showEye = ref(false)
+const eyeSrc = ref('/assets/eyes/e1.png')
+const eyeSharp = ref(false)
+let eyeTimers: ReturnType<typeof setTimeout>[] = []
+function clearEyeTimers() {
+  eyeTimers.forEach(clearTimeout)
+  eyeTimers = []
+  eyeSharp.value = false
+}
+function clearRageEffects() {
+  clearEyeTimers()
+  showEye.value = false
+  rageShutdown.value = false
+  eyeSharp.value = false
+}
+function onRageStart() {
+  // === CRT 依次关机清场（亮暗通用）===
+  clearEyeTimers()
+  eyeTimers.push(setTimeout(() => (rageShutdown.value = true), 1000))
+
+  // === 睁眼动画（仅亮色主题）===
+  if (theme.isDark) return
+  // 立即预加载后续帧（趁延迟窗口拉取大图，避免切帧卡顿）
+  ;['e2', 'e3', 'e4'].forEach((n) => {
+    const img = new Image()
+    img.src = `/assets/eyes/${n}.png`
+  })
+  // t=2s 眼睛变清晰
+  eyeTimers.push(setTimeout(() => (eyeSharp.value = true), 2000))
+  // 头像先消失 0.3s；延迟后开始睁眼
+  eyeTimers.push(
+    setTimeout(() => {
+      eyeSrc.value = '/assets/eyes/e1.png'
+      showEye.value = true
+      eyeTimers.push(
+        setTimeout(() => (eyeSrc.value = '/assets/eyes/e2.png'), 510),
+        setTimeout(() => (eyeSrc.value = '/assets/eyes/e3.png'), 550),
+        setTimeout(() => (eyeSrc.value = '/assets/eyes/e4.png'), 600),
+        setTimeout(() => (showEye.value = false), 2000),
+      )
+    }, 1800),
+  )
+}
+
+const ringsOpacity = computed(() => isExpanded.value && !rageShutdown.value ? 0.5 : 0)
 
 // 魔法环参数 — 有实际音频信号才变化（与桌宠唱歌、音频可视化共用 hasSignal）
 const { hasSignal, startSignalCheck, stopSignalCheck } = useAudioAnalyzer()
@@ -86,6 +139,7 @@ watch(hasSignal, (active) => {
 const EXPAND_TOTAL = 1400 + 720 + 800
 const COLLAPSE_TOTAL = 700
 const isCollapsing = ref(false)
+const rageShutdown = ref(false) // CRT 依次关机清场：各卡片用关机特效依次消失
 
 function toggle() {
   if (isAnimating.value) return
@@ -152,6 +206,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('mousemove', onGlobalMouseMove)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
   stopSignalCheck()
+  clearRageEffects()
 })
 
 const componentListMobile = [
@@ -169,6 +224,8 @@ const componentListMobile = [
       :rings-base-radius="ringsBaseRadius"
     />
     <GalaxyBackground v-else />
+    <!-- 睁眼动画（仅亮色；图层在背景之上、内容之下，不遮挡内容） -->
+    <img v-if="showEye" :src="eyeSrc" :class="['rage-eye', { sharp: eyeSharp }]" alt="" aria-hidden="true" />
     <ThemeToggle />
     <AdminAuth />
     <GestureToggle
@@ -177,22 +234,26 @@ const componentListMobile = [
       @pinch="isExpanded && toggle()"
       @snap="musicStore.togglePlay()"
       @middle-finger="onMiddleFinger"
+      @swipe="onSwipe"
     />
     <Transition name="pet-fade">
-      <DesktopPet ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" />
+      <DesktopPet ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" @rage-start="onRageStart" />
     </Transition>
     <CRTShutdown :show="showCRT" />
 
     <!-- 桌面端：5 区域环绕 -->
     <template v-if="!isMobile">
       <!-- 音频可视化：环形频谱，环住头像 -->
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+      <div v-if="!rageShutdown" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
         <AudioVisualizer :size="360" :inner-radius="72" :bar-max-length="75" />
       </div>
 
       <!-- 中心头像 + 名称简介（名称在上方发光，简介在下方） -->
-      <div class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
-        <div class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2">
+      <div v-if="!rageShutdown" class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
+        <div
+          class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 avatar-eye-fade"
+          :class="{ 'is-faded': showEye }"
+        >
           <div :class="['avatar-spin-layer', avatarSpinClass]">
             <AvatarCore :size="110" @click="toggle" />
           </div>
@@ -216,20 +277,24 @@ const componentListMobile = [
 
       <!-- 区域 0：左上（热力图 + 技术栈） -->
       <div class="region-anchor region-tl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(0)]">
+        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(0)]"
+          style="--shutdown-delay: 0ms"
+        >
           <div class="flex gap-3">
-            <HeatmapPanel />
-            <LanguagePanel />
+            <HeatmapPanel :compact="isCompact" />
+            <LanguagePanel v-if="!isCompact" />
           </div>
         </div>
       </div>
 
       <!-- 区域 1：左下（日历 bento：左月视图 | 右 星期+节日+待办，等高） -->
       <div class="region-anchor region-bl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(1)]">
+        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(1)]"
+          style="--shutdown-delay: 150ms"
+        >
           <div class="flex gap-3 items-stretch">
             <CalendarMonth />
-            <div class="flex flex-col gap-2 flex-1">
+            <div v-if="!isCompact" class="flex flex-col gap-2 flex-1">
               <TodayCard class="flex-1" />
               <UpcomingHolidays class="flex-1" />
               <TodoList class="flex-1" />
@@ -240,24 +305,30 @@ const componentListMobile = [
 
       <!-- 区域 2：中下（博客） -->
       <div class="region-anchor region-bc global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(2)]">
-          <BlogUpdates />
+        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(2)]"
+          style="--shutdown-delay: 300ms"
+        >
+          <BlogUpdates :article-count="isCompact ? 2 : 3" />
         </div>
       </div>
 
       <!-- 区域 3：右下（胶片 + 控制） -->
       <div class="region-anchor region-br global-tilt">
-        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(3)]">
+        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(3)]"
+          style="--shutdown-delay: 450ms"
+        >
           <div class="flex gap-3 items-center">
-            <MusicVinyl />
-            <MusicControls />
+            <MusicVinyl v-if="!isCompact" />
+            <MusicControls :is-compact="isCompact" />
           </div>
         </div>
       </div>
 
       <!-- 区域 4：右上（设备状态） -->
       <div class="region-anchor region-tr">
-        <div :class="['region-inner', { visible: isExpanded }, regionCollapseClass(4)]">
+        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(4)]"
+          style="--shutdown-delay: 600ms"
+        >
           <DeviceStatus />
         </div>
       </div>
@@ -269,16 +340,18 @@ const componentListMobile = [
       class="relative min-h-dvh flex flex-col items-center gap-4 px-4 py-8 sm:py-12"
       :style="theme.isDark ? undefined : { background: `url('/assets/ph-bg.jpg') center/cover no-repeat` }"
     >
-      <AvatarCore :size="80" />
-      <div class="w-[calc(100%-2rem)] flex flex-col gap-4 mt-2 [&>*]:!w-full">
-        <component v-for="(C, i) in componentListMobile" :key="i" :is="C" />
-      </div>
+      <template v-if="!rageShutdown">
+        <AvatarCore :size="80" />
+        <div class="w-[calc(100%-2rem)] flex flex-col gap-4 mt-2 [&>*]:!w-full">
+          <component v-for="(C, i) in componentListMobile" :key="i" :is="C" />
+        </div>
+      </template>
     </div>
 
     <!-- 提示文字 -->
     <Transition name="fade">
       <div
-        v-if="!isMobile && !isExpanded"
+        v-if="!isMobile && !isExpanded && !rageShutdown"
         class="absolute bottom-[8%] left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/85 tracking-[0.2em] uppercase pointer-events-none z-30"
       >
         点击头像展开 · Click to expand
@@ -289,6 +362,37 @@ const componentListMobile = [
 </template>
 
 <style scoped>
+/* ===== 暴怒睁眼（背景之上、内容之下） ===== */
+.rage-eye {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(200vh, 200vw);
+  height: auto;
+  z-index: -5;
+  opacity: 0;
+  filter: blur(4px);
+  pointer-events: none;
+  animation: rage-eye-in 0.3s ease-out forwards;
+  /* t=2s 渐变：blur 渐变至 1px(0.3s) + opacity 渐变至 0.9(0.5s) */
+  transition: filter 0.3s ease-out, opacity 0.5s ease-out;
+}
+.rage-eye.sharp {
+  filter: blur(2px);
+  opacity: 0.7 !important; /* 覆盖 @keyframes 动画的 opacity:0.5（动画优先级 > 普通声明） */
+}
+@keyframes rage-eye-in {
+  to { opacity: 0.5; }
+}
+/* 睁眼时中央头像同步 0.3s 渐隐，避免遮住瞳孔 */
+.avatar-eye-fade {
+  transition: opacity 0.3s ease-out;
+}
+.avatar-eye-fade.is-faded {
+  opacity: 0;
+}
+
 /* ===== 头像自转 ===== */
 .avatar-spin-layer {
   will-change: transform;
@@ -321,6 +425,39 @@ const componentListMobile = [
 .region-bc { top: 60%; left: 50%; }
 .region-br { top: 53%; left: 66%; }
 
+/* ===== 响应式紧凑：≤1200px 等比缩小 + 更紧凑的间距 ===== */
+@media (max-width: 1200px) {
+  .region-anchor {
+    transform: scale(0.88) !important; /* 压过 .global-tilt 的 rotate transform */
+  }
+  /* 往中心收紧间距（缩小 right/left,放大 bottom/top = 更接近中心） */
+  .region-tl { bottom: 55%; right: 55%; }
+  .region-tr { bottom: 58%; left: 56%; }
+  .region-bl { top: 50%; right: 65%; }
+  .region-bc { top: 60%; left: 49%; }
+  .region-br { top: 48%; left: 68%; }
+  /* 动画偏移量缩小 */
+  .region-tl .region-inner {
+    --init-x: clamp(60px, 10vw, 140px);
+    --init-y: clamp(50px, 8vw, 120px);
+  }
+  .region-bl .region-inner {
+    --init-x: clamp(40px, 8vw, 100px);
+    --init-y: calc(-1 * clamp(40px, 8vw, 100px));
+  }
+  .region-bc .region-inner {
+    --init-y: calc(-1 * clamp(40px, 8vw, 100px));
+  }
+  .region-br .region-inner {
+    --init-x: calc(-1 * clamp(40px, 8vw, 100px));
+    --init-y: calc(-1 * clamp(40px, 8vw, 100px));
+  }
+  .region-tr .region-inner {
+    --init-x: calc(-1 * clamp(40px, 8vw, 100px));
+    --init-y: clamp(40px, 8vw, 100px);
+  }
+}
+
 /* ===== 区域动画层 =====
    初始：朝中心方向偏移 + scale(0.3) + opacity(0)
    展开：归位 + scale(1) + opacity(1)
@@ -338,6 +475,19 @@ const componentListMobile = [
 .region-inner.visible {
   opacity: 1;
   transform: translate(0, 0) scale(1);
+}
+/* CRT 关机特效：白光横线展开→收缩消失（~550ms），各卡片用 --shutdown-delay 依次触发 */
+.region-inner.shutting-down {
+  animation: card-crt-shutdown 0.55s ease-in forwards;
+  animation-delay: var(--shutdown-delay, 0ms);
+}
+@keyframes card-crt-shutdown {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(1); }
+  8%   { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(1); }
+  25%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(3.5); }
+  40%  { opacity: 0.8; transform: translate(0,0) scale(0.96); filter: brightness(1.6); }
+  70%  { opacity: 0.3; transform: scale(0.4); filter: brightness(0.5); }
+  100% { opacity: 0; transform: scale(0.1); filter: brightness(0); }
 }
 
 /* 每个区域的"朝中心偏移"方向 + 延迟

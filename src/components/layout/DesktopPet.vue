@@ -9,7 +9,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import dialogue from '@/data/pet-dialogue.json'
 
-const emit = defineEmits<{ rage: [] }>()
+const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
 const petRef = ref<HTMLElement | null>(null)
 
@@ -38,7 +38,12 @@ const turn = usePetTurn(state, () => {
 })
 
 // Core — 日常动画 + 情绪 + 拖拽 + 粒子
-const core = usePetCore(state, petRef, () => emit('rage'), () => singing.tryResumeSinging())
+const core = usePetCore(
+  state,
+  petRef,
+  (e) => (e === 'rage' ? emit('rage') : emit('rageStart')),
+  () => singing.tryResumeSinging(),
+)
 
 // Singing — 唱歌状态机（退出时恢复 core 日常计时器）
 const singing = usePetSinging(state, () => {
@@ -91,11 +96,17 @@ watch(
   () => state.mood.value,
   (m) => {
     if (!canEmotionTalk()) return
+    // 威胁：激怒是重要时刻，强制打断当前气泡
+    if (m === 'threat') {
+      bubble.say(pick(dialogue.threat), true)
+      return
+    }
+    // 其它情绪：上一个气泡还在显示则不打断（等它说完，再配合结束冷却）
+    if (bubble.visible.value) return
     if (m === 'happy') bubble.say(pick(dialogue.happy))
     else if (m === 'angry') bubble.say(pick(dialogue.angry))
     else if (m === 'cry') bubble.say(pick(dialogue.cry))
     else if (m === 'sleep') bubble.say(pick(dialogue.sleep))
-    else if (m === 'threat') bubble.say(pick(dialogue.threat), true)
   },
 )
 
@@ -103,7 +114,14 @@ watch(
 watch(
   () => state.turnDirection.value,
   (dir, prev) => {
-    if (dir && !prev && !state.tracking.value && canDailyTalk() && Math.random() < 0.6) {
+    if (
+      dir &&
+      !prev &&
+      !state.tracking.value &&
+      !bubble.visible.value &&
+      canDailyTalk() &&
+      Math.random() < 0.6
+    ) {
       bubble.say(pick(dialogue.turn))
     }
   },

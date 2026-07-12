@@ -14,16 +14,25 @@ import {
   Volume2,
   Volume1,
   VolumeX,
+  Upload,
+  Trash2,
 } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
 import { useAdminStore } from '@/stores/admin'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import MusicUploadDialog from './MusicUploadDialog.vue'
 import { cn, formatTime } from '@/lib/utils'
 
+const { isCompact } = withDefaults(defineProps<{ isCompact?: boolean }>(), { isCompact: false })
 const store = useMusicStore()
 const admin = useAdminStore()
+const showUpload = ref(false) // 紧凑模式管理员上传弹窗
+
+function onRemove() {
+  if (store.currentSong) store.remove(store.currentSong.filename)
+}
 
 // 管理员排序：把第 idx 项上移(dir=-1)/下移(dir=1)一位，提交完整新顺序
 function moveTrack(idx: number, dir: -1 | 1) {
@@ -210,6 +219,7 @@ function seek(e: Event) {
 // 音频可视化：连接 AudioContext + 播放时自动恢复
 const { connect, disconnect, resume: resumeCtx } = useAudioAnalyzer()
 onMounted(() => {
+  store.fetchList() // 音乐列表（MusicVinyl 在紧凑模式不挂载，必须在播放器里兜底）
   if (audio.value) {
     audio.value.volume = volume.value
     connect(audio.value)
@@ -227,6 +237,15 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
 
 <template>
   <Card class="w-[clamp(240px,18vw,320px)] p-4 !overflow-visible">
+    <!-- 紧凑模式管理员按钮（MusicVinyl 不挂载时在此兜底） -->
+    <div v-if="admin.isLoggedIn && isCompact" class="flex items-center gap-0.5 self-end -mt-1 -mr-1 mb-2 justify-end">
+      <Button variant="ghost" size="icon-sm" class="h-6 w-6" aria-label="上传音乐" @click="showUpload = true">
+        <Upload class="h-3 w-3" />
+      </Button>
+      <Button v-if="store.currentSong" variant="ghost" size="icon-sm" class="h-6 w-6 hover:text-destructive" aria-label="删除当前歌曲" @click="onRemove">
+        <Trash2 class="h-3 w-3" />
+      </Button>
+    </div>
     <!-- 歌名（花体）/ 歌手 -->
     <div class="text-center mb-3 min-h-[2.5em] flex flex-col justify-center">
       <p class="font-script text-xl font-semibold text-brand-sky-deep line-clamp-1">
@@ -431,6 +450,7 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
       @ended="onEnded"
       @error="() => { store.isPlaying = false }"
     />
+    <MusicUploadDialog v-model:open="showUpload" />
   </Card>
 </template>
 

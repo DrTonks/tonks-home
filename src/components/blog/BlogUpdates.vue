@@ -11,6 +11,7 @@ import ProjectCard from './ProjectCard.vue'
 import TimelineCard from './TimelineCard.vue'
 import ArticleList from './ArticleList.vue'
 
+const props = withDefaults(defineProps<{ articleCount?: number }>(), { articleCount: 3 })
 const data = ref<BlogPostsResponse | null>(null)
 const loading = ref(true)
 const activeTab = ref('article')
@@ -27,7 +28,7 @@ const indicatorStyle = computed(() => {
 
 onMounted(async () => {
   try {
-    data.value = await getBlogPosts(3)
+    data.value = await getBlogPosts(props.articleCount)
   } catch (e) {
     console.error('fetchBlogPosts failed:', e)
   } finally {

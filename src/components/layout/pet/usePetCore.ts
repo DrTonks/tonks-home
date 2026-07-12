@@ -14,7 +14,7 @@ import {
 export function usePetCore(
   state: PetState,
   petRef: Ref<HTMLElement | null>,
-  emit: (e: 'rage') => void,
+  emit: (e: 'rage' | 'rageStart') => void,
   onResumeSinging: () => void,
 ) {
   const { t, c } = state
@@ -176,6 +176,7 @@ export function usePetCore(
   // ===== 暴怒 =====
   function startRage() {
     state.rageActive.value = true
+    emit('rageStart') // 暴怒开始（2.5s 动画）—— 供背景睁眼动画等外部联动
     state.turnDirection.value = null
     state.tracking.value = false
     t.blinking = false

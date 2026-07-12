@@ -19,6 +19,7 @@ interface Landmark {
  *   pinch — 拇指食指捏合（指尖距离 < 0.05）
  *   snap  — 打响指   （拇指与中指先捏紧→快速分离，上升沿触发）
  *   middleFinger — 竖中指（中指伸展、其余三指弯曲）→ 激怒桌宠
+ *   swipe — 竖食指横扫（食指伸展、其余弯曲，快速水平位移）→ 切主题
  */
 export function useHandGesture(
   videoRef: Ref<HTMLVideoElement | null>,
@@ -26,6 +27,7 @@ export function useHandGesture(
   onPinch?: () => void,
   onSnap?: () => void,
   onMiddleFinger?: () => void,
+  onSwipe?: (dir: 'left' | 'right') => void,
 ) {
   const isActive = ref(false)
   const isLoading = ref(false)
@@ -47,6 +49,9 @@ export function useHandGesture(
 
   // 打响指状态机：追踪拇指尖(4) ↔ 中指尖(12) 距离
   let snapPinching = false
+  // 竖食指横扫状态机：追踪食指尖 x 的水平位移
+  let swipeStartX: number | null = null
+  let swipeStartT = 0
   let cancelled = false
 
   async function start() {
@@ -175,6 +180,54 @@ export function useHandGesture(
     return midExtended && idxCurled && ringCurled && pinkyCurled && midLongest
   }
 
+  /** 竖食指：食指伸展、中指/无名指/小指弯曲 */
+  function isIndexPointing(landmarks: Landmark[]): boolean {
+    const wrist = landmarks[0]
+    const idxTip = landmarks[8]
+    const idxPip = landmarks[6]
+    const midTip = landmarks[12]
+    const midPip = landmarks[10]
+    const ringTip = landmarks[16]
+    const ringPip = landmarks[14]
+    const pinkyTip = landmarks[20]
+    const pinkyPip = landmarks[18]
+    if (
+      [wrist, idxTip, idxPip, midTip, midPip, ringTip, ringPip, pinkyTip, pinkyPip].some((p) => !p)
+    ) {
+      return false
+    }
+    const dw = (p: Landmark) => Math.hypot(p.x - wrist.x, p.y - wrist.y)
+    return (
+      dw(idxTip) > dw(idxPip) * 1.15 &&
+      dw(midTip) < dw(midPip) &&
+      dw(ringTip) < dw(ringPip) &&
+      dw(pinkyTip) < dw(pinkyPip)
+    )
+  }
+
+  /** 竖食指横扫：食指尖 x 在 ~0.7s 内快速水平位移 → 触发方向（非食指指向时重置） */
+  function detectSwipe(landmarks: Landmark[]) {
+    if (!onSwipe) return
+    if (!isIndexPointing(landmarks)) {
+      swipeStartX = null
+      return
+    }
+    const tip = landmarks[8]
+    if (!tip) return
+    const now = performance.now()
+    if (swipeStartX === null || now - swipeStartT > 700) {
+      swipeStartX = tip.x
+      swipeStartT = now
+      return
+    }
+    const dx = tip.x - swipeStartX
+    if (Math.abs(dx) > 0.22) {
+      // landmarks.x 为摄像头原始坐标（视频镜像显示）；x 减小≈用户视角向右。方向若反了在 HomeView 调换即可
+      onSwipe(dx < 0 ? 'right' : 'left')
+      swipeStartX = null
+    }
+  }
+
   function detect() {
     if (!isActive.value || !handLandmarker || !videoRef.value) return
     const video = videoRef.value
@@ -185,8 +238,9 @@ export function useHandGesture(
         if (result.landmarks && result.landmarks.length > 0) {
           const landmarks = result.landmarks[0] as Landmark[]
 
-          // 打响指（独立检测）
+          // 打响指 + 竖食指横扫（独立检测）
           detectSnap(landmarks)
+          detectSwipe(landmarks)
 
           // 张开手掌（3 帧防抖）
           const palm = isPalmOpen(landmarks)
@@ -277,6 +331,7 @@ export function useHandGesture(
     lastPinch = false
     lastMiddle = false
     snapPinching = false
+    swipeStartX = null
   }
 
   function onVisibilityChange() {
