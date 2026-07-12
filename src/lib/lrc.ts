@@ -45,7 +45,7 @@ export function parseLRC(raw: string): LyricLine[] {
   return merged.filter((l) => l.texts.length > 0)
 }
 
-const GAP = 5 // 间奏/尾奏阈值（秒）：当前行展示超过此值且未到下一行 → 空白时段
+const GAP = 7 // 间奏/尾奏阈值（秒）：当前行展示超过此值且未到下一行 → 空白时段
 
 /**
  * 按播放进度取当前应显示的歌词行；返回 null 表示无歌词时段（前奏/间奏/尾奏），应显示音符。
