@@ -33,7 +33,7 @@ onUnmounted(() => {
 })
 
 const active = computed(() => music.isPlaying && hasSignal.value)
-const starSpeed = computed(() => (active.value ? 1 : 0.4))
+const starSpeed = computed(() => (active.value ? 0.7 : 0.3))
 const glowIntensity = computed(() => (active.value ? 0.3 : 0.1))
 const hueShift = computed(() => (active.value ? 224 : 210))
 const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
@@ -53,7 +53,7 @@ const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
       :twinkle-intensity="twinkleIntensity"
       :rotation-speed="0.06"
       :mouse-interaction="true"
-      :mouse-repulsion="true"
+      :mouse-repulsion="false"
       :repulsion-strength="0.1"
     />
   </div>

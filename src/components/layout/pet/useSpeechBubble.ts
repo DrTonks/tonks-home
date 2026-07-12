@@ -47,11 +47,11 @@ export function useSpeechBubble() {
     }
   }
 
-  /** 说一句日常话：（长句）思考 → 打字机 → 停留 → 淡出；短句跳过思考直接打字 */
-  function say(sentence: string) {
+  /** 说一句日常话：（长句）思考 → 打字机 → 停留 → 淡出；短句跳过思考直接打字。force=true 跳过结束冷却（用于威胁句等重要时刻） */
+  function say(sentence: string, force = false) {
     if (!sentence) return
-    // 结束冷却：气泡刚收起不久则跳过本次，避免高频点击时无缝连续冒泡
-    if (performance.now() - lastHideAt < SAY_COOLDOWN) return
+    // 结束冷却：气泡刚收起不久则跳过本次，避免高频连续冒泡（force 时不受此限）
+    if (!force && performance.now() - lastHideAt < SAY_COOLDOWN) return
     clearTimers()
     text.value = ''
     visible.value = true

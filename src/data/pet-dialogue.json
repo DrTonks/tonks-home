@@ -26,14 +26,14 @@
   },
   "idle": [
     "这里万籁俱寂...太安静了。别留下我。",
-    "你没有忘记我。",
+    "/assets/emoji/happy-1.jpg",
     "^ ^",
     "你在忙什么？"
   ],
   "happy": ["^ ^", "你好!", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
-  "angry": ["。。。", "/assets/emoji/angry2.jpg"],
+  "angry": ["。。。", "/assets/emoji/angry2.jpg", "STOP!","别这么做。", "停下。"],
   "sleep": ["zzZ", "/assets/emoji/sleep.jpg"],
   "cry": ["不准忘记我", "你在哪？","/assets/emoji/cry.jpg"],
   "threat": ["· · ·", "/assets/emoji/angry.jpg"],
-  "turn": ["/assets/emoji/cry.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"]
+  "turn": ["/assets/emoji/wait.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"]
 }

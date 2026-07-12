@@ -5,7 +5,7 @@
  *  - 唱歌结束 → 收起气泡
  * 唱歌时日常 say 已被 DesktopPet 的 canDailyTalk/canEmotionTalk（!singingState）挡住，故不冲突。
  */
-import { watch } from 'vue'
+import { watch, onScopeDispose } from 'vue'
 import { useMusicStore } from '@/stores/music'
 import { getLyrics, type MusicFile } from '@/api/music'
 import { parseLRC, currentLyric, type LyricLine } from '@/lib/lrc'
@@ -101,4 +101,7 @@ export function usePetLyrics(state: PetState, bubble: SpeechBubbleApi) {
       }
     },
   )
+
+  // 组件卸载时清开场音符计时器（唱歌中被卸载的兜底）
+  onScopeDispose(clearIntro)
 }

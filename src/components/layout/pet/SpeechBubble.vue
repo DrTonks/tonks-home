@@ -173,12 +173,12 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 /* ===== 相对桌宠的方位（桌宠在 petRef 容器内，宽 W=130）=====
    气泡水平出现在桌宠一侧、对齐头部高度；尾巴在朝桌宠那侧、垂直居中，尖角指向桌宠。 */
 .place-left {
-  right: calc(100% - 26px);
+  right: calc(100% - 13px);
   top: 14px;
   --bubble-origin: right center;
 }
 .place-right {
-  left: calc(100% - 26px);
+  left: calc(100% - 13px);
   top: 14px;
   --bubble-origin: left center;
 }

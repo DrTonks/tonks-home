@@ -95,7 +95,7 @@ watch(
     else if (m === 'angry') bubble.say(pick(dialogue.angry))
     else if (m === 'cry') bubble.say(pick(dialogue.cry))
     else if (m === 'sleep') bubble.say(pick(dialogue.sleep))
-    else if (m === 'threat') bubble.say(pick(dialogue.threat))
+    else if (m === 'threat') bubble.say(pick(dialogue.threat), true)
   },
 )
 
@@ -110,6 +110,7 @@ watch(
 )
 
 let idleTalkTimer: ReturnType<typeof setInterval> | null = null
+let greetTimer: ReturnType<typeof setTimeout> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
@@ -133,7 +134,6 @@ function handleClick(e: MouseEvent) {
 let provokeTimer: ReturnType<typeof setTimeout> | null = null
 function provoke() {
   if (state.rageActive.value) return
-  bubble.hide()
   state.mood.value = 'threat'
   state.showFrame.value = FRAMES.threat
   if (provokeTimer) clearTimeout(provokeTimer)
@@ -146,7 +146,7 @@ defineExpose({ provoke })
 onMounted(() => {
   turn.startMouseSystem()
   // 进页面时段问候（等桌宠落地动画）
-  setTimeout(greet, 1600)
+  greetTimer = setTimeout(greet, 1600)
   // 空闲随机冒泡（仅真正 idle 时；避免在 cry/sleep/生气等情绪态反复播 idle 句）
   idleTalkTimer = setInterval(() => {
     if (
@@ -164,6 +164,7 @@ onBeforeUnmount(() => {
   singing.stopAllSinging()
   bubble.hide()
   if (idleTalkTimer) clearInterval(idleTalkTimer)
+  if (greetTimer) clearTimeout(greetTimer)
   if (provokeTimer) clearTimeout(provokeTimer)
 })
 </script>
