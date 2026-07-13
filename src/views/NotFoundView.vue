@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
 
 /* ===== 主体文字 ===== */
 .glitch-main {
-  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+  font-family: 'JB-404', 'JetBrains Mono', 'Geist Mono', monospace;
   font-size: clamp(100px, 22vw, 220px);
   font-weight: 900;
   letter-spacing: 0.05em;
@@ -120,7 +120,7 @@ onBeforeUnmount(() => {
 
 /* ===== 色散层（绝对定位叠在主文字上） ===== */
 .glitch-overlay {
-  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+  font-family: 'JB-404', 'JetBrains Mono', 'Geist Mono', monospace;
   font-size: clamp(100px, 22vw, 220px);
   font-weight: 900;
   letter-spacing: 0.05em;

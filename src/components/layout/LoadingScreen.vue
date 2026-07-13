@@ -234,7 +234,7 @@ onMounted(async () => {
     <svg
       ref="svgRef"
       class="w-full h-full"
-      viewBox="0 0 1400 1100"
+      viewBox="0 0 1400 1200"
       preserveAspectRatio="xMidYMid slice"
     >
       <g v-for="l in ROWS" :key="l">

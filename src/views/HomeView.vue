@@ -74,7 +74,7 @@ function clearRageEffects() {
 function onRageStart() {
   // === CRT 依次关机清场（亮暗通用）===
   clearEyeTimers()
-  eyeTimers.push(setTimeout(() => (rageShutdown.value = true), 1000))
+  eyeTimers.push(setTimeout(() => (rageShutdown.value = true), 700))
 
   // === 睁眼动画（仅亮色主题）===
   if (theme.isDark) return
@@ -83,16 +83,16 @@ function onRageStart() {
     const img = new Image()
     img.src = `/assets/eyes/${n}.png`
   })
-  // t=2s 眼睛变清晰
-  eyeTimers.push(setTimeout(() => (eyeSharp.value = true), 2000))
+  // 眼睛变清晰
+  eyeTimers.push(setTimeout(() => (eyeSharp.value = true), 2300))
   // 头像先消失 0.3s；延迟后开始睁眼
   eyeTimers.push(
     setTimeout(() => {
       eyeSrc.value = '/assets/eyes/e1.png'
       showEye.value = true
       eyeTimers.push(
-        setTimeout(() => (eyeSrc.value = '/assets/eyes/e2.png'), 510),
-        setTimeout(() => (eyeSrc.value = '/assets/eyes/e3.png'), 550),
+        setTimeout(() => (eyeSrc.value = '/assets/eyes/e2.png'), 550),
+        setTimeout(() => (eyeSrc.value = '/assets/eyes/e3.png'), 570),
         setTimeout(() => (eyeSrc.value = '/assets/eyes/e4.png'), 600),
         setTimeout(() => (showEye.value = false), 2000),
       )
@@ -362,7 +362,7 @@ const componentListMobile = [
 </template>
 
 <style scoped>
-/* ===== 暴怒睁眼（背景之上、内容之下） ===== */
+/* ===== 老普睁眼（背景之上、内容之下） ===== */
 .rage-eye {
   position: absolute;
   top: 50%;
@@ -372,18 +372,18 @@ const componentListMobile = [
   height: auto;
   z-index: -5;
   opacity: 0;
-  filter: blur(4px);
+  filter: blur(6px);
   pointer-events: none;
-  animation: rage-eye-in 0.3s ease-out forwards;
-  /* t=2s 渐变：blur 渐变至 1px(0.3s) + opacity 渐变至 0.9(0.5s) */
+  animation: rage-eye-in 0.7s ease-out forwards;
+  /* t=2.3s 渐变：blur 渐变(0.3s) + opacity 渐变(0.5s) */
   transition: filter 0.3s ease-out, opacity 0.5s ease-out;
 }
 .rage-eye.sharp {
-  filter: blur(2px);
-  opacity: 0.7 !important; /* 覆盖 @keyframes 动画的 opacity:0.5（动画优先级 > 普通声明） */
+  filter: blur(4px);
+  opacity: 0.5 !important; /* 覆盖 @keyframes 动画的 opacity（动画优先级 > 普通声明） */
 }
 @keyframes rage-eye-in {
-  to { opacity: 0.5; }
+  to { opacity: 0.3; }
 }
 /* 睁眼时中央头像同步 0.3s 渐隐，避免遮住瞳孔 */
 .avatar-eye-fade {
@@ -483,11 +483,14 @@ const componentListMobile = [
 }
 @keyframes card-crt-shutdown {
   0%   { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(1); }
-  8%   { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(1); }
-  25%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(3.5); }
-  40%  { opacity: 0.8; transform: translate(0,0) scale(0.96); filter: brightness(1.6); }
-  70%  { opacity: 0.3; transform: scale(0.4); filter: brightness(0.5); }
-  100% { opacity: 0; transform: scale(0.1); filter: brightness(0); }
+  10%  { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(6); }
+  14%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(2.5); }
+  18%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(7); }
+  22%  { opacity: 0.9; transform: translate(0,0) scale(1.01); filter: brightness(1.2); }
+  28%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(4.5); }
+  45%  { opacity: 0.7; transform: translate(0,0) scale(0.94); filter: brightness(1); }
+  75%  { opacity: 0.25; transform: scale(0.35); filter: brightness(0.4); }
+  100% { opacity: 0; transform: scale(0.08); filter: brightness(0); }
 }
 
 /* 每个区域的"朝中心偏移"方向 + 延迟

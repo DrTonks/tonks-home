@@ -7,6 +7,15 @@
     <meta name="theme-color" content="#F5F0F2" />
     <meta name="description" content="Tonks 的个人主页" />
     <title>Tonks</title>
+    <!-- 404 数字子集化字体：724B，只含 "0" 和 "4"，不受 CDN 拦截 -->
+    <style>
+      @font-face {
+        font-family: 'JB-404';
+        src: url('/fonts/jb-404.woff2') format('woff2');
+        unicode-range: U+30, U+34; /* 仅数字 0 和 4 */
+        font-display: swap;
+      }
+    </style>
     <!-- 字体异步加载：不阻塞首屏渲染，到货后自动应用 -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link

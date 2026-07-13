@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import MusicUploadDialog from './MusicUploadDialog.vue'
 import { cn, formatTime } from '@/lib/utils'
 
-const { isCompact } = withDefaults(defineProps<{ isCompact?: boolean }>(), { isCompact: false })
+const { isCompact = false } = defineProps<{ isCompact?: boolean }>()
 const store = useMusicStore()
 const admin = useAdminStore()
 const showUpload = ref(false) // 紧凑模式管理员上传弹窗
