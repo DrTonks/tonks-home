@@ -75,8 +75,8 @@ export function usePetSinging(state: PetState, onSingingExit: () => void) {
 
   async function startSinging() {
     if (state.mood.value === 'threat') return
-    if (state.singingState.value) return  // 已在唱歌，防并发
     c.musicStopped = false
+    if (state.singingState.value) return  // 已在唱歌，防并发
     // 清日常计时器 + 关 blink 锁
     if (t.sleepZTrainer) { clearInterval(t.sleepZTrainer); t.sleepZTrainer = null }
     if (t.blinkTimer) { clearTimeout(t.blinkTimer); t.blinkTimer = null }

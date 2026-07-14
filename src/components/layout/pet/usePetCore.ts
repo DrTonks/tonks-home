@@ -64,6 +64,7 @@ export function usePetCore(
       t.blinking = true
       let idx = 0
       function step() {
+        if (state.rageActive.value) { t.blinking = false; scheduleBlink(); return }
         if (idx >= BLINK_SEQ.length) {
           state.showFrame.value = FRAMES[state.mood.value]
           t.blinking = false
@@ -120,6 +121,7 @@ export function usePetCore(
         state.mood.value = 'cry'
         state.showFrame.value = FRAMES.cry
         if (t.blinkTimer) clearTimeout(t.blinkTimer)
+        if (t.blinkStepId) { clearTimeout(t.blinkStepId); t.blinkStepId = null }
         if (t.actionTimer) clearTimeout(t.actionTimer)
       }
     }, CRY_AFTER_MS)
@@ -128,6 +130,7 @@ export function usePetCore(
         state.mood.value = 'sleep'
         state.showFrame.value = FRAMES.sleep
         if (t.blinkTimer) clearTimeout(t.blinkTimer)
+        if (t.blinkStepId) { clearTimeout(t.blinkStepId); t.blinkStepId = null }
         if (t.actionTimer) clearTimeout(t.actionTimer)
         startSleepZs()
       }
@@ -190,6 +193,7 @@ export function usePetCore(
     if (t.singingTimer) { clearTimeout(t.singingTimer); t.singingTimer = null }
     if (t.idleTimer) { clearTimeout(t.idleTimer); t.idleTimer = null }
     if (t.sleepTimer) { clearTimeout(t.sleepTimer); t.sleepTimer = null }
+    stopSleepZs()
     state.rageScale.value = 1
     let start = performance.now()
     const dur = 2500
@@ -252,6 +256,7 @@ export function usePetCore(
         state.showFrame.value = FRAMES.idle
         scheduleBlink()
         scheduleAction()
+        resetIdleTimers()
       }, CLICK_TIMEOUT_MS)
       return
     }
@@ -328,7 +333,7 @@ export function usePetCore(
       scheduleBlink()
       scheduleAction()
     }
-    if (!state.singingState.value) resetIdleTimers()
+    if (!state.singingState.value && state.mood.value !== 'sleep') resetIdleTimers()
     state.dragging.value = true; state.moved.value = false
     c.startClientX = e.clientX; c.startClientY = e.clientY
     c.startPosX = state.pos.value.x; c.startPosY = state.pos.value.y
@@ -345,6 +350,7 @@ export function usePetCore(
       } else {
         state.mood.value = 'angry'; state.showFrame.value = FRAMES.angry
         if (t.blinkTimer) clearTimeout(t.blinkTimer)
+        stopSleepZs()
       }
       state.pos.value = {
         x: Math.max(0, Math.min(window.innerWidth - W, c.startPosX + dx)),

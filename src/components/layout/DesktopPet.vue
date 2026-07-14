@@ -152,6 +152,8 @@ function handleClick(e: MouseEvent) {
 let provokeTimer: ReturnType<typeof setTimeout> | null = null
 function provoke() {
   if (state.rageActive.value) return
+  if (state.singingState.value) singing.stopAllSinging()
+  if (state.mood.value === 'sleep') { core.stopSleepZs(); state.sleepZs.value = [] }
   state.mood.value = 'threat'
   state.showFrame.value = FRAMES.threat
   if (provokeTimer) clearTimeout(provokeTimer)
