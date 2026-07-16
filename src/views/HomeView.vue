@@ -14,6 +14,7 @@ import { BlogUpdates } from '@/components/blog'
 import { HeatmapPanel, LanguagePanel } from '@/components/heatmap'
 import { useMusicStore } from '@/stores/music'
 import { useThemeStore } from '@/stores/theme'
+import { usePetEnvStore } from '@/stores/petEnv'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
@@ -34,6 +35,7 @@ const isExpanded = ref(false)
 const router = useRouter()
 const musicStore = useMusicStore()
 const theme = useThemeStore()
+const petEnv = usePetEnvStore()
 const showCRT = ref(false)
 
 function onPetRage() {
@@ -148,9 +150,11 @@ function toggle() {
 
   if (isExpanded.value) {
     isCollapsing.value = true
+    petEnv.isCollapsing = true
     setTimeout(() => {
       isExpanded.value = false
       isCollapsing.value = false
+      petEnv.isCollapsing = false
       isAnimating.value = false
     }, COLLAPSE_TOTAL)
     localStorage.setItem('home_expanded', '0')
@@ -237,9 +241,8 @@ const componentListMobile = [
       @middle-finger="onMiddleFinger"
       @swipe="onSwipe"
     />
-    <Transition name="pet-fade">
-      <PetSwitcher ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" @rage-start="onRageStart" />
-    </Transition>
+    <!-- 折叠期间保持挂载（isExpanded || isCollapsing），卡片坍塌动画结束后一起移除 -->
+    <PetSwitcher ref="petRef" v-if="isExpanded || isCollapsing" @rage="onPetRage" @rage-start="onRageStart" />
     <CRTShutdown :show="showCRT" />
 
     <!-- 桌面端：5 区域环绕 -->
@@ -595,14 +598,6 @@ const componentListMobile = [
 @keyframes col-tr {
   from { opacity: 1; transform: translate(0, 0) scale(1); }
   to   { opacity: 0; transform: translate(-10rem, 10rem) scale(0.2); }
-}
-
-/* 桌宠淡出 */
-.pet-fade-leave-active {
-  transition: opacity 0.5s ease-in;
-}
-.pet-fade-leave-to {
-  opacity: 0;
 }
 
 /* 全局微 3D */

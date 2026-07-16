@@ -12,6 +12,8 @@ export type PetType = 'static' | 'live2d'
 export const usePetEnvStore = defineStore('petEnv', () => {
   const activePetType = ref<PetType>('static')
   const isRageActive = ref(false)
+  /** 主页折叠中（桌面宠根元素淡出） */
+  const isCollapsing = ref(false)
   /** Live2D 模型是否已加载完成（Live2DPet 写入，PetSwitcher 读取） */
   const isLive2DReady = ref(false)
   /** Live2D 加载是否出错（useLive2DModel 写入，PetSwitcher 读取以关闭 loading） */
@@ -28,6 +30,7 @@ export const usePetEnvStore = defineStore('petEnv', () => {
   return {
     activePetType,
     isRageActive,
+    isCollapsing,
     isLive2DReady,
     isLive2DError,
     isMusicPlaying,

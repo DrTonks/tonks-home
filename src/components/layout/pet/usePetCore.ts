@@ -5,7 +5,7 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
 import {
   type PetState,
-  W, H, PHYSICS, FRAMES, BLINK_SEQ, TIER_CONFIG,
+  W, PHYSICS, FRAMES, BLINK_SEQ, TIER_CONFIG,
   CLICK_TIMEOUT_MS, CRY_AFTER_MS, SLEEP_AFTER_MS,
   RAGE_CLICK_MIN, RAGE_CLICK_MAX,
   rollThreshold, scale,

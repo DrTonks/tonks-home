@@ -18,11 +18,10 @@ withDefaults(defineProps<{
     <div class="bg-base absolute inset-0" />
     <!-- 顶部柔光 -->
     <div class="bg-topglow absolute" />
-    <!-- 网格 + 交点光点（中心清晰、边缘淡出） -->
+    <!-- 网格 -->
     <div class="bg-grid absolute inset-0" />
-    <!-- 流光斜扫 -->
-    <div class="bg-sweep absolute" />
-    <div class="bg-anti-sweep absolute" />
+    <!-- 右下角青蓝色模糊色块 -->
+    <div class="bg-corner-glow absolute" />
     <!-- 魔法环（展开时） -->
     <Transition name="rings-fade">
       <MagicRings
@@ -81,52 +80,15 @@ withDefaults(defineProps<{
   mask-image: radial-gradient(ellipse at center, black 18%, transparent 78%);
   pointer-events: none;
 }
-/* 双流光斜扫（只动 transform，GPU 友好） */
-.bg-sweep {
-  position: absolute;
-  top: -50%;
-  left: -30%;
-  width: 65%;
-  height: 200%;
-  background: linear-gradient(
-    90deg,
-    transparent 10%,
-    hsl(var(--color-sky) / 0.18) 40%,
-    hsl(var(--color-mint) / 0.2) 60%,
-    transparent 90%
-  );
-  filter: blur(35px);
-  transform: rotate(18deg);
-  will-change: transform;
+/* 右下角青蓝色模糊色块（替代流光扫过） */
+.bg-corner-glow {
+  bottom: -15%;
+  right: -10%;
+  width: 50%;
+  height: 40%;
+  background: radial-gradient(ellipse at center, hsl(var(--color-sky) / 0.18), hsl(var(--color-mint) / 0.1) 50%, transparent 70%);
+  filter: blur(60px);
   pointer-events: none;
-  animation: bg-sweep 14s linear infinite;
-}
-.bg-anti-sweep {
-  position: absolute;
-  top: -50%;
-  right: -30%;
-  width: 65%;
-  height: 200%;
-  background: linear-gradient(
-    90deg,
-    transparent 10%,
-    hsl(var(--color-mint) / 0.16) 40%,
-    hsl(var(--color-sky) / 0.18) 60%,
-    transparent 90%
-  );
-  filter: blur(35px);
-  transform: rotate(18deg);
-  will-change: transform;
-  pointer-events: none;
-  animation: bg-sweep 18s linear infinite reverse;
-  animation-delay: -7s;
-}
-@keyframes bg-sweep {
-  from { transform: translateX(0) rotate(18deg); }
-  to { transform: translateX(240%) rotate(18deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bg-sweep, .bg-anti-sweep { animation: none; }
 }
 
 .rings-fade-enter-active { transition: opacity 1.5s ease-out; }

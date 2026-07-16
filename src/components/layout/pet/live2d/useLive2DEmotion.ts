@@ -10,7 +10,7 @@
  *
  * 环境感知：音乐播放 → singing（2mic）
  */
-import { type Ref } from 'vue'
+import { type Ref, onScopeDispose } from 'vue'
 import {
   type Live2DMood,
   type Live2DPetState,
@@ -33,6 +33,7 @@ export function useLive2DEmotion(
   state: Live2DPetState,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modelRef: Ref<any>,
+  isSinging?: Ref<boolean>,
 ) {
   let idleTimer: ReturnType<typeof setTimeout> | null = null
   let sleepTimer: ReturnType<typeof setTimeout> | null = null
@@ -46,7 +47,8 @@ export function useLive2DEmotion(
 
   function resetIdleTimers() {
     clearIdleTimers()
-    // 修复：cry 状态下点击不重置为 idle，保持 cry 状态
+    // 唱歌期间不启动闲置计时器（保持默认/微笑状态）
+    if (isSinging?.value) return
     idleTimer = setTimeout(() => {
       if (state.mood.value === 'idle' || state.mood.value === 'happy') applyMood('cry')
     }, CRY_AFTER_MS)
@@ -57,7 +59,7 @@ export function useLive2DEmotion(
 
   function initIdleTimers() {
     clickCount = 0
-    resetIdleTimers()
+    if (!isSinging?.value) resetIdleTimers()
   }
 
   function applyMood(mood: Live2DMood) {
@@ -79,14 +81,6 @@ export function useLive2DEmotion(
     setModelParam(model, 'ParamCheek', mood === 'happy' ? 0.9 : 0.5)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function setModelProps(model: any, props: Record<string, number>) {
-    for (const [id, value] of Object.entries(props)) {
-      setModelParam(model, id, value)
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function setModelParam(model: any, paramId: string, value: number) {
     try {
       const core = model.internalModel?.coreModel as Record<string, unknown> | null
@@ -133,6 +127,8 @@ export function useLive2DEmotion(
       applyMood('singing')
     }
   }
+
+  onScopeDispose(() => clearIdleTimers())
 
   return {
     applyMood,

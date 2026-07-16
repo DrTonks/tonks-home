@@ -12,7 +12,7 @@ import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
 import { useLive2DSinging } from './pet/live2d/useLive2DSinging'
-import { createLive2DState } from './pet/live2d/state'
+import { createLive2DState, type Live2DParticle, type Live2DSingingNote, NOTE_SYMBOLS } from './pet/live2d/state'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue-live2d.json'
 
@@ -31,22 +31,55 @@ const containerRef = ref<HTMLElement | null>(null)
 const modelCtrl = useLive2DModel(containerRef)
 const { model, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
-
-const emotion = useLive2DEmotion(state, model)
-const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved, () => {
-  // 10s 鼠标未动后首次移动 → 说 turn 台词
-  if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
-    bubble.say(pick(dl.turn))
-  }
-})
 const bubble = useSpeechBubble()
+
+// ===== 粒子/音符特效（在 singing/emotion 前定义，供 singing 引用） =====
+let particleId = 0
+let singingNoteId = 0
+
+function spawnParticles(count: number, clickX?: number, clickY?: number) {
+  const cx = clickX ?? LIVE2D_W / 2
+  const cy = clickY ?? LIVE2D_H / 2
+  const newP: Live2DParticle[] = Array.from({ length: count }, () => ({
+    id: ++particleId,
+    originX: cx + (Math.random() - 0.5) * 16,
+    originY: cy + (Math.random() - 0.5) * 16,
+    dx: (Math.random() - 0.5) * 200,
+    dy: (Math.random() - 0.5) * 200 - 50,
+    delay: Math.random() * 120,
+  }))
+  state.particles.value = [...state.particles.value, ...newP]
+  setTimeout(() => { state.particles.value = state.particles.value.filter(p => !newP.includes(p)) }, 1000)
+}
+
+function spawnSingingNotes(count: number) {
+  const notes: Live2DSingingNote[] = Array.from({ length: count }, () => ({
+    id: ++singingNoteId,
+    x: LIVE2D_W * 0.2 + Math.random() * LIVE2D_W * 0.7,
+    y: -10 + Math.random() * 40,
+    symbol: NOTE_SYMBOLS[Math.floor(Math.random() * NOTE_SYMBOLS.length)],
+    hue: Math.random() * 360,
+    delay: Math.random() * 300,
+  }))
+  state.singingNotes.value = [...state.singingNotes.value, ...notes]
+  setTimeout(() => { state.singingNotes.value = state.singingNotes.value.filter(n => !notes.includes(n)) }, 2500)
+}
 
 // ===== 道具状态（用户右键切换） =====
 const propsEnabled = ref({ desk: false, mic: false })
 
-// ===== 唱歌 =====
+// ===== 唱歌（必须在 emotion 前，emotion 依赖 singing.isSinging） =====
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
-  emotion.initIdleTimers()
+  emotion.clearIdleTimers()  // 唱歌开始 → 清闲置计时器
+}, () => {
+  emotion.initIdleTimers()   // 唱歌结束 → 恢复闲置计时器
+}, (count: number) => spawnSingingNotes(count))
+
+const emotion = useLive2DEmotion(state, model, singing.isSinging)
+const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved, () => {
+  if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
+    bubble.say(pick(dl.turn))
+  }
 })
 
 type Placement = 'left' | 'right'
@@ -88,13 +121,18 @@ watch(() => state.mood.value, (m) => {
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
-const ctxMenuItems = computed<ContextMenuItem[]>(() => [
-  {
-    label: '唤醒普瑞赛斯', icon: RefreshRight,
-    action: () => { if (petEnv.canSwitch()) petEnv.activePetType = 'static' },
-    disabled: !petEnv.canSwitch(),
-  },
-  {
+const ctxMenuItems = computed<ContextMenuItem[]>(() => {
+  const items: ContextMenuItem[] = []
+  // 唱歌时隐藏切换项，堵死切换路径
+  if (!singing.isSinging.value) {
+    items.push({
+      label: '唤醒普瑞赛斯', icon: RefreshRight,
+      action: () => { if (petEnv.canSwitch()) petEnv.activePetType = 'static' },
+      disabled: !petEnv.canSwitch(),
+    })
+  }
+  items.push(
+    {
     label: propsEnabled.value.desk ? '桌子（已启用）' : '桌子', icon: Monitor,
     action: () => toggleProp('desk'),
   },
@@ -102,19 +140,22 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
     label: propsEnabled.value.mic ? '麦克风（已启用）' : '麦克风', icon: Microphone,
     action: () => toggleProp('mic'),
   },
-  { label: '关于桌宠', icon: InfoFilled, action: () => playIntro() },
-])
+  { label: '关于我？', icon: InfoFilled, action: () => playIntro() },
+  )
+  return items
+})
 
-/** 播放介绍句序列（右键"关于桌宠"触发） */
+/** 播放介绍句序列（右键"关于我？"触发） */
 function playIntro() {
   const sentences = dl.intro
   if (!sentences?.length) return
   let i = 0
   function next() {
-    if (i >= sentences.length) return
+    if (i >= sentences.length) { bubble.hide(); return }
     bubble.say(sentences[i], true)
     i++
-    setTimeout(next, 300 + Math.random() * 200)
+    const dwell = 2200 + sentences[i - 1].length * 120
+    setTimeout(next, dwell)
   }
   next()
 }
@@ -130,6 +171,12 @@ function handleClick(e: MouseEvent) {
   if (state.moved.value) { state.moved.value = false; return }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)
+  // 唱歌时点击出音符，否则走情绪升级
+  if (singing.isSinging.value) {
+    spawnSingingNotes(5)
+    return
+  }
+  spawnParticles(8)
   emotion.handleClick()
 }
 
@@ -177,6 +224,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="fixed z-50 select-none"
+    :class="{ 'pet-collapsing': petEnv.isCollapsing }"
     :style="{
       left: `${state.pos.value.x}px`,
       top: `${state.pos.value.y}px`,
@@ -201,9 +249,27 @@ onBeforeUnmount(() => {
         :translation="bubble.translation.value"
         :emoji="bubble.emoji.value"
         :placement="placement"
-        :vertical-offset="66"
-        :horizontal-offset="66"
+        :vertical-offset="46"
+        :horizontal-offset="56"
       />
+
+      <!-- 粒子 -->
+      <span
+        v-for="p in state.particles.value"
+        :key="p.id"
+        class="pet-particle-l2d absolute w-2.5 h-2.5 rounded-full pointer-events-none z-50"
+        :style="{
+          '--dx': `${p.dx}px`, '--dy': `${p.dy}px`, '--delay': `${p.delay}ms`,
+          left: `${p.originX}px`, top: `${p.originY}px`,
+        }"
+      />
+      <!-- 唱歌音符 -->
+      <span
+        v-for="n in state.singingNotes.value"
+        :key="n.id"
+        class="singing-note-l2d absolute pointer-events-none z-50 select-none"
+        :style="{ left: `${n.x}px`, top: `${n.y}px`, '--hue': `${n.hue}`, animationDelay: `${n.delay}ms` }"
+      >{{ n.symbol }}</span>
 
       <div
         ref="containerRef"
@@ -247,7 +313,7 @@ onBeforeUnmount(() => {
   0%   { transform: translateY(-120vh); opacity: 0; }
   15%  { opacity: 0.4; filter: blur(2px); }
   50%  { opacity: 1; filter: blur(0); }
-  100% { transform: translateY(-5vh); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(-10vh); opacity: 1; filter: blur(0); }
 }
 .drop-enter-live2d {
   animation: pet-drop-live2d 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
@@ -266,5 +332,35 @@ onBeforeUnmount(() => {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.08); }
   100% { transform: scale(1); }
+}
+
+/* 点击粒子（照搬 DesktopPet） */
+.pet-particle-l2d {
+  animation: pet-particle-l2d 0.8s ease-out forwards;
+  animation-delay: var(--delay);
+  background: #fff !important;
+  box-shadow: 0 0 6px 2px rgba(255,255,255,0.7);
+}
+@keyframes pet-particle-l2d {
+  0%   { opacity: 1; transform: scale(1.3); }
+  40%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+}
+
+/* 唱歌音符（照搬 DesktopPet） */
+.singing-note-l2d {
+  font-size: 18px;
+  color: hsl(var(--hue, 50), 80%, 65%);
+  text-shadow: 0 0 10px hsl(var(--hue, 50), 90%, 60%),
+               0 0 20px hsl(var(--hue, 50), 80%, 55%);
+  animation: note-float-l2d 2.5s ease-out forwards;
+  animation-delay: var(--delay, 0ms);
+  opacity: 0;
+}
+@keyframes note-float-l2d {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5) rotate(-10deg); }
+  20%  { opacity: 1; transform: translateY(-10px) scale(1.2) rotate(5deg); }
+  60%  { opacity: 0.7; transform: translateY(-45px) translateX(10px) scale(1) rotate(15deg); }
+  100% { opacity: 0; transform: translateY(-75px) translateX(20px) scale(0.5) rotate(30deg); }
 }
 </style>

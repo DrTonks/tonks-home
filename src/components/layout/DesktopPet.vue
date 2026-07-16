@@ -172,21 +172,22 @@ defineExpose({ provoke })
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
-const ctxMenuItems = computed<ContextMenuItem[]>(() => [
-  {
-    label: '唤出U酱！',
-    icon: RefreshRight,
-    action: () => {
-      if (petEnv.canSwitch()) petEnv.activePetType = 'live2d'
-    },
-    disabled: !petEnv.canSwitch(),
-  },
-  {
-    label: '关于桌宠',
-    icon: InfoFilled,
-    action: () => playIntro(),
-  },
-])
+const ctxMenuItems = computed<ContextMenuItem[]>(() => {
+  const items: ContextMenuItem[] = []
+  // 唱歌时隐藏切换项，堵死切换路径
+  if (!state.singingState.value) {
+    items.push({
+      label: '唤出U酱！',
+      icon: RefreshRight,
+      action: () => {
+        if (petEnv.canSwitch()) petEnv.activePetType = 'live2d'
+      },
+      disabled: !petEnv.canSwitch(),
+    })
+  }
+  items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro() })
+  return items
+})
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault()
@@ -201,10 +202,12 @@ function playIntro() {
   if (!sentences?.length) return
   let i = 0
   function next() {
-    if (i >= sentences.length) return
+    if (i >= sentences.length) { bubble.hide(); return }
     bubble.say(sentences[i], true)
     i++
-    setTimeout(next, 300 + Math.random() * 200)
+    // 每句停留时间 = 2s 基础 + 按字数延长（≈读完所需时间），确保不会被下一句过早覆盖
+    const dwell = 2200 + sentences[i - 1].length * 120
+    setTimeout(next, dwell)
   }
   next()
 }
@@ -243,6 +246,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="fixed z-50 select-none cursor-grab active:cursor-grabbing"
+    :class="{ 'pet-collapsing': petEnv.isCollapsing }"
     :style="{ left: `${state.pos.value.x}px`, top: `${state.pos.value.y}px`, width: `${W}px`, height: `${H}px` }"
     @pointerdown="core.onPointerDown"
     @pointermove="core.onPointerMove"

@@ -216,6 +216,11 @@
   animation: pet-drop 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
 }
 .drop-layer { position: relative; }
+/* 桌面宠折叠淡出（作用于 position:fixed 根元素，不会触发 CTB 位置跳变） */
+.pet-collapsing {
+  opacity: 0 !important;
+  transition: opacity 0.35s ease-in;
+}
 
 /* 移除默认 button 样式 */
 button {

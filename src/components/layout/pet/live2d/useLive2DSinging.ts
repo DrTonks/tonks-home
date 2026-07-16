@@ -8,37 +8,42 @@
  *  - 音符粒子 + LRC 歌词气泡
  *  - 头部摇晃
  */
-import { watch, onScopeDispose, type Ref } from 'vue'
+import { ref, watch, onScopeDispose, type Ref } from 'vue'
 import { useMusicStore } from '@/stores/music'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { getLyrics, type MusicFile } from '@/api/music'
 import { parseLRC, currentLyric, type LyricLine } from '@/lib/lrc'
 import type { SpeechBubbleApi } from '../useSpeechBubble'
 
-const SINGING_MOUTH_MIN = 0.1
-const SINGING_MOUTH_MAX = 1.5
+const SINGING_MOUTH_MIN = 0.05
+const SINGING_MOUTH_MAX = 1.6
 const HEAD_SWAY_SPEED = 0.002
-const MOUTH_CYCLE_SPEED = 0.12 // 张嘴周期（弧度/帧，≈5frame 一个完整开合）
 
 export function useLive2DSinging(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modelRef: Ref<any>,
   bubble: SpeechBubbleApi,
   singingChecked: Ref<boolean>,
+  onSingingEnter: () => void,
   onSingingExit: () => void,
+  onSpawnNotes?: (count: number) => void,
 ) {
   const store = useMusicStore()
   const { hasSignal, startSignalCheck, stopSignalCheck } = useAudioAnalyzer()
+  const isSinging = ref(false)
 
   let mouthOpen = 0
   let eyeOpen = 1
   let eyeOpenTarget = 1
   let eyeSwitchTimer: ReturnType<typeof setInterval> | null = null
   let headPhase = 0
-  let mouthPhase = 0
+  let mouthLerp = 0.08    // 逼近目标值 lerp 系数（随机变化）
+  let mouthTarget = 0     // 当前张嘴目标
+  let mouthHoldTimer = 0  // 张嘴后保持的剩余时间
   let ticking = false
   let hasLyric = false
-  let singingRafId: number | null = null // M3: 存储 rAF ID 用于取消
+  let singingRafId: number | null = null
+  let noteSpawnTimer: ReturnType<typeof setTimeout> | null = null
 
   // LRC 歌词
   let lyrics: LyricLine[] = []
@@ -61,15 +66,36 @@ export function useLive2DSinging(
     const model = modelRef.value
     if (!model || !ticking) return
 
-    // 张嘴：有歌词时正弦波一张一合，无歌词时平滑闭嘴
+    // 张嘴：模拟真实唱歌的吐字随机性
     if (hasLyric) {
-      mouthPhase += MOUTH_CYCLE_SPEED
-      const cycle = (Math.sin(mouthPhase) + 1) / 2
-      const target = SINGING_MOUTH_MIN + cycle * (SINGING_MOUTH_MAX - SINGING_MOUTH_MIN)
-      mouthOpen += (target - mouthOpen) * 0.3
+      mouthHoldTimer -= 0.016
+      if (mouthHoldTimer <= 0) {
+        // 随机决定下一个动作：张嘴 / 闭嘴 / 微张
+        const r = Math.random()
+        if (r < 0.55) {
+          // 张大口（重音/长音）：0.2~0.8s
+          mouthTarget = 0.5 + Math.random() * 0.5
+          mouthLerp = 0.15 + Math.random() * 0.2
+          mouthHoldTimer = 0.2 + Math.random() * 0.6
+        } else if (r < 0.85) {
+          // 小幅张开（轻音/短音）：0.1~0.4s
+          mouthTarget = 0.15 + Math.random() * 0.35
+          mouthLerp = 0.2 + Math.random() * 0.25
+          mouthHoldTimer = 0.1 + Math.random() * 0.3
+        } else {
+          // 短暂闭嘴（换气/停顿）：0.05~0.25s
+          mouthTarget = 0
+          mouthLerp = 0.1 + Math.random() * 0.15
+          mouthHoldTimer = 0.05 + Math.random() * 0.2
+        }
+        mouthTarget = Math.max(SINGING_MOUTH_MIN, Math.min(SINGING_MOUTH_MAX, mouthTarget * (SINGING_MOUTH_MAX - SINGING_MOUTH_MIN) + SINGING_MOUTH_MIN))
+      }
     } else {
-      mouthOpen += (0 - mouthOpen) * 0.08
+      mouthTarget = 0
+      mouthLerp = 0.06
+      mouthHoldTimer = 0
     }
+    mouthOpen += (mouthTarget - mouthOpen) * mouthLerp
     setParam(model, 'ParamMouthOpenY', Math.max(0, mouthOpen))
 
     eyeOpen += (eyeOpenTarget - eyeOpen) * 0.05
@@ -164,10 +190,21 @@ export function useLive2DSinging(
 
     setParam(model, 'Param', 1)
     singingChecked.value = true
+    // 7b 修复：唱歌前清空闲置计时器，防止 cry/sleep 在唱歌期间误触发
+    onSingingEnter()
     ticking = true
+    isSinging.value = true
     startEyeSwitch()
     singingTick()
     showIntro()
+    // 自动冒音符：setTimeout 链式，每次间隔独立随机 0.7~2.7s
+    function scheduleNote() {
+      if (!ticking) return
+      noteSpawnTimer = setTimeout(() => {
+        if (ticking) { onSpawnNotes?.(3); scheduleNote() }
+      }, 700 + Math.random() * 2000)
+    }
+    scheduleNote()
     if (store.currentSong) loadLRC(store.currentSong)
   }
 
@@ -175,6 +212,7 @@ export function useLive2DSinging(
     ticking = false
     if (singingRafId !== null) { cancelAnimationFrame(singingRafId); singingRafId = null }
     if (eyeSwitchTimer) { clearInterval(eyeSwitchTimer); eyeSwitchTimer = null }
+    if (noteSpawnTimer) { clearTimeout(noteSpawnTimer); noteSpawnTimer = null }
     const model = modelRef.value
     if (model) {
       // 恢复用户的麦克风偏好，而非强制关闭
@@ -188,19 +226,27 @@ export function useLive2DSinging(
     lastKey = ''
     lyrics = []
     loadedFor = ''
+    isSinging.value = false
     stopSignalCheck()
     onSingingExit()
   }
 
   watch(() => store.isPlaying, (playing) => {
     if (playing) startSignalCheck()
-    else { stopSignalCheck(); stopSinging() }
+    else { stopSignalCheck(); if (ticking) stopSinging() } // immediate 触发时不调 stopSinging（emotion 可能未初始化）
   }, { immediate: true })
 
   watch(hasSignal, (active) => {
-    if (store.isPlaying && active) startSinging()
+    // C3：模型未加载完时忽略信号，checkSingingEnv 在 onMounted 中兜底
+    if (store.isPlaying && active && modelRef.value) startSinging()
   })
 
-  onScopeDispose(clearIntro)
-  return { startSinging, stopSinging, tryResumeSinging: startSinging }
+  onScopeDispose(() => {
+    clearIntro()
+    if (singingRafId !== null) { cancelAnimationFrame(singingRafId); singingRafId = null }
+    if (eyeSwitchTimer) { clearInterval(eyeSwitchTimer); eyeSwitchTimer = null }
+    if (noteSpawnTimer) { clearTimeout(noteSpawnTimer); noteSpawnTimer = null }
+    stopSignalCheck()
+  })
+  return { startSinging, stopSinging, isSinging, tryResumeSinging: startSinging }
 }

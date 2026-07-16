@@ -120,7 +120,6 @@ export function useSpeechBubble() {
     showNotes,
     hide,
     isMusicMode,
-    TYPE_SPEED,
   }
 }
 
