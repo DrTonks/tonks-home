@@ -5,14 +5,14 @@ import { ref, type Ref } from 'vue'
 
 export type Live2DMood = 'idle' | 'happy' | 'angry' | 'cry' | 'sleep' | 'singing'
 
-/** Expression → mood 映射 */
-export const EXPRESSION_MAP: Record<Live2DMood, { expr: string; props?: Record<string, number> }> = {
-  idle:    { expr: '3clever',   props: { Param4: 1 } },
-  happy:   { expr: '3clever',   props: { Param4: 1 } },
+/** Expression → mood 映射（道具由用户右键控制，不在此映射中自动设置） */
+export const EXPRESSION_MAP: Record<Live2DMood, { expr: string }> = {
+  idle:    { expr: '3clever' },
+  happy:   { expr: '3clever' },
   angry:   { expr: '4OAO' },
   cry:     { expr: '5QAQ' },
-  sleep:   { expr: '9', props: { Param4: 1 } },
-  singing: { expr: '2mic',      props: { Param: 1 } },
+  sleep:   { expr: '9' },
+  singing: { expr: '2mic' },
 }
 
 export const SLEEP_EXPRESSIONS = ['9'] as const

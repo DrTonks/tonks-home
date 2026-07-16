@@ -69,15 +69,12 @@ export function useLive2DEmotion(
 
     if (mood === 'sleep') {
       const pick = SLEEP_EXPRESSIONS[Math.floor(Math.random() * SLEEP_EXPRESSIONS.length)]
-      mapping = { expr: pick, props: { Param4: 1 } }
+      mapping = { expr: pick }
     }
 
     state.mood.value = mood
     state.activeExpression.value = mapping.expr
     model.expression(mapping.expr)
-
-    const props = mapping.props ?? {}
-    setModelProps(model, props)
 
     setModelParam(model, 'ParamCheek', mood === 'happy' ? 0.9 : 0.5)
   }

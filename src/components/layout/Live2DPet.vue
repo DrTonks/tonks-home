@@ -1,13 +1,13 @@
 <script setup lang="ts">
 /**
- * Live2D 桌宠组件 — 独立体系，含唱歌/道具/leaf/介绍引导。
+ * Live2D 桌宠组件 — 独立体系，含唱歌/道具控制/介绍引导。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Monitor, Microphone, Sunny } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Monitor, Microphone } from '@element-plus/icons-vue'
 import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
@@ -15,6 +15,14 @@ import { useLive2DSinging } from './pet/live2d/useLive2DSinging'
 import { createLive2DState } from './pet/live2d/state'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue-live2d.json'
+
+/** 句库类型（greeting 是嵌套对象，其余是 string[]） */
+type Live2DDialogue = {
+  intro: string[]; greeting: Record<string, string[]>; idle: string[]
+  happy: string[]; angry: string[]; cry: string[]; sleep: string[]
+  threat: string[]; turn: string[]; click: string[]
+}
+const dl = dialogue as unknown as Live2DDialogue
 
 const petEnv = usePetEnvStore()
 const state = createLive2DState()
@@ -28,13 +36,13 @@ const emotion = useLive2DEmotion(state, model)
 const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved, () => {
   // 10s 鼠标未动后首次移动 → 说 turn 台词
   if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
-    bubble.say(pick((dialogue as unknown as Record<string, string[]>).turn || []))
+    bubble.say(pick(dl.turn))
   }
 })
 const bubble = useSpeechBubble()
 
 // ===== 道具状态（用户右键切换） =====
-const propsEnabled = ref({ desk: false, mic: false, leaf: false })
+const propsEnabled = ref({ desk: false, mic: false })
 
 // ===== 唱歌 =====
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
@@ -60,25 +68,20 @@ function setProp(model: any, paramId: string, on: boolean) {
   } catch { /* ignore */ }
 }
 
-function toggleProp(key: 'desk' | 'mic' | 'leaf') {
+function toggleProp(key: 'desk' | 'mic') {
   propsEnabled.value[key] = !propsEnabled.value[key]
   const m = model.value
   if (!m) return
   if (key === 'desk') setProp(m, 'Param4', propsEnabled.value.desk)
   if (key === 'mic') setProp(m, 'Param', propsEnabled.value.mic)
-  if (key === 'leaf') {
-    // leaf 需要同时设置两个互补参数：Param31=leaf, Param55=leaf off
-    setProp(m, 'Param31', propsEnabled.value.leaf ? 1 : 0)
-    setProp(m, 'Param55', propsEnabled.value.leaf ? 0 : 1)
-  }
 }
 
 // 情绪台词（使用 Live2D 专属句库）
 watch(() => state.mood.value, (m) => {
   if (!model.value || bubble.visible.value) return
-  const key = m as keyof typeof dialogue
-  const lines = (dialogue as unknown as Record<string, string[]>)[key]
-  if (lines?.length) bubble.say(pick(lines))
+  const key = m as keyof Live2DDialogue
+  const lines = dl[key]
+  if (lines && Array.isArray(lines)) bubble.say(pick(lines as string[]))
 })
 
 // 右键菜单（道具可切换 + 唱歌时 mic 自动呼出）
@@ -96,10 +99,6 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
     action: () => toggleProp('desk'),
   },
   {
-    label: propsEnabled.value.leaf ? '叶子（已启用）' : '叶子', icon: Sunny,
-    action: () => toggleProp('leaf'),
-  },
-  {
     label: propsEnabled.value.mic ? '麦克风（已启用）' : '麦克风', icon: Microphone,
     action: () => toggleProp('mic'),
   },
@@ -108,7 +107,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
 
 /** 播放介绍句序列（右键"关于桌宠"触发） */
 function playIntro() {
-  const sentences = (dialogue as unknown as Record<string, string[]>).intro
+  const sentences = dl.intro
   if (!sentences?.length) return
   let i = 0
   function next() {
@@ -143,7 +142,7 @@ onMounted(async () => {
   if (!model.value) { petEnv.isLive2DError = true; return }
 
   petEnv.isLive2DReady = true
-  setProp(model.value, 'Param4', true)
+  // 道具初始状态由 propsEnabled 控制，不在此强制开启
   emotion.initIdleTimers()
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
@@ -151,12 +150,12 @@ onMounted(async () => {
   greetTimer = setTimeout(() => {
     const h = new Date().getHours()
     const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-    bubble.say(pick((dialogue as unknown as Record<string, Record<string, string[]>>).greeting[slot]))
+    bubble.say(pick(dl.greeting[slot]))
   }, 1600)
 
   idleTalkTimer = setInterval(() => {
     if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.55) {
-      bubble.say(pick(dialogue.idle))
+      bubble.say(pick(dl.idle))
     }
   }, 28000)
 })
@@ -239,8 +238,8 @@ onBeforeUnmount(() => {
  *   - Live2DPet: 本文件下方 → @keyframes pet-drop-live2d
  *
  * 气泡位置：
- *   - DesktopPet: verticalOffset=14, horizontalOffset=13（默认）
- *   - Live2DPet: verticalOffset=14, horizontalOffset=13（模板中 :vertical-offset / :horizontal-offset 可改）
+ *   - DesktopPet: 使用默认值 verticalOffset=14, horizontalOffset=13
+ *   - Live2DPet verticalOffset/horizontalOffset: 见模板 SpeechBubble 上的 :vertical-offset / :horizontal-offset
  *   - 改大 verticalOffset → 气泡下移；改大 horizontalOffset → 气泡远离桌宠
  */
 

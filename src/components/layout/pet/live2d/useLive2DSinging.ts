@@ -144,10 +144,24 @@ export function useLive2DSinging(
   )
   watch(() => store.currentTime, updateLRC)
 
+  // 唱歌前保存用户麦克风偏好，结束后恢复
+  let savedMicState = 0
+
   // ===== 唱歌启停 =====
   async function startSinging() {
+    // 重入防护：已在唱歌状态则忽略
+    if (ticking) return
+
     const model = modelRef.value
     if (!model) return
+
+    // 保存当前麦克风状态（用户可能已通过右键菜单开启）
+    savedMicState = 0
+    try {
+      const core = model.internalModel?.coreModel as Record<string, unknown> | null
+      savedMicState = (core?.getParameterValueById as ((id: string) => number) | undefined)?.call(core, 'Param') ?? 0
+    } catch { /* ignore */ }
+
     setParam(model, 'Param', 1)
     singingChecked.value = true
     ticking = true
@@ -163,7 +177,8 @@ export function useLive2DSinging(
     if (eyeSwitchTimer) { clearInterval(eyeSwitchTimer); eyeSwitchTimer = null }
     const model = modelRef.value
     if (model) {
-      setParam(model, 'Param', 0)
+      // 恢复用户的麦克风偏好，而非强制关闭
+      setParam(model, 'Param', savedMicState)
       setParam(model, 'ParamMouthOpenY', 0)
       setParam(model, 'ParamEyeLOpen', 1)
       setParam(model, 'ParamEyeROpen', 1)
