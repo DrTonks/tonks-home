@@ -23,7 +23,8 @@ const props = withDefaults(
     translation?: string // lyric：译文（次）
     emoji?: string // emoji：表情包图片路径
     placement?: Placement
-    verticalOffset?: number // 气泡垂直偏移（桌面/Live2D 可单独微调）
+    verticalOffset?: number // 气泡垂直偏移 (top)
+    horizontalOffset?: number // 气泡水平偏移 (right/left 表达式中的 px 值)
     typeSpeed?: number // 每字毫秒
   }>(),
   {
@@ -35,6 +36,7 @@ const props = withDefaults(
     emoji: '',
     placement: 'left',
     verticalOffset: 14,
+    horizontalOffset: 13,
     typeSpeed: 45,
   },
 )
@@ -88,7 +90,9 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       v-if="visible"
       class="pet-bubble"
       :class="[`place-${placement}`, { 'is-emoji': mode === 'emoji' }]"
-      :style="placement ? { top: `${verticalOffset}px` } : undefined"
+      :style="placement
+        ? { top: `${verticalOffset}px`, [placement === 'left' ? 'right' : 'left']: `calc(100% - ${horizontalOffset}px)` }
+        : undefined"
       role="status"
       aria-live="polite"
     >

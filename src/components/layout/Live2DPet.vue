@@ -25,7 +25,12 @@ const { model, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
 
 const emotion = useLive2DEmotion(state, model)
-const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved)
+const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved, () => {
+  // 10s 鼠标未动后首次移动 → 说 turn 台词
+  if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
+    bubble.say(pick((dialogue as Record<string, string[]>).turn || []))
+  }
+})
 const bubble = useSpeechBubble()
 
 // ===== 道具状态（用户右键切换） =====
@@ -198,6 +203,7 @@ onBeforeUnmount(() => {
         :emoji="bubble.emoji.value"
         :placement="placement"
         :vertical-offset="14"
+        :horizontal-offset="13"
       />
 
       <div
@@ -233,8 +239,9 @@ onBeforeUnmount(() => {
  *   - Live2DPet: 本文件下方 → @keyframes pet-drop-live2d
  *
  * 气泡位置：
- *   - DesktopPet: SpeechBubble verticalOffset=14（默认），相对 <div ref="petRef" class="relative">
- *   - Live2DPet: SpeechBubble verticalOffset=14，相对 <div class="drop-layer">，改竖向偏移改这里上方模板中的 :vertical-offset 值
+ *   - DesktopPet: verticalOffset=14, horizontalOffset=13（默认）
+ *   - Live2DPet: verticalOffset=14, horizontalOffset=13（模板中 :vertical-offset / :horizontal-offset 可改）
+ *   - 改大 verticalOffset → 气泡下移；改大 horizontalOffset → 气泡远离桌宠
  */
 
 @keyframes pet-drop-live2d {

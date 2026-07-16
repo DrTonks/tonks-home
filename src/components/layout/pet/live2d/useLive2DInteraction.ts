@@ -29,7 +29,12 @@ export function useLive2DInteraction(
   modelRef: Ref<any>,
   pos: Ref<{ x: number; y: number }>,
   moved: Ref<boolean>,
+  onTurn?: () => void,
 ) {
+  // turn 检测：鼠标静止超时后首次大幅移动 → 触发 turn 台词
+  let lastMouseMove = 0
+  let mouseIdleTurnFired = false
+
   let targetAngleX = 0
   let targetAngleY = 0
   let targetAngleZ = 0
@@ -82,6 +87,15 @@ export function useLive2DInteraction(
   }
 
   function mouseToParams(clientX: number, clientY: number) {
+    // turn 检测：10s 无鼠标 → 再次移动时触发一次
+    if (onTurn) {
+      const now = performance.now()
+      if (!mouseIdleTurnFired && now - lastMouseMove > 10000) {
+        mouseIdleTurnFired = true
+        onTurn()
+      }
+      lastMouseMove = now
+    }
     const rect = getContainerRect()
     if (!rect) return
     const nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
@@ -179,6 +193,8 @@ export function useLive2DInteraction(
   function onPointerUp() { dragging = false }
 
   function startMouseTracking() {
+    lastMouseMove = performance.now()
+    mouseIdleTurnFired = false
     window.addEventListener('mousemove', onGlobalMouseMove)
     startTracking()
   }
