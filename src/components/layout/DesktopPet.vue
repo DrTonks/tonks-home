@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { Hand } from 'lucide-vue-next'
 import { createPetState, W, H, TURN_FRAME_PATH, FRAMES } from './pet/state'
 import { usePetCore } from './pet/usePetCore'
 import { usePetSinging } from './pet/usePetSinging'
@@ -7,11 +8,15 @@ import { usePetTurn } from './pet/usePetTurn'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
+import ContextMenu from './ContextMenu.vue'
+import type { ContextMenuItem } from './ContextMenu.vue'
+import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue.json'
 
 const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
 const petRef = ref<HTMLElement | null>(null)
+const petEnv = usePetEnvStore()
 
 // Canvas 预渲染 turnside 镜像 → 静态图，避免 CSS scaleX(-1) 的纹理闪帧
 const mirroredTurnSrc = ref(TURN_FRAME_PATH)
@@ -163,6 +168,38 @@ function provoke() {
 }
 defineExpose({ provoke })
 
+// ===== 右键菜单 =====
+const ctxMenuShow = ref(false)
+const ctxMenuX = ref(0)
+const ctxMenuY = ref(0)
+const ctxMenuItems = computed<ContextMenuItem[]>(() => [
+  {
+    label: '切换为 Live2D 桌宠',
+    icon: '🔄',
+    action: () => {
+      if (petEnv.canSwitch()) petEnv.activePetType = 'live2d'
+    },
+    disabled: !petEnv.canSwitch(),
+  },
+  {
+    label: '关于桌宠',
+    icon: 'ℹ️',
+    action: () => { bubble.say('我是 DrTonks 的桌宠！戳我会有反应哦~') },
+  },
+])
+
+function onContextMenu(e: MouseEvent) {
+  e.preventDefault()
+  ctxMenuX.value = e.clientX
+  ctxMenuY.value = e.clientY
+  ctxMenuShow.value = true
+}
+
+// 同步暴怒状态到 petEnv（阻挡切换）
+watch(() => state.rageActive.value, (v) => {
+  petEnv.isRageActive = v
+})
+
 onMounted(() => {
   turn.startMouseSystem()
   // 进页面时段问候（等桌宠落地动画）
@@ -198,6 +235,7 @@ onBeforeUnmount(() => {
     @pointerup="core.onPointerUp"
     @pointercancel="core.onPointerUp"
     @click="handleClick"
+    @contextmenu="onContextMenu"
     @dragstart.prevent
   >
     <div class="drop-enter drop-layer">
@@ -256,9 +294,27 @@ onBeforeUnmount(() => {
           class="angry-mark absolute pointer-events-none z-50 select-none"
           alt="angry"
         />
+        <!-- hover 切换按钮 -->
+        <button
+          class="pet-switch-btn absolute -bottom-2 -right-2 z-20 opacity-0 hover:opacity-100 transition-opacity duration-200 h-7 w-7 rounded-full bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center hover:border-primary/40 cursor-pointer"
+          @click.stop="petEnv.canSwitch() && (petEnv.activePetType = 'live2d')"
+          @pointerdown.stop
+          title="切换为 Live2D 桌宠"
+        >
+          <Hand class="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
       </div>
     </div>
   </div>
+
+  <!-- 右键菜单 -->
+  <ContextMenu
+    :items="ctxMenuItems"
+    :x="ctxMenuX"
+    :y="ctxMenuY"
+    :show="ctxMenuShow"
+    @close="ctxMenuShow = false"
+  />
 </template>
 
 <style scoped>

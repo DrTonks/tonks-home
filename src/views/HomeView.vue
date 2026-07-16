@@ -6,6 +6,7 @@ import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
 import GalaxyBackground from '@/components/layout/GalaxyBackground.vue'
 import ThemeToggle from '@/components/layout/ThemeToggle.vue'
 import DesktopPet from '@/components/layout/DesktopPet.vue'
+import PetSwitcher from '@/components/layout/PetSwitcher.vue'
 import CRTShutdown from '@/components/layout/CRTShutdown.vue'
 import { AdminAuth } from '@/components/auth'
 import { GestureToggle } from '@/components/gesture'
@@ -44,7 +45,8 @@ function onPetRage() {
 }
 
 // 桌宠实例：中指手势激怒时调用其 provoke（进 threat 约 1 秒后暴怒）
-const petRef = ref<InstanceType<typeof DesktopPet> | null>(null)
+// 因为使用了 PetSwitcher 包装，类型改为 PetSwitcher
+const petRef = ref<InstanceType<typeof PetSwitcher> | null>(null)
 function onMiddleFinger() {
   petRef.value?.provoke()
 }
@@ -237,7 +239,7 @@ const componentListMobile = [
       @swipe="onSwipe"
     />
     <Transition name="pet-fade">
-      <DesktopPet ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" @rage-start="onRageStart" />
+      <PetSwitcher ref="petRef" v-if="isExpanded && !isCollapsing" @rage="onPetRage" @rage-start="onRageStart" />
     </Transition>
     <CRTShutdown :show="showCRT" />
 

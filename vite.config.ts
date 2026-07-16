@@ -46,6 +46,7 @@ export default defineConfig(({ mode }) => {
             'vue-vendor': ['vue', 'vue-router', 'pinia'],
             'echarts-vendor': ['echarts', 'vue-echarts'],
             'mediapipe-vendor': ['@mediapipe/tasks-vision'],
+            'pixi-vendor': ['pixi.js', 'pixi-live2d-display'],
           },
         },
       },
