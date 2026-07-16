@@ -7,7 +7,7 @@
  *  3. 介绍中宠物锁定默认状态（不可切表情/情绪）
  *  4. 播放完毕后标记 localStorage，不再重复
  */
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import type { SpeechBubbleApi } from './useSpeechBubble'
 
 const STORAGE_PREFIX = 'pet-intro-seen-'
