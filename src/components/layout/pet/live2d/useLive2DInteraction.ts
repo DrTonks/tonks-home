@@ -20,7 +20,6 @@ const EYEBALL_RANGE = 0.5
 const BLINK_INTERVAL_MIN = 2500
 const BLINK_INTERVAL_MAX = 6000
 const BLINK_CLOSE_MS = 90
-const BLINK_OPEN_MS = 120
 
 export function useLive2DInteraction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

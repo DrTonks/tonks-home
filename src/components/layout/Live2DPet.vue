@@ -167,7 +167,7 @@ function onContextMenu(e: MouseEvent) {
   ctxMenuShow.value = true
 }
 
-function handleClick(e: MouseEvent) {
+function handleClick(_e: MouseEvent) {
   if (state.moved.value) { state.moved.value = false; return }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)

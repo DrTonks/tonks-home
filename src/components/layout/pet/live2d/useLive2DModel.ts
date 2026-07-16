@@ -105,12 +105,11 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
       const im = live2dModel.internalModel
       if (im) {
         console.log('[Live2D] internalModel keys:', Object.keys(im).slice(0, 10))
-        if (im.coreModel) {
-          const cm = im.coreModel as Record<string, unknown>
+        const cm = im.coreModel as Record<string, unknown>
+        if (cm) {
           console.log('[Live2D] coreModel has setParameterValueById:', typeof cm.setParameterValueById)
           console.log('[Live2D] coreModel has getParameterValueById:', typeof cm.getParameterValueById)
         }
-        if (im.eyeBlink) console.log('[Live2D] eyeBlink supported')
       }
 
       pixiApp.value = app
