@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
-import { Hand } from 'lucide-vue-next'
 import { createPetState, W, H, TURN_FRAME_PATH, FRAMES } from './pet/state'
 import { usePetCore } from './pet/usePetCore'
 import { usePetSinging } from './pet/usePetSinging'
@@ -228,7 +227,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="fixed z-50 select-none cursor-grab active:cursor-grabbing group"
+    class="fixed z-50 select-none cursor-grab active:cursor-grabbing"
     :style="{ left: `${state.pos.value.x}px`, top: `${state.pos.value.y}px`, width: `${W}px`, height: `${H}px` }"
     @pointerdown="core.onPointerDown"
     @pointermove="core.onPointerMove"
@@ -294,15 +293,6 @@ onBeforeUnmount(() => {
           class="angry-mark absolute pointer-events-none z-50 select-none"
           alt="angry"
         />
-        <!-- hover 切换按钮（group-hover 模式：hover root div 时出现） -->
-        <button
-          class="pet-switch-btn absolute -bottom-2 -right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-7 w-7 rounded-full bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center hover:border-primary/40 cursor-pointer"
-          @click.stop="petEnv.canSwitch() && (petEnv.activePetType = 'live2d')"
-          @pointerdown.stop
-          title="切换为 Live2D 桌宠"
-        >
-          <Hand class="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
       </div>
     </div>
     <!-- 右键菜单（移入 root div 内，消除多根节点 Transition 警告） -->

@@ -9,7 +9,7 @@ import { ref, type Ref } from 'vue'
 
 /** 容器尺寸（比原桌宠大一圈） */
 export const LIVE2D_W = 280
-export const LIVE2D_H = 420
+export const LIVE2D_H = 320
 
 let cubismCoreScript: HTMLScriptElement | null = null
 

@@ -46,9 +46,7 @@ export function useLive2DEmotion(
 
   function resetIdleTimers() {
     clearIdleTimers()
-    if (state.mood.value === 'cry' || state.mood.value === 'sleep') {
-      applyMood('idle')
-    }
+    // 修复：cry 状态下点击不重置为 idle，保持 cry 状态
     idleTimer = setTimeout(() => {
       if (state.mood.value === 'idle' || state.mood.value === 'happy') applyMood('cry')
     }, CRY_AFTER_MS)

@@ -5,7 +5,6 @@
  * 位于 src/styles/index.css 和本文件 <style scoped>
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Hand } from 'lucide-vue-next'
 import { useSpeechBubble } from './pet/useSpeechBubble'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
@@ -63,7 +62,11 @@ function toggleProp(key: 'desk' | 'mic' | 'leaf') {
   if (!m) return
   if (key === 'desk') setProp(m, 'Param4', propsEnabled.value.desk)
   if (key === 'mic') setProp(m, 'Param', propsEnabled.value.mic)
-  if (key === 'leaf') setProp(m, 'Param31', propsEnabled.value.leaf)
+  if (key === 'leaf') {
+    // leaf 需要同时设置两个互补参数：Param31=leaf, Param55=leaf off
+    setProp(m, 'Param31', propsEnabled.value.leaf ? 1 : 0)
+    setProp(m, 'Param55', propsEnabled.value.leaf ? 0 : 1)
+  }
 }
 
 // 情绪台词（使用 Live2D 专属句库）
@@ -154,7 +157,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="fixed z-50 select-none group"
+    class="fixed z-50 select-none"
     :style="{
       left: `${state.pos.value.x}px`,
       top: `${state.pos.value.y}px`,
@@ -196,15 +199,6 @@ onBeforeUnmount(() => {
         <span class="text-xs text-destructive px-2 text-center">{{ error }}</span>
       </div>
 
-      <div class="absolute -bottom-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <button
-          class="h-7 w-7 rounded-full bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center hover:border-primary/40 transition-colors"
-          @click.stop="petEnv.canSwitch() && (petEnv.activePetType = 'static')"
-          title="切换为静态桌宠"
-        >
-          <Hand class="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
-      </div>
     </div>
     <ContextMenu
       :items="ctxMenuItems"
@@ -232,7 +226,7 @@ onBeforeUnmount(() => {
 .bubble-offset {
   position: relative;
   z-index: 1;
-  transform: translateY(52px);
+  transform: translateY(30px); /* H: 420→320, offset 减少 */
 }
 
 .live2d-canvas-container {

@@ -15,9 +15,10 @@ import { getLyrics, type MusicFile } from '@/api/music'
 import { parseLRC, currentLyric, type LyricLine } from '@/lib/lrc'
 import type { SpeechBubbleApi } from '../useSpeechBubble'
 
-const SINGING_MOUTH_MIN = 0.3
-const SINGING_MOUTH_MAX = 1.8
+const SINGING_MOUTH_MIN = 0.1
+const SINGING_MOUTH_MAX = 1.5
 const HEAD_SWAY_SPEED = 0.002
+const MOUTH_CYCLE_SPEED = 0.12 // 张嘴周期（弧度/帧，≈5frame 一个完整开合）
 
 export function useLive2DSinging(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,7 +35,9 @@ export function useLive2DSinging(
   let eyeOpenTarget = 1
   let eyeSwitchTimer: ReturnType<typeof setInterval> | null = null
   let headPhase = 0
+  let mouthPhase = 0
   let ticking = false
+  let hasLyric = false  // 当前是否有歌词
 
   // LRC 歌词
   let lyrics: LyricLine[] = []
@@ -57,9 +60,16 @@ export function useLive2DSinging(
     const model = modelRef.value
     if (!model || !ticking) return
 
-    mouthOpen += (Math.random() - 0.5) * 0.15
-    mouthOpen = Math.max(SINGING_MOUTH_MIN, Math.min(SINGING_MOUTH_MAX, mouthOpen))
-    setParam(model, 'ParamMouthOpenY', mouthOpen)
+    // 张嘴：有歌词时正弦波一张一合，无歌词时平滑闭嘴
+    if (hasLyric) {
+      mouthPhase += MOUTH_CYCLE_SPEED
+      const cycle = (Math.sin(mouthPhase) + 1) / 2
+      const target = SINGING_MOUTH_MIN + cycle * (SINGING_MOUTH_MAX - SINGING_MOUTH_MIN)
+      mouthOpen += (target - mouthOpen) * 0.3
+    } else {
+      mouthOpen += (0 - mouthOpen) * 0.08
+    }
+    setParam(model, 'ParamMouthOpenY', Math.max(0, mouthOpen))
 
     eyeOpen += (eyeOpenTarget - eyeOpen) * 0.05
     setParam(model, 'ParamEyeLOpen', eyeOpen)
@@ -103,9 +113,13 @@ export function useLive2DSinging(
         bubble.showLyric(line.texts[0] ?? '', line.texts[1] ?? '')
         lastKey = key
       }
+      hasLyric = true
     } else if (lastKey && lastKey !== 'N') {
       bubble.hide()
       lastKey = ''
+      hasLyric = false // 间奏 → 闭嘴
+    } else {
+      hasLyric = false
     }
   }
 

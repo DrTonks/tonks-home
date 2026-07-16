@@ -32,7 +32,7 @@ export interface Live2DPetState {
 export function createLive2DState(): Live2DPetState {
   return {
     mood: ref<Live2DMood>('idle'),
-    pos: ref({ x: window.innerWidth - 320, y: 80 }),
+    pos: ref({ x: window.innerWidth - 310, y: 120 }),
     moved: ref(false),
     clickScale: ref(false),
     activeExpression: ref('3clever'),
