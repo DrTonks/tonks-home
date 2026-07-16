@@ -11,11 +11,11 @@ export const EXPRESSION_MAP: Record<Live2DMood, { expr: string; props?: Record<s
   happy:   { expr: '3clever',   props: { Param4: 1 } },
   angry:   { expr: '4OAO' },
   cry:     { expr: '5QAQ' },
-  sleep:   { expr: '7keyboard', props: { Param4: 1 } },
+  sleep:   { expr: '9', props: { Param4: 1 } },
   singing: { expr: '2mic',      props: { Param: 1 } },
 }
 
-export const SLEEP_EXPRESSIONS = ['7keyboard', '9'] as const
+export const SLEEP_EXPRESSIONS = ['9'] as const
 
 export const CRY_AFTER_MS = 2 * 60 * 1000
 export const SLEEP_AFTER_MS = 4 * 60 * 1000
@@ -32,7 +32,7 @@ export interface Live2DPetState {
 export function createLive2DState(): Live2DPetState {
   return {
     mood: ref<Live2DMood>('idle'),
-    pos: ref({ x: window.innerWidth - 310, y: 120 }),
+    pos: ref({ x: window.innerWidth - 310, y: 150 }),
     moved: ref(false),
     clickScale: ref(false),
     activeExpression: ref('3clever'),

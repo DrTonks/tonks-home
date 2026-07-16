@@ -1,8 +1,6 @@
 <script setup lang="ts">
 /**
- * Live2D 桌宠组件 — 独立体系，含唱歌/道具/leaf 效果。
- * 自定义动画参数：bubble-offset 的 translateY / pet-drop keyframes
- * 位于 src/styles/index.css 和本文件 <style scoped>
+ * Live2D 桌宠组件 — 独立体系，含唱歌/道具/leaf/介绍引导。
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
@@ -13,6 +11,7 @@ import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
 import { useLive2DSinging } from './pet/live2d/useLive2DSinging'
+import { usePetIntro } from './pet/usePetIntro'
 import { createLive2DState } from './pet/live2d/state'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue-live2d.json'
@@ -36,6 +35,9 @@ const propsEnabled = ref({ desk: true, mic: false, leaf: false })
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
   emotion.initIdleTimers()
 })
+
+// ===== 介绍引导 =====
+const intro = usePetIntro('live2d', bubble, (dialogue as Record<string, string[]>).intro)
 
 type Placement = 'left' | 'right'
 const placement = computed<Placement>(() =>
@@ -99,7 +101,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
     label: propsEnabled.value.mic ? '🎤 麦克风（已启用）' : '🎤 麦克风', icon: '',
     action: () => toggleProp('mic'),
   },
-  { label: '关于桌宠', icon: 'ℹ️', action: () => { bubble.say('我是 Live2D 桌宠 UG！') } },
+  { label: '关于桌宠', icon: 'ℹ️', action: () => { intro.triggerIntro() } },
 ])
 
 function onContextMenu(e: MouseEvent) {
@@ -110,6 +112,8 @@ function onContextMenu(e: MouseEvent) {
 }
 
 function handleClick(e: MouseEvent) {
+  if (intro.isPrompting() && intro.handlePromptClick()) return
+  if (intro.introLocked.value) return
   if (state.moved.value) { state.moved.value = false; return }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)
@@ -125,8 +129,9 @@ onMounted(async () => {
   if (!model.value) { petEnv.isLive2DError = true; return }
 
   petEnv.isLive2DReady = true
-  // 应用初始道具
-  setProp(model.value, 'Param4', 1) // desk on by default
+  setProp(model.value, 'Param4', 1)
+  // 介绍引导（先于问候，引导优先）
+  intro.start()
   emotion.initIdleTimers()
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
@@ -174,17 +179,15 @@ onBeforeUnmount(() => {
       @contextmenu="onContextMenu"
       @dragstart.prevent
     >
-      <div class="relative bubble-offset">
-        <SpeechBubble
-          :visible="bubble.visible.value"
-          :mode="bubble.mode.value"
-          :text="bubble.text.value"
-          :original="bubble.original.value"
-          :translation="bubble.translation.value"
-          :emoji="bubble.emoji.value"
-          :placement="placement"
-        />
-      </div>
+      <SpeechBubble
+        :visible="bubble.visible.value"
+        :mode="bubble.mode.value"
+        :text="bubble.text.value"
+        :original="bubble.original.value"
+        :translation="bubble.translation.value"
+        :emoji="bubble.emoji.value"
+        :placement="placement"
+      />
 
       <div
         ref="containerRef"
@@ -211,24 +214,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* === 用户可微调的参数 === */
 /*
- * 气泡垂直偏移：调整 translateY 值（原容器 195px → Live2D 420px，当前 52px）
- * 代码位置：下方 .bubble-offset
- *
- * 入场动画（从天而降）：调整 @keyframes pet-drop 的 translateY 和 timing
- * 代码位置：src/styles/index.css 第 209-217 行
- *
- * 右键菜单样式：调整 bg-popover / border 等
- * 代码位置：ContextMenu.vue
+ * 入场动画：src/styles/index.css → @keyframes pet-drop
+ * 右键菜单：ContextMenu.vue
  */
-
-.bubble-offset {
-  position: relative;
-  z-index: 1;
-  transform: translateY(30px); /* H: 420→320, offset 减少 */
-}
-
 .live2d-canvas-container {
   width: 100%;
   height: 100%;

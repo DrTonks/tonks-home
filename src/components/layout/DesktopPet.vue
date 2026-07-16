@@ -7,6 +7,7 @@ import { usePetTurn } from './pet/usePetTurn'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
+import { usePetIntro } from './pet/usePetIntro'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
 import { usePetEnvStore } from '@/stores/petEnv'
@@ -114,6 +115,9 @@ watch(
   },
 )
 
+// ===== 介绍引导 =====
+const intro = usePetIntro('static', bubble, dialogue.intro)
+
 // 一次性转身（转头看鼠标、非跟踪态）时说一句（doTurn 本就是静止 10s 才触发的低频事件）
 watch(
   () => state.turnDirection.value,
@@ -136,6 +140,9 @@ let greetTimer: ReturnType<typeof setTimeout> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
+  // 介绍引导中 → 播放下一句/触发介绍
+  if (intro.isPrompting() && intro.handlePromptClick()) return
+  if (intro.introLocked.value) return
   if (state.rageActive.value) return
   // 拖拽后的伪点击：交给 core 检测并清 moved 标志，不触发任何点击反应/气泡
   if (state.moved.value) {
@@ -183,7 +190,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
   {
     label: '关于桌宠',
     icon: 'ℹ️',
-    action: () => { bubble.say('我是 DrTonks 的桌宠！戳我会有反应哦~') },
+    action: () => { intro.triggerIntro() },
   },
 ])
 
@@ -201,6 +208,8 @@ watch(() => state.rageActive.value, (v) => {
 
 onMounted(() => {
   turn.startMouseSystem()
+  // 介绍引导
+  intro.start()
   // 进页面时段问候（等桌宠落地动画）
   greetTimer = setTimeout(greet, 1600)
   // 空闲随机冒泡（仅真正 idle 时；避免在 cry/sleep/生气等情绪态反复播 idle 句）
