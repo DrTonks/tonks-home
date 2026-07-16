@@ -21,6 +21,8 @@ export function usePetIntro(
 
   /** 'unseen' | 'prompting' | 'playing' | 'done' */
   const phase = ref<'unseen' | 'prompting' | 'playing' | 'done'>('unseen')
+  /** 介绍过程中阻塞其他对话和状态切换 */
+  const isActive = computed(() => phase.value === 'prompting' || phase.value === 'playing')
   /** 介绍过程中锁定宠物状态 */
   const introLocked = ref(false)
 

@@ -1,7 +1,7 @@
 /**
  * 桌宠唱歌状态机 + 音符特效
  */
-import { watch } from 'vue'
+import { watch, onBeforeUnmount } from 'vue'
 import { useMusicStore } from '@/stores/music'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { type PetState, type Singing, W, FRAMES, NOTE_SYMBOLS } from './state'
@@ -143,6 +143,13 @@ export function usePetSinging(state: PetState, onSingingExit: () => void) {
   watch(hasSignal, (active) => {
     if (!store.isPlaying || state.rageActive.value) return
     if (active) startSinging()
+  })
+
+  // C3: 组件卸载时清理定时器/RAF，防止 pending timer 泄漏
+  onBeforeUnmount(() => {
+    if (t.singingTimer) clearTimeout(t.singingTimer)
+    if (t.singingRafId !== null) cancelAnimationFrame(t.singingRafId)
+    stopSignalCheck()
   })
 
   return { spawnSingingNotes, startSinging, stopAllSinging, tryResumeSinging }

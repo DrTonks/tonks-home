@@ -130,23 +130,33 @@ onMounted(async () => {
 
   petEnv.isLive2DReady = true
   setProp(model.value, 'Param4', 1)
-  // 介绍引导（先于问候，引导优先）
-  intro.start()
   emotion.initIdleTimers()
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
 
-  greetTimer = setTimeout(() => {
-    const h = new Date().getHours()
-    const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-    bubble.say(pick((dialogue as Record<string, Record<string, string[]>>).greeting[slot]))
-  }, 1600)
-
-  idleTalkTimer = setInterval(() => {
-    if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.55) {
-      bubble.say(pick(dialogue.idle))
-    }
-  }, 28000)
+  // 介绍引导（阻塞自动对话，介绍完成后才启动问候/空闲冒泡）
+  intro.start()
+  const startGreeting = () => {
+    greetTimer = setTimeout(() => {
+      const h = new Date().getHours()
+      const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
+      bubble.say(pick((dialogue as Record<string, Record<string, string[]>>).greeting[slot]))
+    }, 1600)
+    idleTalkTimer = setInterval(() => {
+      if (state.mood.value === 'idle' && !intro.isActive.value && !bubble.visible.value && Math.random() < 0.55) {
+        bubble.say(pick(dialogue.idle))
+      }
+    }, 28000)
+  }
+  if (intro.phase.value === 'done') {
+    startGreeting()
+  } else {
+    watch(() => intro.phase.value, (p) => { if (p === 'done') startGreeting() })
+  }
+  // 介绍期间暂停唱歌
+  watch(() => intro.introLocked.value, (locked) => {
+    if (locked) singing.stopSinging()
+  })
 })
 
 onBeforeUnmount(() => {
@@ -172,7 +182,7 @@ onBeforeUnmount(() => {
       height: `${LIVE2D_H}px`,
     }"
   >
-    <div class="drop-enter drop-layer" style="position:relative"
+    <div class="drop-enter-live2d drop-layer" style="position:relative"
       @pointerdown="interaction.onPointerDown"
       @pointermove="interaction.onPointerMove"
       @pointerup="interaction.onPointerUp"
@@ -217,9 +227,28 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /*
- * 入场动画：src/styles/index.css → @keyframes pet-drop
- * 右键菜单：ContextMenu.vue
+ * === 微调指南 ===
+ *
+ * 入场动画（从天而降）：
+ *   - DesktopPet: src/styles/index.css 第 209-217 行 → @keyframes pet-drop
+ *   - Live2DPet: 本文件下方 → @keyframes pet-drop-live2d
+ *
+ * 气泡位置：
+ *   - 共用组件 SpeechBubble.vue 第 175-183 行 → .place-left / .place-right { top: 14px }
+ *   - DesktopPet 的 bubble 相对于 <div ref="petRef" class="relative">
+ *   - Live2DPet 的 bubble 相对于 <div class="drop-layer" style="position:relative">
  */
+
+@keyframes pet-drop-live2d {
+  0%   { transform: translateY(-120vh); opacity: 0; }
+  15%  { opacity: 0.4; filter: blur(2px); }
+  50%  { opacity: 1; filter: blur(0); }
+  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+.drop-enter-live2d {
+  animation: pet-drop-live2d 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+}
+
 .live2d-canvas-container {
   width: 100%;
   height: 100%;

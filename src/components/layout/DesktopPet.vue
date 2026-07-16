@@ -73,9 +73,10 @@ function pick(arr: string[]): string {
   return arr.length ? arr[Math.floor(Math.random() * arr.length)] : ''
 }
 
-// 能否说"闲聊"话（点击/空闲/问候/转身）——紧张的威胁态不闲聊
+// 能否说"闲聊"话——介绍中阻塞所有自动对话
 function canDailyTalk(): boolean {
   return (
+    !intro.isActive.value &&
     !state.singingState.value &&
     !state.rageActive.value &&
     state.mood.value !== 'threat' &&
@@ -83,9 +84,9 @@ function canDailyTalk(): boolean {
   )
 }
 
-// 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词
+// 能否说"情绪"台词
 function canEmotionTalk(): boolean {
-  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
+  return !intro.isActive.value && !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
 }
 
 // 进页面按时段问候
@@ -208,21 +209,31 @@ watch(() => state.rageActive.value, (v) => {
 
 onMounted(() => {
   turn.startMouseSystem()
-  // 介绍引导
+  // 介绍引导（优先于问候，介绍未完成前阻塞自动对话）
   intro.start()
-  // 进页面时段问候（等桌宠落地动画）
-  greetTimer = setTimeout(greet, 1600)
-  // 空闲随机冒泡（仅真正 idle 时；避免在 cry/sleep/生气等情绪态反复播 idle 句）
-  idleTalkTimer = setInterval(() => {
-    if (
-      state.mood.value === 'idle' &&
-      canDailyTalk() &&
-      !bubble.visible.value &&
-      Math.random() < 0.55
-    ) {
-      bubble.say(pick(dialogue.idle))
-    }
-  }, 28000)
+  // 进页面时段问候（仅在介绍已完成后触发）
+  const startGreeting = () => {
+    greetTimer = setTimeout(greet, 1600)
+    idleTalkTimer = setInterval(() => {
+      if (
+        state.mood.value === 'idle' &&
+        canDailyTalk() &&
+        !bubble.visible.value &&
+        Math.random() < 0.55
+      ) {
+        bubble.say(pick(dialogue.idle))
+      }
+    }, 28000)
+  }
+  if (intro.phase.value === 'done') {
+    startGreeting()
+  } else {
+    watch(() => intro.phase.value, (p) => { if (p === 'done') startGreeting() })
+  }
+  // 介绍期间暂停唱歌
+  watch(() => intro.introLocked.value, (locked) => {
+    if (locked && state.singingState.value) singing.stopAllSinging()
+  })
 })
 
 onBeforeUnmount(() => {
