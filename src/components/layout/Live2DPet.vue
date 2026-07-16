@@ -20,9 +20,6 @@ import dialogue from '@/data/pet-dialogue.json'
 const petEnv = usePetEnvStore()
 const state = createLive2DState()
 const containerRef = ref<HTMLElement | null>(null)
-const enterReady = ref(false)
-const dropReady = ref(false)  // 入场动画触发
-
 const modelCtrl = useLive2DModel(containerRef)
 const { model, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
@@ -107,9 +104,6 @@ onMounted(async () => {
     }
   }, 28000)
 
-  // 入场动画序列
-  setTimeout(() => { dropReady.value = true }, 50)
-  setTimeout(() => { enterReady.value = true }, 750)
 })
 
 onBeforeUnmount(() => {
@@ -125,58 +119,59 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="fixed z-50 select-none"
-    :class="{ 'drop-enter': dropReady, 'live2d-enter': enterReady }"
     :style="{
       left: `${state.pos.value.x}px`,
       top: `${state.pos.value.y}px`,
       width: `${LIVE2D_W}px`,
       height: `${LIVE2D_H}px`,
     }"
-    @pointerdown="interaction.onPointerDown"
-    @pointermove="interaction.onPointerMove"
-    @pointerup="interaction.onPointerUp"
-    @pointercancel="interaction.onPointerUp"
-    @click="handleClick"
-    @contextmenu="onContextMenu"
-    @dragstart.prevent
   >
-    <!-- 气泡容器（偏移量适配 taller Live2D 容器） -->
-    <div class="relative bubble-offset">
-      <SpeechBubble
-        :visible="bubble.visible.value"
-        :mode="bubble.mode.value"
-        :text="bubble.text.value"
-        :original="bubble.original.value"
-        :translation="bubble.translation.value"
-        :emoji="bubble.emoji.value"
-        :placement="placement"
+    <!-- 从天而降入场动画（复用全局 pet-drop keyframes） -->
+    <div class="drop-enter drop-layer" style="position:relative" @pointerdown="interaction.onPointerDown"
+      @pointermove="interaction.onPointerMove"
+      @pointerup="interaction.onPointerUp"
+      @pointercancel="interaction.onPointerUp"
+      @click="handleClick"
+      @contextmenu="onContextMenu"
+      @dragstart.prevent>
+      <!-- 气泡容器 -->
+      <div class="relative bubble-offset">
+        <SpeechBubble
+          :visible="bubble.visible.value"
+          :mode="bubble.mode.value"
+          :text="bubble.text.value"
+          :original="bubble.original.value"
+          :translation="bubble.translation.value"
+          :emoji="bubble.emoji.value"
+          :placement="placement"
+        />
+      </div>
+
+      <!-- Live2D 画布 -->
+      <div
+        ref="containerRef"
+        class="live2d-canvas-container"
+        :class="{ 'click-bounce': state.clickScale.value }"
       />
-    </div>
 
-    <!-- Live2D 画布 -->
-    <div
-      ref="containerRef"
-      class="live2d-canvas-container"
-      :class="{ 'click-bounce': state.clickScale.value }"
-    />
-
-    <!-- 加载错误 -->
-    <div
-      v-if="error"
-      class="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-destructive/10 rounded-xl border border-destructive/30"
-    >
-      <span class="text-xs text-destructive px-2 text-center">{{ error }}</span>
-    </div>
-
-    <!-- hover 切换按钮 -->
-    <div class="absolute -bottom-2 -right-2 z-10 opacity-0 hover:opacity-100 transition-opacity duration-200">
-      <button
-        class="h-7 w-7 rounded-full bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center hover:border-primary/40 transition-colors"
-        @click.stop="petEnv.canSwitch() && (petEnv.activePetType = 'static')"
-        title="切换为静态桌宠"
+      <!-- 加载错误 -->
+      <div
+        v-if="error"
+        class="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-destructive/10 rounded-xl border border-destructive/30"
       >
-        <Hand class="h-3.5 w-3.5 text-muted-foreground" />
-      </button>
+        <span class="text-xs text-destructive px-2 text-center">{{ error }}</span>
+      </div>
+
+      <!-- hover 切换按钮 -->
+      <div class="absolute -bottom-2 -right-2 z-10 opacity-0 hover:opacity-100 transition-opacity duration-200">
+        <button
+          class="h-7 w-7 rounded-full bg-card/90 backdrop-blur border border-border shadow-sm flex items-center justify-center hover:border-primary/40 transition-colors"
+          @click.stop="petEnv.canSwitch() && (petEnv.activePetType = 'static')"
+          title="切换为静态桌宠"
+        >
+          <Hand class="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      </div>
     </div>
   </div>
 
@@ -190,24 +185,15 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 气泡向下偏移：transform 不影响 normal flow，但为绝对定位子元素创建新的包含块 */
 .bubble-offset {
   position: relative;
   z-index: 1;
-  transform: translateY(52px); /* 原容器 195px → 420px，气泡需要下移 */
+  transform: translateY(52px);
 }
 
 .live2d-canvas-container {
   width: 100%;
   height: 100%;
-  opacity: 0;
-  transform: scale(0.4);
-  transition: opacity 0.6s ease-out, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.live2d-enter .live2d-canvas-container {
-  opacity: 1;
-  transform: scale(1);
 }
 
 .click-bounce {

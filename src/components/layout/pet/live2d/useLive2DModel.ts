@@ -64,6 +64,9 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
       const { Live2DModel, MotionPriority } = cubismModule
       console.log('[Live2D] PIXI + Cubism4 modules loaded')
 
+      // 关键：注册 PIXI Ticker，否则模型 motion/物理/眨眼全部不更新
+      Live2DModel.registerTicker(PIXI.Ticker)
+
       const app = new PIXI.Application({
         width: LIVE2D_W,
         height: LIVE2D_H,
