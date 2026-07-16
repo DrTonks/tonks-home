@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
       <div
         v-if="show"
         ref="menuRef"
-        class="ctx-menu fixed z-[100] min-w-[140px] rounded-lg border bg-card/95 backdrop-blur-md shadow-xl py-1 select-none"
+        class="ctx-menu fixed z-[100] min-w-[140px] rounded-lg border border-border bg-popover shadow-xl py-1 select-none"
         :style="{ left: `${adjX}px`, top: `${adjY}px` }"
         @mousemove="resetDismissTimer"
         @contextmenu.prevent
