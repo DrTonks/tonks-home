@@ -7,6 +7,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
+import { RefreshRight, InfoFilled, Monitor, Microphone, Sunny } from '@element-plus/icons-vue'
 import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
@@ -81,23 +82,23 @@ const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
 const ctxMenuItems = computed<ContextMenuItem[]>(() => [
   {
-    label: '切换为静态桌宠', icon: '🔄',
+    label: '唤醒普瑞赛斯', icon: RefreshRight,
     action: () => { if (petEnv.canSwitch()) petEnv.activePetType = 'static' },
     disabled: !petEnv.canSwitch(),
   },
   {
-    label: propsEnabled.value.desk ? '🟢 桌子' : '⚫ 桌子', icon: '',
+    label: propsEnabled.value.desk ? '桌子（已启用）' : '桌子', icon: Monitor,
     action: () => toggleProp('desk'),
   },
   {
-    label: propsEnabled.value.leaf ? '🍃 叶子（已启用）' : '🍂 叶子', icon: '',
+    label: propsEnabled.value.leaf ? '叶子（已启用）' : '叶子', icon: Sunny,
     action: () => toggleProp('leaf'),
   },
   {
-    label: propsEnabled.value.mic ? '🎤 麦克风（已启用）' : '🎤 麦克风', icon: '',
+    label: propsEnabled.value.mic ? '麦克风（已启用）' : '麦克风', icon: Microphone,
     action: () => toggleProp('mic'),
   },
-  { label: '关于桌宠', icon: 'ℹ️', action: () => playIntro() },
+  { label: '关于桌宠', icon: InfoFilled, action: () => playIntro() },
 ])
 
 /** 播放介绍句序列（右键"关于桌宠"触发） */
@@ -159,12 +160,13 @@ onBeforeUnmount(() => {
   interaction.stopMouseTracking()
   singing.stopSinging()
   emotion.clearIdleTimers()
-  destroy()
   bubble.hide()
-  petEnv.isLive2DReady = false   // C2: 卸载时重置 ready 状态
+  petEnv.isLive2DReady = false
   petEnv.isLive2DError = false
   if (idleTalkTimer) clearInterval(idleTalkTimer)
   if (greetTimer) clearTimeout(greetTimer)
+  // 延迟销毁 PIXI 资源，让 Transition 离场动画先播完，避免 canvas 闪白
+  setTimeout(() => destroy(), 300)
 })
 </script>
 
@@ -195,6 +197,7 @@ onBeforeUnmount(() => {
         :translation="bubble.translation.value"
         :emoji="bubble.emoji.value"
         :placement="placement"
+        :vertical-offset="14"
       />
 
       <div
@@ -226,20 +229,19 @@ onBeforeUnmount(() => {
  * === 微调指南 ===
  *
  * 入场动画（从天而降）：
- *   - DesktopPet: src/styles/index.css 第 209-217 行 → @keyframes pet-drop
+ *   - DesktopPet: src/styles/index.css → @keyframes pet-drop
  *   - Live2DPet: 本文件下方 → @keyframes pet-drop-live2d
  *
  * 气泡位置：
- *   - 共用组件 SpeechBubble.vue 第 175-183 行 → .place-left / .place-right { top: 14px }
- *   - DesktopPet 的 bubble 相对于 <div ref="petRef" class="relative">
- *   - Live2DPet 的 bubble 相对于 <div class="drop-layer" style="position:relative">
+ *   - DesktopPet: SpeechBubble verticalOffset=14（默认），相对 <div ref="petRef" class="relative">
+ *   - Live2DPet: SpeechBubble verticalOffset=14，相对 <div class="drop-layer">，改竖向偏移改这里上方模板中的 :vertical-offset 值
  */
 
 @keyframes pet-drop-live2d {
   0%   { transform: translateY(-120vh); opacity: 0; }
   15%  { opacity: 0.4; filter: blur(2px); }
   50%  { opacity: 1; filter: blur(0); }
-  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(-5vh); opacity: 1; filter: blur(0); }
 }
 .drop-enter-live2d {
   animation: pet-drop-live2d 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;

@@ -9,6 +9,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
+import { RefreshRight, InfoFilled } from '@element-plus/icons-vue'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue.json'
 
@@ -173,8 +174,8 @@ const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
 const ctxMenuItems = computed<ContextMenuItem[]>(() => [
   {
-    label: '切换为 Live2D 桌宠',
-    icon: '🔄',
+    label: '唤出U酱！',
+    icon: RefreshRight,
     action: () => {
       if (petEnv.canSwitch()) petEnv.activePetType = 'live2d'
     },
@@ -182,7 +183,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
   },
   {
     label: '关于桌宠',
-    icon: 'ℹ️',
+    icon: InfoFilled,
     action: () => playIntro(),
   },
 ])

@@ -4,11 +4,11 @@
  * - 点击菜单项 / 外部 / Escape → 消失
  * - 3 秒无操作自动消失
  */
-import { onBeforeUnmount, ref, watch, nextTick } from 'vue'
+import { onBeforeUnmount, ref, watch, nextTick, type Component } from 'vue'
 
 export interface ContextMenuItem {
   label: string
-  icon?: string
+  icon?: string | Component
   action: () => void
   disabled?: boolean
 }
@@ -89,7 +89,10 @@ onBeforeUnmount(() => {
           :disabled="item.disabled"
           @click="item.disabled ? undefined : item.action(); emit('close')"
         >
-          <span v-if="item.icon" class="text-xs leading-none">{{ item.icon }}</span>
+          <template v-if="item.icon">
+            <span v-if="typeof item.icon === 'string'" class="text-xs leading-none">{{ item.icon }}</span>
+            <component v-else :is="item.icon" class="h-3.5 w-3.5" />
+          </template>
           <span>{{ item.label }}</span>
         </button>
       </div>
