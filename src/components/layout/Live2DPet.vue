@@ -28,13 +28,13 @@ const emotion = useLive2DEmotion(state, model)
 const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.moved, () => {
   // 10s 鼠标未动后首次移动 → 说 turn 台词
   if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
-    bubble.say(pick((dialogue as Record<string, string[]>).turn || []))
+    bubble.say(pick((dialogue as unknown as Record<string, string[]>).turn || []))
   }
 })
 const bubble = useSpeechBubble()
 
 // ===== 道具状态（用户右键切换） =====
-const propsEnabled = ref({ desk: true, mic: false, leaf: false })
+const propsEnabled = ref({ desk: false, mic: false, leaf: false })
 
 // ===== 唱歌 =====
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
@@ -77,7 +77,7 @@ function toggleProp(key: 'desk' | 'mic' | 'leaf') {
 watch(() => state.mood.value, (m) => {
   if (!model.value || bubble.visible.value) return
   const key = m as keyof typeof dialogue
-  const lines = (dialogue as Record<string, string[]>)[key]
+  const lines = (dialogue as unknown as Record<string, string[]>)[key]
   if (lines?.length) bubble.say(pick(lines))
 })
 
@@ -108,7 +108,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
 
 /** 播放介绍句序列（右键"关于桌宠"触发） */
 function playIntro() {
-  const sentences = (dialogue as Record<string, string[]>).intro
+  const sentences = (dialogue as unknown as Record<string, string[]>).intro
   if (!sentences?.length) return
   let i = 0
   function next() {
@@ -143,7 +143,7 @@ onMounted(async () => {
   if (!model.value) { petEnv.isLive2DError = true; return }
 
   petEnv.isLive2DReady = true
-  setProp(model.value, 'Param4', 1)
+  setProp(model.value, 'Param4', true)
   emotion.initIdleTimers()
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
@@ -151,7 +151,7 @@ onMounted(async () => {
   greetTimer = setTimeout(() => {
     const h = new Date().getHours()
     const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-    bubble.say(pick((dialogue as Record<string, Record<string, string[]>>).greeting[slot]))
+    bubble.say(pick((dialogue as unknown as Record<string, Record<string, string[]>>).greeting[slot]))
   }, 1600)
 
   idleTalkTimer = setInterval(() => {
@@ -202,8 +202,8 @@ onBeforeUnmount(() => {
         :translation="bubble.translation.value"
         :emoji="bubble.emoji.value"
         :placement="placement"
-        :vertical-offset="14"
-        :horizontal-offset="13"
+        :vertical-offset="66"
+        :horizontal-offset="66"
       />
 
       <div
