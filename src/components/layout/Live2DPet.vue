@@ -11,7 +11,6 @@ import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
 import { useLive2DSinging } from './pet/live2d/useLive2DSinging'
-import { usePetIntro } from './pet/usePetIntro'
 import { createLive2DState } from './pet/live2d/state'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue-live2d.json'
@@ -35,9 +34,6 @@ const propsEnabled = ref({ desk: true, mic: false, leaf: false })
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
   emotion.initIdleTimers()
 })
-
-// ===== 介绍引导 =====
-const intro = usePetIntro('live2d', bubble, (dialogue as Record<string, string[]>).intro)
 
 type Placement = 'left' | 'right'
 const placement = computed<Placement>(() =>
@@ -101,8 +97,22 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
     label: propsEnabled.value.mic ? '🎤 麦克风（已启用）' : '🎤 麦克风', icon: '',
     action: () => toggleProp('mic'),
   },
-  { label: '关于桌宠', icon: 'ℹ️', action: () => { intro.triggerIntro() } },
+  { label: '关于桌宠', icon: 'ℹ️', action: () => playIntro() },
 ])
+
+/** 播放介绍句序列（右键"关于桌宠"触发） */
+function playIntro() {
+  const sentences = (dialogue as Record<string, string[]>).intro
+  if (!sentences?.length) return
+  let i = 0
+  function next() {
+    if (i >= sentences.length) return
+    bubble.say(sentences[i], true)
+    i++
+    setTimeout(next, 300 + Math.random() * 200)
+  }
+  next()
+}
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault()
@@ -112,8 +122,6 @@ function onContextMenu(e: MouseEvent) {
 }
 
 function handleClick(e: MouseEvent) {
-  if (intro.isPrompting() && intro.handlePromptClick()) return
-  if (intro.introLocked.value) return
   if (state.moved.value) { state.moved.value = false; return }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)
@@ -134,29 +142,17 @@ onMounted(async () => {
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
 
-  // 介绍引导（阻塞自动对话，介绍完成后才启动问候/空闲冒泡）
-  intro.start()
-  const startGreeting = () => {
-    greetTimer = setTimeout(() => {
-      const h = new Date().getHours()
-      const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-      bubble.say(pick((dialogue as Record<string, Record<string, string[]>>).greeting[slot]))
-    }, 1600)
-    idleTalkTimer = setInterval(() => {
-      if (state.mood.value === 'idle' && !intro.isActive.value && !bubble.visible.value && Math.random() < 0.55) {
-        bubble.say(pick(dialogue.idle))
-      }
-    }, 28000)
-  }
-  if (intro.phase.value === 'done') {
-    startGreeting()
-  } else {
-    watch(() => intro.phase.value, (p) => { if (p === 'done') startGreeting() })
-  }
-  // 介绍期间暂停唱歌
-  watch(() => intro.introLocked.value, (locked) => {
-    if (locked) singing.stopSinging()
-  })
+  greetTimer = setTimeout(() => {
+    const h = new Date().getHours()
+    const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
+    bubble.say(pick((dialogue as Record<string, Record<string, string[]>>).greeting[slot]))
+  }, 1600)
+
+  idleTalkTimer = setInterval(() => {
+    if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.55) {
+      bubble.say(pick(dialogue.idle))
+    }
+  }, 28000)
 })
 
 onBeforeUnmount(() => {

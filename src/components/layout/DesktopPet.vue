@@ -7,7 +7,6 @@ import { usePetTurn } from './pet/usePetTurn'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
-import { usePetIntro } from './pet/usePetIntro'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
 import { usePetEnvStore } from '@/stores/petEnv'
@@ -73,10 +72,9 @@ function pick(arr: string[]): string {
   return arr.length ? arr[Math.floor(Math.random() * arr.length)] : ''
 }
 
-// 能否说"闲聊"话——介绍中阻塞所有自动对话
+// 能否说"闲聊"话（点击/空闲/问候/转身）——紧张的威胁态不闲聊
 function canDailyTalk(): boolean {
   return (
-    !intro.isActive.value &&
     !state.singingState.value &&
     !state.rageActive.value &&
     state.mood.value !== 'threat' &&
@@ -84,9 +82,9 @@ function canDailyTalk(): boolean {
   )
 }
 
-// 能否说"情绪"台词
+// 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词
 function canEmotionTalk(): boolean {
-  return !intro.isActive.value && !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
+  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
 }
 
 // 进页面按时段问候
@@ -116,9 +114,6 @@ watch(
   },
 )
 
-// ===== 介绍引导 =====
-const intro = usePetIntro('static', bubble, dialogue.intro)
-
 // 一次性转身（转头看鼠标、非跟踪态）时说一句（doTurn 本就是静止 10s 才触发的低频事件）
 watch(
   () => state.turnDirection.value,
@@ -141,9 +136,6 @@ let greetTimer: ReturnType<typeof setTimeout> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
-  // 介绍引导中 → 播放下一句/触发介绍
-  if (intro.isPrompting() && intro.handlePromptClick()) return
-  if (intro.introLocked.value) return
   if (state.rageActive.value) return
   // 拖拽后的伪点击：交给 core 检测并清 moved 标志，不触发任何点击反应/气泡
   if (state.moved.value) {
@@ -191,7 +183,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => [
   {
     label: '关于桌宠',
     icon: 'ℹ️',
-    action: () => { intro.triggerIntro() },
+    action: () => playIntro(),
   },
 ])
 
@@ -202,6 +194,20 @@ function onContextMenu(e: MouseEvent) {
   ctxMenuShow.value = true
 }
 
+/** 播放介绍句序列（右键"关于桌宠"触发） */
+function playIntro() {
+  const sentences = dialogue.intro
+  if (!sentences?.length) return
+  let i = 0
+  function next() {
+    if (i >= sentences.length) return
+    bubble.say(sentences[i], true)
+    i++
+    setTimeout(next, 300 + Math.random() * 200)
+  }
+  next()
+}
+
 // 同步暴怒状态到 petEnv（阻挡切换）
 watch(() => state.rageActive.value, (v) => {
   petEnv.isRageActive = v
@@ -209,31 +215,19 @@ watch(() => state.rageActive.value, (v) => {
 
 onMounted(() => {
   turn.startMouseSystem()
-  // 介绍引导（优先于问候，介绍未完成前阻塞自动对话）
-  intro.start()
-  // 进页面时段问候（仅在介绍已完成后触发）
-  const startGreeting = () => {
-    greetTimer = setTimeout(greet, 1600)
-    idleTalkTimer = setInterval(() => {
-      if (
-        state.mood.value === 'idle' &&
-        canDailyTalk() &&
-        !bubble.visible.value &&
-        Math.random() < 0.55
-      ) {
-        bubble.say(pick(dialogue.idle))
-      }
-    }, 28000)
-  }
-  if (intro.phase.value === 'done') {
-    startGreeting()
-  } else {
-    watch(() => intro.phase.value, (p) => { if (p === 'done') startGreeting() })
-  }
-  // 介绍期间暂停唱歌
-  watch(() => intro.introLocked.value, (locked) => {
-    if (locked && state.singingState.value) singing.stopAllSinging()
-  })
+  // 进页面时段问候（等桌宠落地动画）
+  greetTimer = setTimeout(greet, 1600)
+  // 空闲随机冒泡（仅真正 idle 时）
+  idleTalkTimer = setInterval(() => {
+    if (
+      state.mood.value === 'idle' &&
+      canDailyTalk() &&
+      !bubble.visible.value &&
+      Math.random() < 0.55
+    ) {
+      bubble.say(pick(dialogue.idle))
+    }
+  }, 28000)
 })
 
 onBeforeUnmount(() => {
