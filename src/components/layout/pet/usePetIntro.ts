@@ -89,6 +89,8 @@ export function usePetIntro(
   function cleanup() {
     if (promptTimer) clearTimeout(promptTimer)
     if (seqTimer) clearTimeout(seqTimer)
+    // H4: 播放中途卸载也标记为 seen，防止下次挂载时重播
+    if (phase.value === 'playing') markSeen()
   }
 
   onBeforeUnmount(cleanup)

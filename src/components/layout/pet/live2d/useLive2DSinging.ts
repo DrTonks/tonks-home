@@ -37,7 +37,8 @@ export function useLive2DSinging(
   let headPhase = 0
   let mouthPhase = 0
   let ticking = false
-  let hasLyric = false  // 当前是否有歌词
+  let hasLyric = false
+  let singingRafId: number | null = null // M3: 存储 rAF ID 用于取消
 
   // LRC 歌词
   let lyrics: LyricLine[] = []
@@ -79,7 +80,7 @@ export function useLive2DSinging(
     setParam(model, 'ParamAngleX', Math.sin(headPhase) * 8)
     setParam(model, 'ParamAngleY', Math.cos(headPhase * 1.3) * 4)
 
-    requestAnimationFrame(singingTick)
+    singingRafId = requestAnimationFrame(singingTick)
   }
 
   function startEyeSwitch() {
@@ -158,6 +159,7 @@ export function useLive2DSinging(
 
   function stopSinging() {
     ticking = false
+    if (singingRafId !== null) { cancelAnimationFrame(singingRafId); singingRafId = null }
     if (eyeSwitchTimer) { clearInterval(eyeSwitchTimer); eyeSwitchTimer = null }
     const model = modelRef.value
     if (model) {

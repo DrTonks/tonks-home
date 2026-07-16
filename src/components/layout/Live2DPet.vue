@@ -155,6 +155,8 @@ onBeforeUnmount(() => {
   emotion.clearIdleTimers()
   destroy()
   bubble.hide()
+  petEnv.isLive2DReady = false   // C2: 卸载时重置 ready 状态
+  petEnv.isLive2DError = false
   if (idleTalkTimer) clearInterval(idleTalkTimer)
   if (greetTimer) clearTimeout(greetTimer)
 })

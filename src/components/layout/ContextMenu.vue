@@ -4,7 +4,7 @@
  * - 点击菜单项 / 外部 / Escape → 消失
  * - 3 秒无操作自动消失
  */
-import { onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
+import { onBeforeUnmount, ref, watch, nextTick } from 'vue'
 
 export interface ContextMenuItem {
   label: string
