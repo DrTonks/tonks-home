@@ -62,6 +62,7 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
         import('pixi-live2d-display/cubism4'),
       ])
       const { Live2DModel, MotionPriority } = cubismModule
+      console.log('[Live2D] PIXI + Cubism4 modules loaded')
 
       const app = new PIXI.Application({
         width: LIVE2D_W,
@@ -74,10 +75,12 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
 
       if (containerRef.value) {
         containerRef.value.appendChild(app.view as HTMLCanvasElement)
+        console.log('[Live2D] Canvas appended, size:', LIVE2D_W, 'x', LIVE2D_H)
       } else {
         throw new Error('Live2D 容器不存在')
       }
 
+      console.log('[Live2D] Loading model from /assets/live2d/ug/ugofficial.model3.json')
       const live2dModel = await Live2DModel.from(
         '/assets/live2d/ug/ugofficial.model3.json',
         { autoInteract: false },
@@ -90,14 +93,21 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
       live2dModel.y = LIVE2D_H / 2
 
       app.stage.addChild(live2dModel)
+      console.log('[Live2D] Model added to stage')
 
       // 启动 idle loop motion（使用 IDLE 优先级以保证自动循环）
       live2dModel.motion('', 0, MotionPriority.IDLE)
 
-      // 确保自然运动（眨眼/呼吸）开启
+      // 检查核心模型结构
       const im = live2dModel.internalModel
-      if (im?.eyeBlink) {
-        // eyeBlink 存在则说明模型支持自动眨眼
+      if (im) {
+        console.log('[Live2D] internalModel keys:', Object.keys(im).slice(0, 10))
+        if (im.coreModel) {
+          const cm = im.coreModel as Record<string, unknown>
+          console.log('[Live2D] coreModel has setParameterValueById:', typeof cm.setParameterValueById)
+          console.log('[Live2D] coreModel has getParameterValueById:', typeof cm.getParameterValueById)
+        }
+        if (im.eyeBlink) console.log('[Live2D] eyeBlink supported')
       }
 
       pixiApp.value = app
