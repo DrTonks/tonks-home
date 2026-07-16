@@ -151,11 +151,13 @@ function playIntro() {
   if (!sentences?.length) return
   let i = 0
   function next() {
-    if (i >= sentences.length) { bubble.hide(); return }
+    if (i >= sentences.length) return
     bubble.say(sentences[i], true)
     i++
-    const dwell = 2200 + sentences[i - 1].length * 120
-    setTimeout(next, dwell)
+    const s = sentences[i - 1]
+    const typeMs = s.length * 45
+    const thinkMs = s.length >= 4 ? 140 * s.length : 0
+    setTimeout(next, thinkMs + typeMs + 2000)
   }
   next()
 }
@@ -313,7 +315,7 @@ onBeforeUnmount(() => {
   0%   { transform: translateY(-120vh); opacity: 0; }
   15%  { opacity: 0.4; filter: blur(2px); }
   50%  { opacity: 1; filter: blur(0); }
-  100% { transform: translateY(-10vh); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(-5vh); opacity: 1; filter: blur(0); }
 }
 .drop-enter-live2d {
   animation: pet-drop-live2d 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;

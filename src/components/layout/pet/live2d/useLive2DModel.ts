@@ -75,6 +75,8 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       })
+      // 桌宠无需 60fps 全速渲染，降到 24fps 减少 GPU 负载
+      app.ticker.maxFPS = 24
 
       if (containerRef.value) {
         containerRef.value.appendChild(app.view as HTMLCanvasElement)
@@ -101,15 +103,11 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
       // 启动 idle loop motion（使用 IDLE 优先级以保证自动循环）
       live2dModel.motion('', 0, MotionPriority.IDLE)
 
-      // 检查核心模型结构
+      // 检查核心模型 API
       const im = live2dModel.internalModel
-      if (im) {
-        console.log('[Live2D] internalModel keys:', Object.keys(im).slice(0, 10))
-        const cm = im.coreModel as Record<string, unknown>
-        if (cm) {
-          console.log('[Live2D] coreModel has setParameterValueById:', typeof cm.setParameterValueById)
-          console.log('[Live2D] coreModel has getParameterValueById:', typeof cm.getParameterValueById)
-        }
+      if (im?.coreModel) {
+        console.log('[Live2D] internalModel ready, coreModel.setParameterValueById:',
+          typeof (im.coreModel as Record<string, unknown>).setParameterValueById)
       }
 
       pixiApp.value = app

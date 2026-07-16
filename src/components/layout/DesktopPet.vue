@@ -202,12 +202,14 @@ function playIntro() {
   if (!sentences?.length) return
   let i = 0
   function next() {
-    if (i >= sentences.length) { bubble.hide(); return }
+    if (i >= sentences.length) return
     bubble.say(sentences[i], true)
     i++
-    // 每句停留时间 = 2s 基础 + 按字数延长（≈读完所需时间），确保不会被下一句过早覆盖
-    const dwell = 2200 + sentences[i - 1].length * 120
-    setTimeout(next, dwell)
+    // 等待打字动画完成 + 足够阅读时间，再播下一句
+    const s = sentences[i - 1]
+    const typeMs = s.length * 45
+    const thinkMs = s.length >= 4 ? 140 * s.length : 0
+    setTimeout(next, thinkMs + typeMs + 2000)
   }
   next()
 }
