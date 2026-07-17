@@ -191,12 +191,13 @@ function selectChoice(c: string) {
     <div
       v-if="visible && !isClosing"
       class="question-cloud-wrapper"
-      :class="[`place-${placement}`, { 'no-animate': isDragging }]"
+      :class="[`place-${placement}`]"
       :style="{
         ...(placement === 'top'
           ? { top: `-${verticalOffset}px` }
           : { bottom: `-${verticalOffset - 10}px` }),
         transform: `translateX(-50%) translate(${dragOffset.x}px, ${dragOffset.y}px)`,
+        animation: isDragging ? 'none' : undefined,
       }"
       role="dialog"
       aria-label="桌宠提问"
@@ -287,10 +288,6 @@ function selectChoice(c: string) {
   cursor: pointer;
   pointer-events: auto;
   animation: cloud-float 3s ease-in-out infinite;
-}
-
-.question-cloud-wrapper.no-animate {
-  animation-play-state: paused;
 }
 
 .place-top,

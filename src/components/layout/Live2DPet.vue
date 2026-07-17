@@ -7,7 +7,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Monitor, Microphone, Notebook } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Monitor, Microphone, Notebook, Setting } from '@element-plus/icons-vue'
 import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
@@ -18,8 +18,11 @@ import dialogue from '@/data/pet-dialogue-live2d.json'
 import QuestionBubble from './pet/QuestionBubble.vue'
 import CelebrationEffect from './pet/CelebrationEffect.vue'
 import MemoryNotebook from './pet/MemoryNotebook.vue'
+import DevQuestionPanel from './pet/DevQuestionPanel.vue'
+import { useAdminStore } from '@/stores/admin'
+import questionsData from '@/data/pet-questions.json'
 import { usePetMemory } from '@/composables/usePetMemory'
-import { usePetQuestions } from '@/composables/usePetQuestions'
+import { usePetQuestions, type PetQuestion } from '@/composables/usePetQuestions'
 import { useSpecialDate } from '@/composables/useSpecialDate'
 
 /** 句库类型（greeting 是嵌套对象，其余是 string[]） */
@@ -27,10 +30,14 @@ type Live2DDialogue = {
   intro: string[]; greeting: Record<string, string[]>; idle: string[]
   happy: string[]; angry: string[]; cry: string[]; sleep: string[]
   threat: string[]; turn: string[]; click: string[]; memory: string[]
+  mood_replies: Record<string, string[]>
 }
 const dl = dialogue as unknown as Live2DDialogue
 
 const petEnv = usePetEnvStore()
+const adminStore = useAdminStore()
+
+const allQs2 = questionsData as PetQuestion[]
 const state = createLive2DState()
 const containerRef = ref<HTMLElement | null>(null)
 
@@ -141,6 +148,7 @@ watch(() => state.mood.value, (m) => {
 
 // 右键菜单（道具可切换 + 唱歌时 mic 自动呼出）
 const showNotebook = ref(false)
+const showDevPanel = ref(false)
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
@@ -165,6 +173,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
   },
   { label: '关于我？', icon: InfoFilled, action: () => playIntro() },
   { label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } },
+  ...(adminStore.isLoggedIn ? [{ label: '调试提问', icon: Setting, action: () => { showDevPanel.value = true } }] : []),
   )
   return items
 })
@@ -191,16 +200,47 @@ function playIntro() {
 
 // ===== 提问事件处理 =====
 function onQuestionSubmit(answer: string) {
-  if (questions.currentQuestion.value) {
-    questions.submitAnswer(questions.currentQuestion.value, answer)
+  const q = questions.currentQuestion.value
+  if (q) {
+    questions.submitAnswer(q, answer)
+    questions.dismiss()
+    petEnv.isQuestionActive = false
+    // 心情问题 → 触发对应回复
+    if (q.id === 'q_mood') {
+      const moodLines = dl.mood_replies?.[answer]
+      if (moodLines?.length) {
+        setTimeout(() => bubble.say(pick(moodLines)), 400)
+      }
+    }
+  } else {
+    questions.dismiss()
+    petEnv.isQuestionActive = false
   }
-  questions.dismiss()
-  petEnv.isQuestionActive = false
+}
+
+// ===== 调试面板回调 =====
+function onDevTriggerQuestion(qId: string) {
+  const q = allQs2.find(q => q.id === qId)
+  if (!q || questions.isActive.value) return
+  if (q.key && memory.hasMemory(q.key)) return // 已答，不触发
+  if (memory.isRejected(qId)) memory.unrejectQuestion(qId)
+  bubble.hide()
+  questions.currentQuestion.value = q
+  questions.isActive.value = true
+  petEnv.isQuestionActive = true
+}
+
+function onDevTriggerMemory() {
+  const memLine = memory.pickMemoryLine(dl.memory)
+  if (memLine) bubble.say(memLine, true)
 }
 
 function onQuestionReject() {
-  if (questions.currentQuestion.value) {
-    questions.rejectCurrent(questions.currentQuestion.value)
+  const q = questions.currentQuestion.value
+  if (q) {
+    if (!q.key || !memory.hasMemory(q.key)) {
+      questions.rejectCurrent(q)
+    }
   }
   questions.dismiss()
   petEnv.isQuestionActive = false
@@ -405,6 +445,17 @@ onBeforeUnmount(() => {
     <MemoryNotebook
       :visible="showNotebook"
       @close="showNotebook = false"
+    />
+
+    <!-- 调试提问面板（仅管理员） -->
+    <DevQuestionPanel
+      :visible="showDevPanel"
+      persona="live2d"
+      :has-memories="memory.getFilledKeys().length > 0"
+      :question-is-active="questions.isActive.value"
+      @trigger-question="onDevTriggerQuestion"
+      @trigger-memory="onDevTriggerMemory"
+      @close="showDevPanel = false"
     />
   </div>
 </template>
