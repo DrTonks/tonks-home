@@ -1,0 +1,70 @@
+[
+  {
+    "id": "q_name",
+    "key": "user_name",
+    "personas": {
+      "static": "初次见面，请问怎么称呼？",
+      "live2d": "老板怎么称呼？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入你的称呼...",
+    "required": true,
+    "maxLength": 50,
+    "icon": "User"
+  },
+  {
+    "id": "q_birthday",
+    "key": "birthday",
+    "personas": {
+      "static": "我不会忘记你的生日，你也不准忘记我。",
+      "live2d": "你的生日是什么时候呀？我会给老板庆祝的！"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "如：2000-05-15",
+    "required": false,
+    "maxLength": 10,
+    "icon": "Present"
+  },
+  {
+    "id": "q_color",
+    "key": "favorite_color",
+    "personas": {
+      "static": "你偏好什么颜色？",
+      "live2d": "你喜欢什么颜色呀~？"
+    },
+    "inputType": "choice",
+    "choices": ["蓝色", "红色", "绿色", "紫色", "黑色", "白色", "...？"],
+    "placeholder": "选一个吧~",
+    "required": false,
+    "icon": "Brush"
+  },
+  {
+    "id": "q_food",
+    "key": "favorite_food",
+    "personas": {
+      "static": "你喜欢吃什么？",
+      "live2d": "你最喜欢吃什么呀？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "试试火锅、寿司...",
+    "required": false,
+    "maxLength": 50,
+    "icon": "ForkSpoon"
+  },
+  {
+    "id": "q_mood",
+    "key": null,
+    "personas": {
+      "static": "今天心情如何？",
+      "live2d": "嘿~今天心情怎么样呀？"
+    },
+    "inputType": "choice",
+    "choices": ["开心", "一般", "不太好", "不想说"],
+    "placeholder": "",
+    "required": false,
+    "icon": "Sunny"
+  }
+]

@@ -9,9 +9,15 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Notebook } from '@element-plus/icons-vue'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue.json'
+import QuestionBubble from './pet/QuestionBubble.vue'
+import CelebrationEffect from './pet/CelebrationEffect.vue'
+import MemoryNotebook from './pet/MemoryNotebook.vue'
+import { usePetMemory } from '@/composables/usePetMemory'
+import { usePetQuestions } from '@/composables/usePetQuestions'
+import { useSpecialDate } from '@/composables/useSpecialDate'
 
 const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
@@ -60,6 +66,11 @@ const singing = usePetSinging(state, () => {
 // ===== 对话气泡 =====
 const bubble = useSpeechBubble()
 
+// ===== 记忆与提问系统 =====
+const memory = usePetMemory()
+const questions = usePetQuestions()
+const specialDate = useSpecialDate()
+
 // 唱歌时的歌词/音符模式（按播放进度驱动同一个气泡）
 usePetLyrics(state, bubble)
 
@@ -79,13 +90,14 @@ function canDailyTalk(): boolean {
     !state.singingState.value &&
     !state.rageActive.value &&
     state.mood.value !== 'threat' &&
-    !bubble.isMusicMode()
+    !bubble.isMusicMode() &&
+    !questions.isActive.value
   )
 }
 
-// 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词
+// 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词/提问
 function canEmotionTalk(): boolean {
-  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode()
+  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode() && !questions.isActive.value
 }
 
 // 进页面按时段问候
@@ -134,6 +146,7 @@ watch(
 
 let idleTalkTimer: ReturnType<typeof setInterval> | null = null
 let greetTimer: ReturnType<typeof setTimeout> | null = null
+let questionTimer: ReturnType<typeof setInterval> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
@@ -169,6 +182,7 @@ function provoke() {
 defineExpose({ provoke, getCenter: () => ({ x: state.pos.value.x + W / 2, y: state.pos.value.y + H / 2 }) })
 
 // ===== 右键菜单 =====
+const showNotebook = ref(false)
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
@@ -186,6 +200,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
     })
   }
   items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro() })
+  items.push({ label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } })
   return items
 })
 
@@ -216,6 +231,23 @@ function playIntro() {
   next()
 }
 
+// ===== 提问事件处理 =====
+function onQuestionSubmit(answer: string) {
+  if (questions.currentQuestion.value) {
+    questions.submitAnswer(questions.currentQuestion.value, answer)
+  }
+  questions.dismiss()
+  petEnv.isQuestionActive = false
+}
+
+function onQuestionReject() {
+  if (questions.currentQuestion.value) {
+    questions.rejectCurrent(questions.currentQuestion.value)
+  }
+  questions.dismiss()
+  petEnv.isQuestionActive = false
+}
+
 // 同步暴怒状态到 petEnv（阻挡切换）
 watch(() => state.rageActive.value, (v) => {
   petEnv.isRageActive = v
@@ -223,28 +255,58 @@ watch(() => state.rageActive.value, (v) => {
 
 onMounted(() => {
   turn.startMouseSystem()
-  // 进页面时段问候（等桌宠落地动画）
-  greetTimer = setTimeout(greet, 1600)
+
+  // 特殊日期检测（生日等）
+  const isSpecialDay = specialDate.checkToday(bubble, '生日快乐。')
+  // 非特殊日期才按时段问候（等桌宠落地动画），避免覆盖生日祝福
+  if (!isSpecialDay) {
+    greetTimer = setTimeout(greet, 1600)
+  }
   // 空闲随机冒泡（仅真正 idle 时）
   idleTalkTimer = setInterval(() => {
     if (
       state.mood.value === 'idle' &&
       canDailyTalk() &&
-      !bubble.visible.value &&
-      Math.random() < 0.55
+      !bubble.visible.value
     ) {
-      bubble.say(pick(dialogue.idle))
+      // 30% 概率尝试触发记忆句
+      if (Math.random() < 0.3) {
+        const memLine = memory.pickMemoryLine(dialogue.memory)
+        if (memLine) {
+          bubble.say(memLine)
+          return
+        }
+      }
+      // 正常 idle 闲聊
+      if (Math.random() < 0.55) {
+        bubble.say(pick(dialogue.idle))
+      }
     }
   }, 28000)
+
+  // 提问定时器（每 120s 尝试一次）
+  questionTimer = setInterval(() => {
+    if (!questions.canAskNow()) return
+    if (!canDailyTalk()) return
+    if (bubble.visible.value) return
+    const q = questions.pickQuestion()
+    if (q) {
+      bubble.hide()
+      questions.isActive.value = true
+      petEnv.isQuestionActive = true
+    }
+  }, 120_000)
 })
 
 onBeforeUnmount(() => {
   singing.stopAllSinging()
   bubble.hide()
   petEnv.isRageActive = false // B3: 暴怒中折叠时复位，防止永久锁死
+  petEnv.isQuestionActive = false
   if (idleTalkTimer) clearInterval(idleTalkTimer)
   if (greetTimer) clearTimeout(greetTimer)
   if (provokeTimer) clearTimeout(provokeTimer)
+  if (questionTimer) clearInterval(questionTimer)
 })
 </script>
 
@@ -272,6 +334,28 @@ onBeforeUnmount(() => {
           :translation="bubble.translation.value"
           :emoji="bubble.emoji.value"
           :placement="placement"
+        />
+
+        <!-- 提问云朵气泡 -->
+        <QuestionBubble
+          :visible="questions.isActive.value && !!questions.currentQuestion.value"
+          :question-text="questions.currentQuestion.value?.personas.static ?? ''"
+          :input-type="questions.currentQuestion.value?.inputType ?? 'text'"
+          :choices="questions.currentQuestion.value?.choices ?? []"
+          :placeholder="questions.currentQuestion.value?.placeholder ?? ''"
+          :icon-name="questions.currentQuestion.value?.icon ?? 'User'"
+          placement="top"
+          :vertical-offset="60"
+          @submit="onQuestionSubmit"
+          @reject="onQuestionReject"
+          @close="questions.dismiss(); petEnv.isQuestionActive = false"
+        />
+
+        <!-- 庆祝特效 -->
+        <CelebrationEffect
+          :visible="specialDate.isCelebrating.value"
+          :pet-width="W"
+          @complete="specialDate.isCelebrating.value = false"
         />
         <!-- 粒子 -->
         <span
@@ -326,6 +410,12 @@ onBeforeUnmount(() => {
       :y="ctxMenuY"
       :show="ctxMenuShow"
       @close="ctxMenuShow = false"
+    />
+
+    <!-- 记忆笔记窗口 -->
+    <MemoryNotebook
+      :visible="showNotebook"
+      @close="showNotebook = false"
     />
   </div>
 </template>

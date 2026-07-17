@@ -8,6 +8,7 @@
  * 生命周期用计时器串联；任何新调用都会清掉上一次的计时器（打断/覆盖）。
  */
 import { ref } from 'vue'
+import { usePetEnvStore } from '@/stores/petEnv'
 
 export type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes' | 'emoji'
 
@@ -50,6 +51,9 @@ export function useSpeechBubble() {
   /** 说一句日常话：（长句）思考 → 打字机 → 停留 → 淡出；短句跳过思考直接打字。force=true 跳过结束冷却（用于威胁句等重要时刻） */
   function say(sentence: string, force = false) {
     if (!sentence) return
+    // 提问气泡激活时阻塞所有 SpeechBubble（集中互斥锁）
+    const petEnv = usePetEnvStore()
+    if (petEnv.isQuestionActive && !force) return
     // 结束冷却：气泡刚收起不久则跳过本次，避免高频连续冒泡（force 时不受此限）
     if (!force && performance.now() - lastHideAt < SAY_COOLDOWN) return
     clearTimers()

@@ -18,6 +18,8 @@ export const usePetEnvStore = defineStore('petEnv', () => {
   const isLive2DReady = ref(false)
   /** Live2D 加载是否出错（useLive2DModel 写入，PetSwitcher 读取以关闭 loading） */
   const isLive2DError = ref(false)
+  /** 提问气泡是否激活（两个桌宠通过它做气泡互斥） */
+  const isQuestionActive = ref(false)
 
   const musicStore = useMusicStore()
   const isMusicPlaying = computed(() => musicStore.isPlaying)
@@ -33,6 +35,7 @@ export const usePetEnvStore = defineStore('petEnv', () => {
     isCollapsing,
     isLive2DReady,
     isLive2DError,
+    isQuestionActive,
     isMusicPlaying,
     canSwitch,
   }

@@ -7,7 +7,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Monitor, Microphone } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Monitor, Microphone, Notebook } from '@element-plus/icons-vue'
 import { useLive2DModel, LIVE2D_W, LIVE2D_H } from './pet/live2d/useLive2DModel'
 import { useLive2DInteraction } from './pet/live2d/useLive2DInteraction'
 import { useLive2DEmotion } from './pet/live2d/useLive2DEmotion'
@@ -15,12 +15,18 @@ import { useLive2DSinging } from './pet/live2d/useLive2DSinging'
 import { createLive2DState, type Live2DParticle, type Live2DSingingNote, NOTE_SYMBOLS } from './pet/live2d/state'
 import { usePetEnvStore } from '@/stores/petEnv'
 import dialogue from '@/data/pet-dialogue-live2d.json'
+import QuestionBubble from './pet/QuestionBubble.vue'
+import CelebrationEffect from './pet/CelebrationEffect.vue'
+import MemoryNotebook from './pet/MemoryNotebook.vue'
+import { usePetMemory } from '@/composables/usePetMemory'
+import { usePetQuestions } from '@/composables/usePetQuestions'
+import { useSpecialDate } from '@/composables/useSpecialDate'
 
 /** 句库类型（greeting 是嵌套对象，其余是 string[]） */
 type Live2DDialogue = {
   intro: string[]; greeting: Record<string, string[]>; idle: string[]
   happy: string[]; angry: string[]; cry: string[]; sleep: string[]
-  threat: string[]; turn: string[]; click: string[]
+  threat: string[]; turn: string[]; click: string[]; memory: string[]
 }
 const dl = dialogue as unknown as Live2DDialogue
 
@@ -32,6 +38,11 @@ const modelCtrl = useLive2DModel(containerRef)
 const { model, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
 const bubble = useSpeechBubble()
+
+// ===== 记忆与提问系统 =====
+const memory = usePetMemory()
+const questions = usePetQuestions()
+const specialDate = useSpecialDate()
 
 // ===== 粒子/音符特效（在 singing/emotion 前定义，供 singing 引用） =====
 let particleId = 0
@@ -122,13 +133,14 @@ function toggleProp(key: 'desk' | 'mic') {
 
 // 情绪台词（使用 Live2D 专属句库）
 watch(() => state.mood.value, (m) => {
-  if (!model.value || bubble.visible.value) return
+  if (!model.value || bubble.visible.value || questions.isActive.value) return
   const key = m as keyof Live2DDialogue
   const lines = dl[key]
   if (lines && Array.isArray(lines)) bubble.say(pick(lines as string[]))
 })
 
 // 右键菜单（道具可切换 + 唱歌时 mic 自动呼出）
+const showNotebook = ref(false)
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
@@ -152,6 +164,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
     action: () => toggleProp('mic'),
   },
   { label: '关于我？', icon: InfoFilled, action: () => playIntro() },
+  { label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } },
   )
   return items
 })
@@ -174,6 +187,23 @@ function playIntro() {
     setTimeout(next, thinkMs + typeMs + 2000)
   }
   next()
+}
+
+// ===== 提问事件处理 =====
+function onQuestionSubmit(answer: string) {
+  if (questions.currentQuestion.value) {
+    questions.submitAnswer(questions.currentQuestion.value, answer)
+  }
+  questions.dismiss()
+  petEnv.isQuestionActive = false
+}
+
+function onQuestionReject() {
+  if (questions.currentQuestion.value) {
+    questions.rejectCurrent(questions.currentQuestion.value)
+  }
+  questions.dismiss()
+  petEnv.isQuestionActive = false
 }
 
 function onContextMenu(e: MouseEvent) {
@@ -200,6 +230,7 @@ function handleClick(e: MouseEvent) {
 
 let idleTalkTimer: ReturnType<typeof setInterval> | null = null
 let greetTimer: ReturnType<typeof setTimeout> | null = null
+let questionTimer: ReturnType<typeof setInterval> | null = null
 let disposed = false // B4: 加载中卸载标志
 
 onMounted(async () => {
@@ -216,18 +247,47 @@ onMounted(async () => {
   // B5: 挂载时若音乐已在播放且音频有信号，显式启动唱歌
   if (petEnv.isMusicPlaying) singing.startSinging()
 
-  greetTimer = setTimeout(() => {
-    const h = new Date().getHours()
-    const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-    bubble.say(pick(dl.greeting[slot]))
-  }, 1600)
+  // 特殊日期检测（生日等）— U酱的活泼庆祝文案
+  const isSpecialDay = specialDate.checkToday(bubble, '生日快乐！！！U酱给你准备了惊喜哦~🎂🎉')
+  // 非特殊日期才按时段问候，避免覆盖生日祝福
+  if (!isSpecialDay) {
+    greetTimer = setTimeout(() => {
+      const h = new Date().getHours()
+      const slot = h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
+      bubble.say(pick(dl.greeting[slot]))
+    }, 1600)
+  }
 
   idleTalkTimer = setInterval(() => {
     // B12: 唱歌时跳过闲聊
-    if (state.mood.value === 'idle' && !singing.isSinging.value && !bubble.visible.value && Math.random() < 0.55) {
+    if (state.mood.value !== 'idle' || singing.isSinging.value || bubble.visible.value || questions.isActive.value) return
+
+    // 30% 概率尝试触发记忆句
+    if (Math.random() < 0.3) {
+      const memLine = memory.pickMemoryLine(dl.memory)
+      if (memLine) {
+        bubble.say(memLine)
+        return
+      }
+    }
+
+    if (Math.random() < 0.55) {
       bubble.say(pick(dl.idle))
     }
   }, 28000)
+
+  // 提问定时器（每 120s 尝试一次）
+  questionTimer = setInterval(() => {
+    if (!questions.canAskNow()) return
+    if (singing.isSinging.value || questions.isActive.value) return
+    if (bubble.visible.value) return
+    const q = questions.pickQuestion()
+    if (q) {
+      bubble.hide()
+      questions.isActive.value = true
+      petEnv.isQuestionActive = true
+    }
+  }, 120_000)
 })
 
 onBeforeUnmount(() => {
@@ -238,8 +298,10 @@ onBeforeUnmount(() => {
   bubble.hide()
   petEnv.isLive2DReady = false
   petEnv.isLive2DError = false
+  petEnv.isQuestionActive = false
   if (idleTalkTimer) clearInterval(idleTalkTimer)
   if (greetTimer) clearTimeout(greetTimer)
+  if (questionTimer) clearInterval(questionTimer)
   // 延迟销毁 PIXI 资源，让 Transition 离场动画先播完，避免 canvas 闪白
   setTimeout(() => destroy(), 300)
 })
@@ -275,6 +337,28 @@ onBeforeUnmount(() => {
         :placement="placement"
         :vertical-offset="46"
         :horizontal-offset="56"
+      />
+
+      <!-- 提问云朵气泡 -->
+      <QuestionBubble
+        :visible="questions.isActive.value && !!questions.currentQuestion.value"
+        :question-text="questions.currentQuestion.value?.personas.live2d ?? ''"
+        :input-type="questions.currentQuestion.value?.inputType ?? 'text'"
+        :choices="questions.currentQuestion.value?.choices ?? []"
+        :placeholder="questions.currentQuestion.value?.placeholder ?? ''"
+        :icon-name="questions.currentQuestion.value?.icon ?? 'User'"
+        placement="top"
+        :vertical-offset="35"
+        @submit="onQuestionSubmit"
+        @reject="onQuestionReject"
+        @close="questions.dismiss(); petEnv.isQuestionActive = false"
+      />
+
+      <!-- 庆祝特效 -->
+      <CelebrationEffect
+        :visible="specialDate.isCelebrating.value"
+        :pet-width="LIVE2D_W"
+        @complete="specialDate.isCelebrating.value = false"
       />
 
       <!-- 粒子 -->
@@ -315,6 +399,12 @@ onBeforeUnmount(() => {
       :y="ctxMenuY"
       :show="ctxMenuShow"
       @close="ctxMenuShow = false"
+    />
+
+    <!-- 记忆笔记窗口 -->
+    <MemoryNotebook
+      :visible="showNotebook"
+      @close="showNotebook = false"
     />
   </div>
 </template>

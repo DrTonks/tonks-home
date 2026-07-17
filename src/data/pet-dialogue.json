@@ -39,5 +39,11 @@
   "sleep": ["zzZ", "/assets/emoji/sleep.jpg"],
   "cry": ["不准忘记我", "你在哪？","/assets/emoji/cry.jpg"],
   "threat": ["· · ·", "/assets/emoji/angry.jpg"],
-  "turn": ["/assets/emoji/wait.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"]
+  "turn": ["/assets/emoji/wait.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"],
+  "memory": [
+    "{{user_name}}...我在记录。",
+    "{{user_name}}，你还在这里。很好。",
+    "我喜欢紫色，而你喜欢{{favorite_color}}。我们天生一对。",
+    "{{user_name}}。只是想确认一下你还在。"
+  ]
 }

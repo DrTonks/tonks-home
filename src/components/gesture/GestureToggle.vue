@@ -84,7 +84,7 @@ async function requestPermission() {
       <DialogHeader>
         <DialogTitle>启用手势识别</DialogTitle>
         <DialogDescription>
-          需要访问摄像头来识别手势。张开手掌即可触发主页展开/收起动画。视频仅在本地处理，不会上传。
+          需要访问摄像头来识别手势,支持：<br>手掌张开展开<br>“OK”手势收起<br>食指扫动让桌宠切换主题<br>打响指播放歌曲
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>

@@ -85,6 +85,10 @@
   --shadow-glow-secondary: 0 0 24px hsl(var(--color-mint) / 0.5);
   --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
+  /* === 云朵气泡 === */
+  --cloud-fill: #ffffff;
+  --cloud-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+
   /* === Motion === */
   --duration-fast: 150ms;
   --duration-normal: 300ms;
@@ -186,6 +190,10 @@
     0 0 0 1px rgba(255, 255, 255, 0.04);
   --shadow-glow-primary: 0 0 26px hsl(var(--color-sky) / 0.55);
   --shadow-glow-secondary: 0 0 26px hsl(var(--color-mint) / 0.55);
+
+  /* === 云朵气泡（暗色） === */
+  --cloud-fill: hsl(216 32% 18% / 0.94);
+  --cloud-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
