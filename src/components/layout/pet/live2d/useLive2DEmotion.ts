@@ -20,7 +20,7 @@ import {
   SLEEP_AFTER_MS,
 } from './state'
 
-const CLICK_TIMEOUT_MS = 2500
+const CLICK_TIMEOUT_MS = 3500 // 点击升级后自动回 idle 的超时（比旧桌宠略长）
 
 /** 点击升级链（随机阈值，与 DesktopPet 的 TIER_CONFIG 一致） */
 const TIER_CONFIG: { mood: Live2DMood; min: number; max: number }[] = [
@@ -44,6 +44,8 @@ export function useLive2DEmotion(
   let clickTimer: ReturnType<typeof setTimeout> | null = null
   let clickCount = 0
   let tierThresholds: number[] = []
+  /** cry 来源：true=点击升级到 cry，false=闲置计时器触发 cry */
+  let cryFromClick = false
 
   function clearIdleTimers() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null }
@@ -52,10 +54,9 @@ export function useLive2DEmotion(
 
   function resetIdleTimers() {
     clearIdleTimers()
-    // 唱歌期间不启动闲置计时器（保持默认/微笑状态）
     if (isSinging?.value) return
     idleTimer = setTimeout(() => {
-      if (state.mood.value === 'idle' || state.mood.value === 'happy') applyMood('cry')
+      if (state.mood.value === 'idle' || state.mood.value === 'happy') { cryFromClick = false; applyMood('cry') }
     }, CRY_AFTER_MS)
     sleepTimer = setTimeout(() => {
       if (state.mood.value === 'cry' || state.mood.value === 'idle') applyMood('sleep')
@@ -96,8 +97,17 @@ export function useLive2DEmotion(
 
     state.mood.value = mood
     state.activeExpression.value = mapping.expr
-    // expression() 是 async，await 后才覆盖 leaf，否则 exp3.json 会重置
-    await model.expression(mapping.expr)
+    // idle → 重置回默认中性脸；其他 mood → 加载对应 exp3
+    if (mapping.expr) {
+      await model.expression(mapping.expr)
+    } else {
+      // expressionManager 在 motionManager 下，不是 internalModel 直接属性
+      // 去掉当前表情，回到模型默认状态（外设 desk/mic 不受影响）
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (model.internalModel as any)?.motionManager?.expressionManager?.resetExpression?.()
+      } catch { /* ignore */ }
+    }
     setModelParam(model, 'Param31', 0)
     setModelParam(model, 'Param55', 1)
     setModelParam(model, 'ParamCheek', mood === 'happy' ? 0.9 : 0.5)
@@ -108,13 +118,24 @@ export function useLive2DEmotion(
     if (state.mood.value === 'sleep') {
       applyMood('angry')
       resetIdleTimers()
+      if (clickTimer) clearTimeout(clickTimer)
+      clickTimer = setTimeout(() => { clickCount = 0; seedClickTiers(); applyMood('idle'); resetIdleTimers() }, CLICK_TIMEOUT_MS)
       return
     }
-
-    // cry 时点击 → 恢复 idle（无论是点击升级还是挂机进入的 cry 都可被点醒）
     if (state.mood.value === 'cry') {
-      applyMood('idle')
-      resetIdleTimers()
+      if (cryFromClick) {
+        // 点击升级的 cry：刷新计时器，超时后自动恢复
+        resetIdleTimers()
+        if (clickTimer) clearTimeout(clickTimer)
+        clickTimer = setTimeout(() => {
+          clickCount = 0; seedClickTiers(); cryFromClick = false
+          applyMood('idle'); resetIdleTimers()
+        }, CLICK_TIMEOUT_MS)
+      } else {
+        // 闲置进入的 cry：点醒回 idle
+        applyMood('idle')
+        resetIdleTimers()
+      }
       return
     }
 
@@ -122,7 +143,6 @@ export function useLive2DEmotion(
     if (clickTimer) clearTimeout(clickTimer)
     clickCount++
 
-    // 累计随机阈值匹配当前 tier（与 DesktopPet 相同算法）
     let matchedMood: Live2DMood = 'idle'
     let cum = 0
     for (let i = 0; i < tierThresholds.length; i++) {
@@ -130,16 +150,21 @@ export function useLive2DEmotion(
       if (clickCount >= cum) matchedMood = TIER_CONFIG[i].mood
       else break
     }
-    if (matchedMood !== 'idle') applyMood(matchedMood)
+    if (matchedMood !== 'idle') {
+      if (matchedMood === 'cry') cryFromClick = true // 标记：cry 由点击触发
+      applyMood(matchedMood)
+    }
 
     clickTimer = setTimeout(() => {
       clickCount = 0
       seedClickTiers()
       const m = state.mood.value
-      if (m !== 'cry' && m !== 'sleep') {
-        applyMood('idle')
-        resetIdleTimers()
-      }
+      // idle/sleep 不动；闲置进入的 cry 不动；happy/angry/点击升级 cry → 回 idle
+      if (m === 'sleep') return
+      if (m === 'cry' && !cryFromClick) return
+      cryFromClick = false
+      applyMood('idle')
+      resetIdleTimers()
     }, CLICK_TIMEOUT_MS)
   }
 

@@ -112,8 +112,10 @@ export function useLive2DInteraction(
     blinkTimer = setTimeout(doBlink, BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN))
   }
 
+  let blinkTracking = true
+
   function doBlink() {
-    if (eyeClosed) return
+    if (!blinkTracking || eyeClosed) return // B18: 停止跟踪后不再复活眨眼链
     eyeClosed = true
     // 闭眼
     setParam('ParamEyeLOpen', 0)
@@ -130,6 +132,7 @@ export function useLive2DInteraction(
   /** ===== ticker 帧循环 ===== */
   function startTracking() {
     stopTracking()
+    blinkTracking = true // B18: 启动新的眨眼周期
 
     const app = pixiAppRef.value
     if (!app?.ticker) return
@@ -148,6 +151,7 @@ export function useLive2DInteraction(
   }
 
   function stopTracking() {
+    blinkTracking = false // B18: 停止后不再复活眨眼
     if (tickerFn) {
       const app = pixiAppRef.value
       if (app?.ticker) app.ticker.remove(tickerFn)
@@ -164,6 +168,7 @@ export function useLive2DInteraction(
   }
 
   function onPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return // B17: 只响应左键，右键留给 ContextMenu
     dragging = true
     moved.value = false
     dragStartClientX = e.clientX
@@ -203,9 +208,21 @@ export function useLive2DInteraction(
     stopTracking()
   }
 
+  /** B9: 唱歌时暂停鼠标跟踪的 ParamAngle 写入，避免与唱歌摇头冲突 */
+  function pauseTracking() {
+    window.removeEventListener('mousemove', onGlobalMouseMove)
+    stopTracking()
+  }
+  function resumeTracking() {
+    window.addEventListener('mousemove', onGlobalMouseMove)
+    startTracking()
+  }
+
   return {
     startMouseTracking,
     stopMouseTracking,
+    pauseTracking,
+    resumeTracking,
     onPointerDown,
     onPointerMove,
     onPointerUp,

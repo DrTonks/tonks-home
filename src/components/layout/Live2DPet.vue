@@ -71,8 +71,13 @@ const propsEnabled = ref({ desk: false, mic: false })
 // ===== 唱歌（必须在 emotion 前，emotion 依赖 singing.isSinging） =====
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
   emotion.clearIdleTimers()  // 唱歌开始 → 清闲置计时器
+  interaction.pauseTracking() // B9: 暂停鼠标跟踪，避免与唱歌摇头打架
 }, () => {
-  emotion.initIdleTimers()   // 唱歌结束 → 恢复闲置计时器
+  interaction.resumeTracking()
+  // 唱歌结束 → 收回 mic + 同步菜单状态
+  propsEnabled.value.mic = false
+  emotion.applyMood('idle')
+  emotion.initIdleTimers()
 }, (count: number) => spawnSingingNotes(count))
 
 const emotion = useLive2DEmotion(state, model, singing.isSinging)
@@ -80,6 +85,12 @@ const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.mov
   if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
     bubble.say(pick(dl.turn))
   }
+})
+
+// B1: defineExpose 必须在 <script setup> 顶层
+defineExpose({
+  provokeLive2D: () => { if (!singing.isSinging.value) emotion.applyMood('angry') },
+  getCenter: () => ({ x: state.pos.value.x + LIVE2D_W / 2, y: state.pos.value.y + LIVE2D_H / 2 }),
 })
 
 type Placement = 'left' | 'right'
@@ -102,9 +113,9 @@ function setProp(model: any, paramId: string, on: boolean) {
 }
 
 function toggleProp(key: 'desk' | 'mic') {
-  propsEnabled.value[key] = !propsEnabled.value[key]
   const m = model.value
-  if (!m) return
+  if (!m) return // B13: 模型未就绪则忽略，避免菜单标签与实际状态失同步
+  propsEnabled.value[key] = !propsEnabled.value[key]
   if (key === 'desk') setProp(m, 'Param4', propsEnabled.value.desk)
   if (key === 'mic') setProp(m, 'Param', propsEnabled.value.mic)
 }
@@ -146,12 +157,15 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
 })
 
 /** 播放介绍句序列（右键"关于我？"触发） */
+let introPlaying = false
 function playIntro() {
+  if (introPlaying) return // B19: 重入守卫
   const sentences = dl.intro
   if (!sentences?.length) return
+  introPlaying = true
   let i = 0
   function next() {
-    if (i >= sentences.length) return
+    if (i >= sentences.length) { introPlaying = false; return }
     bubble.say(sentences[i], true)
     i++
     const s = sentences[i - 1]
@@ -169,7 +183,7 @@ function onContextMenu(e: MouseEvent) {
   ctxMenuShow.value = true
 }
 
-function handleClick(_e: MouseEvent) {
+function handleClick(e: MouseEvent) {
   if (state.moved.value) { state.moved.value = false; return }
   state.clickScale.value = true
   setTimeout(() => { state.clickScale.value = false }, 300)
@@ -178,16 +192,20 @@ function handleClick(_e: MouseEvent) {
     spawnSingingNotes(5)
     return
   }
-  spawnParticles(8)
+  // 粒子从鼠标点击位置飘出
+  const rect = containerRef.value?.getBoundingClientRect?.()
+  spawnParticles(8, rect ? e.clientX - rect.left : undefined, rect ? e.clientY - rect.top : undefined)
   emotion.handleClick()
 }
 
 let idleTalkTimer: ReturnType<typeof setInterval> | null = null
 let greetTimer: ReturnType<typeof setTimeout> | null = null
+let disposed = false // B4: 加载中卸载标志
 
 onMounted(async () => {
   await loadModel()
 
+  if (disposed) { destroy(); return }  // B4: 加载期间已卸载 → 清理后退出
   if (!model.value) { petEnv.isLive2DError = true; return }
 
   petEnv.isLive2DReady = true
@@ -195,6 +213,8 @@ onMounted(async () => {
   emotion.initIdleTimers()
   interaction.startMouseTracking()
   emotion.checkSingingEnv(petEnv.isMusicPlaying)
+  // B5: 挂载时若音乐已在播放且音频有信号，显式启动唱歌
+  if (petEnv.isMusicPlaying) singing.startSinging()
 
   greetTimer = setTimeout(() => {
     const h = new Date().getHours()
@@ -203,13 +223,15 @@ onMounted(async () => {
   }, 1600)
 
   idleTalkTimer = setInterval(() => {
-    if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.55) {
+    // B12: 唱歌时跳过闲聊
+    if (state.mood.value === 'idle' && !singing.isSinging.value && !bubble.visible.value && Math.random() < 0.55) {
       bubble.say(pick(dl.idle))
     }
   }, 28000)
 })
 
 onBeforeUnmount(() => {
+  disposed = true  // B4: 标记已卸载
   interaction.stopMouseTracking()
   singing.stopSinging()
   emotion.clearIdleTimers()

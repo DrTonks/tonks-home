@@ -27,7 +27,7 @@ export function useHandGesture(
   onPinch?: () => void,
   onSnap?: () => void,
   onMiddleFinger?: () => void,
-  onSwipe?: (dir: 'left' | 'right') => void,
+  onSwipe?: () => void,
 ) {
   const isActive = ref(false)
   const isLoading = ref(false)
@@ -205,7 +205,7 @@ export function useHandGesture(
     )
   }
 
-  /** 竖食指横扫：食指尖 x 在 ~0.7s 内快速水平位移 → 触发方向（非食指指向时重置） */
+  /** 竖食指横扫：食指尖 x 在 ~0.7s 内快速水平位移 → 触发（非食指指向时重置） */
   function detectSwipe(landmarks: Landmark[]) {
     if (!onSwipe) return
     if (!isIndexPointing(landmarks)) {
@@ -222,8 +222,7 @@ export function useHandGesture(
     }
     const dx = tip.x - swipeStartX
     if (Math.abs(dx) > 0.22) {
-      // landmarks.x 为摄像头原始坐标（视频镜像显示）；x 减小≈用户视角向右。方向若反了在 HomeView 调换即可
-      onSwipe(dx < 0 ? 'right' : 'left')
+      onSwipe()
       swipeStartX = null
     }
   }

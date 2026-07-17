@@ -90,7 +90,7 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       v-if="visible"
       class="pet-bubble"
       :class="[`place-${placement}`, { 'is-emoji': mode === 'emoji' }]"
-      :style="placement
+      :style="placement && mode !== 'emoji'
         ? { top: `${verticalOffset}px`, [placement === 'left' ? 'right' : 'left']: `calc(100% - ${horizontalOffset}px)` }
         : undefined"
       role="status"

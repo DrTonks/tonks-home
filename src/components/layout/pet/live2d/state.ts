@@ -5,9 +5,9 @@ import { ref, type Ref } from 'vue'
 
 export type Live2DMood = 'idle' | 'happy' | 'angry' | 'cry' | 'sleep' | 'singing'
 
-/** Expression → mood 映射（道具由用户右键控制，不在此映射中自动设置） */
-export const EXPRESSION_MAP: Record<Live2DMood, { expr: string }> = {
-  idle:    { expr: '3clever' },
+/** Expression → mood 映射。idle 无表达式（模型默认中性脸），其他 mood 各对应一个 exp3 */
+export const EXPRESSION_MAP: Record<Live2DMood, { expr: string | null }> = {
+  idle:    { expr: null },   // 默认无表情，resetExpression() 回到中性脸
   happy:   { expr: '3clever' },
   angry:   { expr: '4OAO' },
   cry:     { expr: '5QAQ' },
@@ -17,8 +17,8 @@ export const EXPRESSION_MAP: Record<Live2DMood, { expr: string }> = {
 
 export const SLEEP_EXPRESSIONS = ['9'] as const
 
-export const CRY_AFTER_MS = 2 * 60 * 1000
-export const SLEEP_AFTER_MS = 4 * 60 * 1000
+export const CRY_AFTER_MS = 3 * 60 * 1000
+export const SLEEP_AFTER_MS = 5 * 60 * 1000
 
 export interface Live2DParticle { id: number; originX: number; originY: number; dx: number; dy: number; delay: number }
 export interface Live2DSingingNote { id: number; x: number; y: number; symbol: string; hue: number; delay: number }
@@ -29,7 +29,7 @@ export interface Live2DPetState {
   pos: Ref<{ x: number; y: number }>
   moved: Ref<boolean>
   clickScale: Ref<boolean>
-  activeExpression: Ref<string>
+  activeExpression: Ref<string | null>
   singingChecked: Ref<boolean>
   particles: Ref<Live2DParticle[]>
   singingNotes: Ref<Live2DSingingNote[]>
@@ -41,7 +41,7 @@ export function createLive2DState(): Live2DPetState {
     pos: ref({ x: window.innerWidth - 310, y: 150 }),
     moved: ref(false),
     clickScale: ref(false),
-    activeExpression: ref('3clever'),
+    activeExpression: ref<string | null>(null),
     singingChecked: ref(false),
     particles: ref([]),
     singingNotes: ref([]),

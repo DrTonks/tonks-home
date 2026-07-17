@@ -166,7 +166,7 @@ function provoke() {
     if (state.mood.value === 'threat' && !state.rageActive.value) core.startRage()
   }, 1000)
 }
-defineExpose({ provoke })
+defineExpose({ provoke, getCenter: () => ({ x: state.pos.value.x + W / 2, y: state.pos.value.y + H / 2 }) })
 
 // ===== 右键菜单 =====
 const ctxMenuShow = ref(false)
@@ -196,16 +196,18 @@ function onContextMenu(e: MouseEvent) {
   ctxMenuShow.value = true
 }
 
+let introPlaying = false
 /** 播放介绍句序列（右键"关于桌宠"触发） */
 function playIntro() {
+  if (introPlaying) return // B19: 重入守卫
   const sentences = dialogue.intro
   if (!sentences?.length) return
+  introPlaying = true
   let i = 0
   function next() {
-    if (i >= sentences.length) return
+    if (i >= sentences.length) { introPlaying = false; return }
     bubble.say(sentences[i], true)
     i++
-    // 等待打字动画完成 + 足够阅读时间，再播下一句
     const s = sentences[i - 1]
     const typeMs = s.length * 45
     const thinkMs = s.length >= 4 ? 140 * s.length : 0
@@ -239,6 +241,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   singing.stopAllSinging()
   bubble.hide()
+  petEnv.isRageActive = false // B3: 暴怒中折叠时复位，防止永久锁死
   if (idleTalkTimer) clearInterval(idleTalkTimer)
   if (greetTimer) clearTimeout(greetTimer)
   if (provokeTimer) clearTimeout(provokeTimer)

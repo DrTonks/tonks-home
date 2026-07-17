@@ -52,10 +52,10 @@ function onMiddleFinger() {
   petRef.value?.provoke()
 }
 
-// 竖食指横扫切主题：左→右从左下角圆形扩散，右→左从右上角（复用现有切换动画）
-function onSwipe(dir: 'left' | 'right') {
-  if (dir === 'right') theme.toggle(0, window.innerHeight)
-  else theme.toggle(window.innerWidth, 0)
+// 竖食指横扫 → 以当前桌宠中心为起点，圆形扩散切换主题
+function onSwipe() {
+  const c = petRef.value?.getPetCenter?.() ?? { x: window.innerWidth / 2, y: 80 }
+  theme.toggle(c.x, c.y)
 }
 
 // 睁眼动画（仅亮色）

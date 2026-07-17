@@ -14,6 +14,7 @@ const emit = defineEmits<{ rage: []; rageStart: [] }>()
 
 const petEnv = usePetEnvStore()
 const desktopPetRef = ref<InstanceType<typeof DesktopPet> | null>(null)
+const live2DPetRef = ref<InstanceType<typeof Live2DPet> | null>(null)
 
 const live2dEverMounted = ref(false)
 
@@ -28,9 +29,21 @@ watch(
 )
 
 function provoke() {
-  if (petEnv.activePetType === 'static') desktopPetRef.value?.provoke()
+  if (petEnv.activePetType === 'static') {
+    desktopPetRef.value?.provoke()
+  } else {
+    // Live2D 中指 → 切 angry 表情
+    live2DPetRef.value?.provokeLive2D?.()
+  }
 }
-defineExpose({ provoke })
+/** 返回当前活跃桌宠的屏幕中心坐标，供手势切主题使用 */
+function getPetCenter(): { x: number; y: number } {
+  // B7: 改用 defineExpose 契约 getCenter()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const center = (petEnv.activePetType === 'static' ? desktopPetRef.value : live2DPetRef.value) as any
+  return center?.getCenter?.() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+}
+defineExpose({ provoke, getPetCenter })
 
 function onRageStart() { emit('rageStart') }
 function onRage() { emit('rage') }
@@ -49,7 +62,7 @@ function onRage() { emit('rage') }
 
     <template v-if="live2dEverMounted">
       <Transition name="pet-fade">
-        <Live2DPet v-if="petEnv.activePetType === 'live2d'" />
+        <Live2DPet ref="live2DPetRef" v-if="petEnv.activePetType === 'live2d'" />
       </Transition>
     </template>
   </div>

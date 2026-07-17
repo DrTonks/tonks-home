@@ -44,6 +44,7 @@ export function useLive2DSinging(
   let hasLyric = false
   let singingRafId: number | null = null
   let noteSpawnTimer: ReturnType<typeof setTimeout> | null = null
+  let lastTickTime = 0
 
   // LRC 歌词
   let lyrics: LyricLine[] = []
@@ -66,9 +67,14 @@ export function useLive2DSinging(
     const model = modelRef.value
     if (!model || !ticking) return
 
+    // B15: 使用真实时间步（秒），不再硬编码 0.016
+    const now = performance.now()
+    const dt = lastTickTime ? Math.min(0.1, (now - lastTickTime) / 1000) : 0.016
+    lastTickTime = now
+
     // 张嘴：模拟真实唱歌的吐字随机性
     if (hasLyric) {
-      mouthHoldTimer -= 0.016
+      mouthHoldTimer -= dt
       if (mouthHoldTimer <= 0) {
         // 随机决定下一个动作：张嘴 / 闭嘴 / 微张
         const r = Math.random()
@@ -95,14 +101,14 @@ export function useLive2DSinging(
       mouthLerp = 0.06
       mouthHoldTimer = 0
     }
-    mouthOpen += (mouthTarget - mouthOpen) * mouthLerp
+    mouthOpen += (mouthTarget - mouthOpen) * (mouthLerp * dt / 0.016) // B15: 帧率补偿
     setParam(model, 'ParamMouthOpenY', Math.max(0, mouthOpen))
 
-    eyeOpen += (eyeOpenTarget - eyeOpen) * 0.05
+    eyeOpen += (eyeOpenTarget - eyeOpen) * (0.05 * dt / 0.016)
     setParam(model, 'ParamEyeLOpen', eyeOpen)
     setParam(model, 'ParamEyeROpen', eyeOpen)
 
-    headPhase += HEAD_SWAY_SPEED
+    headPhase += HEAD_SWAY_SPEED * (dt / 0.016) // B15: 帧率补偿
     setParam(model, 'ParamAngleX', Math.sin(headPhase) * 8)
     setParam(model, 'ParamAngleY', Math.cos(headPhase * 1.3) * 4)
 
@@ -170,9 +176,6 @@ export function useLive2DSinging(
   )
   watch(() => store.currentTime, updateLRC)
 
-  // 唱歌前保存用户麦克风偏好，结束后恢复
-  let savedMicState = 0
-
   // ===== 唱歌启停 =====
   async function startSinging() {
     // 重入防护：已在唱歌状态则忽略
@@ -180,13 +183,6 @@ export function useLive2DSinging(
 
     const model = modelRef.value
     if (!model) return
-
-    // 保存当前麦克风状态（用户可能已通过右键菜单开启）
-    savedMicState = 0
-    try {
-      const core = model.internalModel?.coreModel as Record<string, unknown> | null
-      savedMicState = (core?.getParameterValueById as ((id: string) => number) | undefined)?.call(core, 'Param') ?? 0
-    } catch { /* ignore */ }
 
     setParam(model, 'Param', 1)
     singingChecked.value = true
@@ -215,8 +211,7 @@ export function useLive2DSinging(
     if (noteSpawnTimer) { clearTimeout(noteSpawnTimer); noteSpawnTimer = null }
     const model = modelRef.value
     if (model) {
-      // 恢复用户的麦克风偏好，而非强制关闭
-      setParam(model, 'Param', savedMicState)
+      setParam(model, 'Param', 0) // 唱歌停止 → 收回麦克风
       setParam(model, 'ParamMouthOpenY', 0)
       setParam(model, 'ParamEyeLOpen', 1)
       setParam(model, 'ParamEyeROpen', 1)

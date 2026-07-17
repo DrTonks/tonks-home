@@ -50,8 +50,9 @@ function adjustPosition() {
   adjY.value = Math.min(props.y, window.innerHeight - rect.height - 8)
 }
 
-watch(() => props.show, (v) => {
-  if (v) {
+// B11: 同时监听 show/x/y，二次右键时重定位+重置计时器
+watch([() => props.show, () => props.x, () => props.y], ([s]) => {
+  if (s) {
     resetDismissTimer()
     nextTick(adjustPosition)
     document.addEventListener('click', handleClickOutside, true)
