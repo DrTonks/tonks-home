@@ -75,7 +75,7 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       })
-      // 桌宠无需 60fps 全速渲染，降到 24fps 减少 GPU 负载
+      // 桌宠 24fps 减少 GPU 负载
       app.ticker.maxFPS = 24
 
       if (containerRef.value) {

@@ -10,11 +10,16 @@
 import { type Ref } from 'vue'
 import { LIVE2D_W, LIVE2D_H } from './useLive2DModel'
 
-const TRACKING_SMOOTH = 0.06
-const ANGLE_X_RANGE = 20
-const ANGLE_Y_RANGE = 10
-const ANGLE_Z_RANGE = 6
-const EYEBALL_RANGE = 0.5
+const TRACKING_SMOOTH = 0.1   // 头部跟踪灵敏度（越大越快）
+const BODY_SMOOTH = 0.04       // 身体比头慢半拍
+const ANGLE_X_RANGE = 35       // 头左右
+const ANGLE_Y_RANGE = 22       // 头上下
+const ANGLE_Z_RANGE = 14       // 头倾斜
+const EYEBALL_RANGE = 0.8      // 眼球转动范围
+const BODY_X_RANGE = 18        // 身体左右
+const BODY_Y_RANGE = 10        // 身体前后
+const BODY_Z_RANGE = 8         // 身体倾斜
+const BREATH_AMPLITUDE = 0.3   // 呼吸幅度
 
 /** 眨眼参数 */
 const BLINK_INTERVAL_MIN = 2500
@@ -39,6 +44,11 @@ export function useLive2DInteraction(
   let targetAngleZ = 0
   let targetEyeBallX = 0
   let targetEyeBallY = 0
+  let targetBodyX = 0
+  let targetBodyY = 0
+  let targetBodyZ = 0
+  let breathPhase = Math.random() * Math.PI * 2
+  let baseBodyY = 0 // 分离呼吸与跟踪，避免 breath 逐帧累积
 
   let dragging = false
   let dragStartClientX = 0
@@ -104,6 +114,10 @@ export function useLive2DInteraction(
     targetAngleZ = (nx - 0.5) * 2 * ANGLE_Z_RANGE
     targetEyeBallX = (nx - 0.5) * 2 * EYEBALL_RANGE
     targetEyeBallY = (ny - 0.5) * 2 * EYEBALL_RANGE
+    // 身体旋转跟随头部，幅度略小（模拟 vtuber 全身联动）
+    targetBodyX = (nx - 0.5) * 2 * BODY_X_RANGE
+    targetBodyY = -(ny - 0.5) * 2 * BODY_Y_RANGE
+    targetBodyZ = (nx - 0.5) * 2 * BODY_Z_RANGE
   }
 
   /** ===== 眨眼系统 ===== */
@@ -139,11 +153,20 @@ export function useLive2DInteraction(
 
     tickerFn = () => {
       const lerp = (cur: number, tgt: number) => cur + (tgt - cur) * TRACKING_SMOOTH
+      const bLerp = (cur: number, tgt: number) => cur + (tgt - cur) * BODY_SMOOTH
+      // 头部旋转
       setParam('ParamAngleX', lerp(getParam('ParamAngleX'), targetAngleX))
       setParam('ParamAngleY', lerp(getParam('ParamAngleY'), targetAngleY))
       setParam('ParamAngleZ', lerp(getParam('ParamAngleZ'), targetAngleZ))
       setParam('ParamEyeBallX', lerp(getParam('ParamEyeBallX'), targetEyeBallX))
       setParam('ParamEyeBallY', lerp(getParam('ParamEyeBallY'), targetEyeBallY))
+      // 身体旋转（跟随头部但更慢，模拟全身联动）
+      setParam('ParamBodyAngleX', bLerp(getParam('ParamBodyAngleX'), targetBodyX))
+      baseBodyY += (targetBodyY - baseBodyY) * BODY_SMOOTH
+      setParam('ParamBodyAngleZ', bLerp(getParam('ParamBodyAngleZ'), targetBodyZ))
+      // 呼吸：缓慢正弦波叠加在身体 Y 上
+      breathPhase += 0.015
+      setParam('ParamBodyAngleY', baseBodyY + Math.sin(breathPhase) * BREATH_AMPLITUDE)
     }
 
     app.ticker.add(tickerFn)
