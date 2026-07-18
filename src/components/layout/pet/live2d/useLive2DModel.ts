@@ -74,6 +74,7 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
+        sharedTicker: true, // 与模型共用 Ticker.shared，统一帧率减少 GPU 负载
       })
       // 桌宠 24fps 减少 GPU 负载
       app.ticker.maxFPS = 24

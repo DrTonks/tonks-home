@@ -34,6 +34,7 @@ export function useLive2DInteraction(
   pos: Ref<{ x: number; y: number }>,
   moved: Ref<boolean>,
   onTurn?: () => void,
+  isAsleep?: Ref<boolean>,
 ) {
   // turn 检测：鼠标静止超时后首次大幅移动 → 触发 turn 台词
   let lastMouseMove = 0
@@ -49,6 +50,12 @@ export function useLive2DInteraction(
   let targetBodyZ = 0
   let breathPhase = Math.random() * Math.PI * 2
   let baseBodyY = 0 // 分离呼吸与跟踪，避免 breath 逐帧累积
+
+  // 睡眠偷瞄状态机（在 beforeModelUpdate 回调中驱动，确保在顶点计算前覆盖眼睛参数）
+  let sleepPeekActive = false
+  let nextPeekAt = 0
+  let peekUntil = 0
+  let sleepHookInstalled = false
 
   let dragging = false
   let dragStartClientX = 0
@@ -122,6 +129,7 @@ export function useLive2DInteraction(
 
   /** ===== 眨眼系统 ===== */
   function scheduleBlink() {
+    if (isAsleep?.value) return // 睡眠时不调度眨眼
     if (blinkTimer) clearTimeout(blinkTimer)
     blinkTimer = setTimeout(doBlink, BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN))
   }
@@ -129,7 +137,7 @@ export function useLive2DInteraction(
   let blinkTracking = true
 
   function doBlink() {
-    if (!blinkTracking || eyeClosed) return // B18: 停止跟踪后不再复活眨眼链
+    if (isAsleep?.value || !blinkTracking || eyeClosed) return // 睡眠时不眨眼
     eyeClosed = true
     // 闭眼
     setParam('ParamEyeLOpen', 0)
@@ -141,6 +149,45 @@ export function useLive2DInteraction(
       eyeClosed = false
       scheduleBlink()
     }, BLINK_CLOSE_MS)
+  }
+
+  /** beforeModelUpdate 回调：在 motion/expression/eyeBlink 之后、顶点计算之前设置睡眠闭眼 */
+  function onBeforeModelUpdate() {
+    if (!isAsleep?.value) {
+      sleepPeekActive = false
+      peekUntil = 0
+      nextPeekAt = 0
+      return
+    }
+
+    const now = performance.now()
+    if (!sleepPeekActive) {
+      sleepPeekActive = true
+      nextPeekAt = now + 5000 + Math.random() * 5000
+    }
+    if (peekUntil === 0 && now >= nextPeekAt) {
+      peekUntil = now + 1000 + Math.random() * 1000
+    }
+
+    let eyeR: number
+    if (now < peekUntil) {
+      // 右眼偷瞄
+      eyeR = 0.7
+    } else {
+      if (peekUntil > 0 && now >= peekUntil) {
+        peekUntil = 0
+        nextPeekAt = now + 5000 + Math.random() * 5000
+      }
+      eyeR = 0.05
+    }
+
+    // 直接操作 coreModel，避免不必要的 getCoreModel() 查找
+    const core = modelRef.value?.internalModel?.coreModel as Record<string, unknown> | null
+    const fn = core?.setParameterValueById as ((id: string, value: number, weight?: number) => void) | undefined
+    if (fn) {
+      fn.call(core, 'ParamEyeLOpen', 0.05, 1)
+      fn.call(core, 'ParamEyeROpen', eyeR, 1)
+    }
   }
 
   /** ===== ticker 帧循环 ===== */
@@ -171,6 +218,16 @@ export function useLive2DInteraction(
 
     app.ticker.add(tickerFn)
     scheduleBlink()
+
+    // 安装睡眠闭眼钩子（在 beforeModelUpdate 事件中设置，确保在顶点计算前生效）
+    if (!sleepHookInstalled) {
+      const m = modelRef.value
+      const im = m?.internalModel as Record<string, unknown> | null
+      if (im && typeof (im as any).on === 'function') {
+        (im as any).on('beforeModelUpdate', onBeforeModelUpdate)
+        sleepHookInstalled = true
+      }
+    }
   }
 
   function stopTracking() {
@@ -188,6 +245,13 @@ export function useLive2DInteraction(
 
   function onGlobalMouseMove(e: MouseEvent) {
     mouseToParams(e.clientX, e.clientY)
+  }
+
+  /** sleep→awake 时重置眨眼链（由外部在 mood 变化后调用） */
+  function resumeBlink() {
+    if (isAsleep?.value) return
+    blinkTracking = true
+    scheduleBlink()
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -246,6 +310,7 @@ export function useLive2DInteraction(
     stopMouseTracking,
     pauseTracking,
     resumeTracking,
+    resumeBlink,
     onPointerDown,
     onPointerMove,
     onPointerUp,

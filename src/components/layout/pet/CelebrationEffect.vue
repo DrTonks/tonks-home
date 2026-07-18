@@ -127,9 +127,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .celebration-container {
   position: absolute;
-  top: -120px;
+  top: 55%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: 65;
   pointer-events: none;
   display: flex;
@@ -156,11 +156,11 @@ onBeforeUnmount(() => {
 
 @keyframes cake-bounce-in {
   0% {
-    transform: translateY(30px) scale(0.3);
+    transform: scale(0.3);
     opacity: 0;
   }
   100% {
-    transform: translateY(0) scale(1);
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -208,7 +208,7 @@ onBeforeUnmount(() => {
 /* ===== 粒子 ===== */
 .celebration-particle {
   position: absolute;
-  bottom: 40px;
+  bottom: 0px;
   width: 5px;
   height: 5px;
   border-radius: 50%;

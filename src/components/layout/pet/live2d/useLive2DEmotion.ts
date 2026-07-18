@@ -111,6 +111,15 @@ export function useLive2DEmotion(
     setModelParam(model, 'Param31', 0)
     setModelParam(model, 'Param55', 1)
     setModelParam(model, 'ParamCheek', mood === 'happy' ? 0.9 : 0.5)
+
+    // 睡眠：加载表情 + 设置初始闭眼（per-frame 覆盖由 useLive2DInteraction 的 tickerFn 负责）
+    if (mood === 'sleep') {
+      setModelParam(model, 'ParamEyeLOpen', 0.05)
+      setModelParam(model, 'ParamEyeROpen', 0.05)
+    } else {
+      setModelParam(model, 'ParamEyeLOpen', 1)
+      setModelParam(model, 'ParamEyeROpen', 1)
+    }
   }
 
   /** 点击处理 — Live2D 专属（无暴怒） */
@@ -175,7 +184,7 @@ export function useLive2DEmotion(
     }
   }
 
-  onScopeDispose(() => clearIdleTimers())
+  onScopeDispose(() => { clearIdleTimers() })
 
   return {
     applyMood,
