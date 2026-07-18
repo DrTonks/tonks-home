@@ -17,6 +17,9 @@ export const EXPRESSION_MAP: Record<Live2DMood, { expr: string | null }> = {
 
 export const SLEEP_EXPRESSIONS = ['9'] as const
 
+/** 睡眠闭眼程度（0=全闭 1=全开）— Emotion 初值与 Interaction 逐帧覆盖共用，两处必须一致 */
+export const SLEEP_EYE_OPEN = 0.05
+
 export const CRY_AFTER_MS = 3 * 60 * 1000
 export const SLEEP_AFTER_MS = 5 * 60 * 1000
 

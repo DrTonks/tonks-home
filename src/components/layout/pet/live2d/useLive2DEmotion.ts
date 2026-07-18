@@ -16,6 +16,7 @@ import {
   type Live2DPetState,
   EXPRESSION_MAP,
   SLEEP_EXPRESSIONS,
+  SLEEP_EYE_OPEN,
   CRY_AFTER_MS,
   SLEEP_AFTER_MS,
 } from './state'
@@ -46,6 +47,8 @@ export function useLive2DEmotion(
   let tierThresholds: number[] = []
   /** cry 来源：true=点击升级到 cry，false=闲置计时器触发 cry */
   let cryFromClick = false
+  /** applyMood 并发序号：await 表情加载后若序号已变，丢弃过期延续（防止旧 sleep 写回闭眼） */
+  let moodSeq = 0
 
   function clearIdleTimers() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null }
@@ -86,6 +89,7 @@ export function useLive2DEmotion(
   async function applyMood(mood: Live2DMood) {
     const model = modelRef.value
     if (!model) return
+    const seq = ++moodSeq
 
     let mapping = EXPRESSION_MAP[mood]
     if (!mapping) mapping = EXPRESSION_MAP.idle
@@ -100,6 +104,7 @@ export function useLive2DEmotion(
     // idle → 重置回默认中性脸；其他 mood → 加载对应 exp3
     if (mapping.expr) {
       await model.expression(mapping.expr)
+      if (seq !== moodSeq) return // 期间有更新的 applyMood 调用 → 本次延续作废
     } else {
       // expressionManager 在 motionManager 下，不是 internalModel 直接属性
       // 去掉当前表情，回到模型默认状态（外设 desk/mic 不受影响）
@@ -112,10 +117,10 @@ export function useLive2DEmotion(
     setModelParam(model, 'Param55', 1)
     setModelParam(model, 'ParamCheek', mood === 'happy' ? 0.9 : 0.5)
 
-    // 睡眠：加载表情 + 设置初始闭眼（per-frame 覆盖由 useLive2DInteraction 的 tickerFn 负责）
+    // 睡眠：设置初始闭眼（per-frame 覆盖由 useLive2DInteraction 的 beforeModelUpdate 钩子负责）
     if (mood === 'sleep') {
-      setModelParam(model, 'ParamEyeLOpen', 0.05)
-      setModelParam(model, 'ParamEyeROpen', 0.05)
+      setModelParam(model, 'ParamEyeLOpen', SLEEP_EYE_OPEN)
+      setModelParam(model, 'ParamEyeROpen', SLEEP_EYE_OPEN)
     } else {
       setModelParam(model, 'ParamEyeLOpen', 1)
       setModelParam(model, 'ParamEyeROpen', 1)
@@ -184,7 +189,10 @@ export function useLive2DEmotion(
     }
   }
 
-  onScopeDispose(() => { clearIdleTimers() })
+  onScopeDispose(() => {
+    clearIdleTimers()
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null } // review 发现：卸载后 clickTimer 会再武装孤儿定时器
+  })
 
   return {
     applyMood,

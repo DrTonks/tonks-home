@@ -79,11 +79,17 @@ function spawnSingingNotes(count: number) {
 // ===== 道具状态（用户右键切换） =====
 const propsEnabled = ref({ desk: false, mic: false })
 
+// B4 标志需在唱歌回调前声明（闭包捕获）
+let disposed = false
+
 // ===== 唱歌（必须在 emotion 前，emotion 依赖 singing.isSinging） =====
 const singing = useLive2DSinging(model, bubble, state.singingChecked, () => {
-  emotion.clearIdleTimers()  // 唱歌开始 → 清闲置计时器
+  // 若在睡眠中开始唱歌 → 先唤醒（否则 beforeModelUpdate 钩子会钳死眼睛）
+  if (state.mood.value === 'sleep') emotion.applyMood('idle')
+  emotion.clearIdleTimers()
   interaction.pauseTracking() // B9: 暂停鼠标跟踪，避免与唱歌摇头打架
 }, () => {
+  if (disposed) return // B4/B2: 已卸载则跳过，防止 resumeTracking 在销毁路径重注册造成泄漏
   interaction.resumeTracking()
   // 唱歌结束 → 收回 mic + 同步菜单状态
   propsEnabled.value.mic = false
@@ -100,8 +106,9 @@ const interaction = useLive2DInteraction(pixiAppRef, model, state.pos, state.mov
 }, isAsleep)
 
 // 睡眠→唤醒时恢复眨眼链（review 发现：sleep→awake 后 blink 永久失效）
+// 注意：唱歌时眼睛由 singing rAF 驱动，不应在此期间复活眨眼
 watch(() => state.mood.value, (m, prev) => {
-  if (prev === 'sleep' && m !== 'sleep') interaction.resumeBlink()
+  if (prev === 'sleep' && m !== 'sleep' && !singing.isSinging.value) interaction.resumeBlink()
 })
 
 // B1: defineExpose 必须在 <script setup> 顶层
@@ -237,7 +244,6 @@ function handleClick(e: MouseEvent) {
 let idleTalkTimer: ReturnType<typeof setInterval> | null = null
 let greetTimer: ReturnType<typeof setTimeout> | null = null
 let questionTimer: ReturnType<typeof setInterval> | null = null
-let disposed = false // B4: 加载中卸载标志
 
 onMounted(async () => {
   await loadModel()

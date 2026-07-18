@@ -12,6 +12,7 @@ export const LIVE2D_W = 280
 export const LIVE2D_H = 280
 
 let cubismCoreScript: HTMLScriptElement | null = null
+let savedMaxFPS: number | null = null // 保存 Ticker.shared 原始 maxFPS，destroy 时恢复
 
 export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,9 +75,10 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
-        sharedTicker: true, // 与模型共用 Ticker.shared，统一帧率减少 GPU 负载
+        sharedTicker: true, // 与模型共用 Ticker.shared，省去独立的 rAF 心跳（GPU 渲染帧率由 maxFPS 单独限制）
       })
-      // 桌宠 24fps 减少 GPU 负载
+      // 桌宠 24fps 减少 GPU 负载；先保存原始值，destroy 时恢复（sharedTicker 为全局单例）
+      if (savedMaxFPS === null) savedMaxFPS = app.ticker.maxFPS
       app.ticker.maxFPS = 24
 
       if (containerRef.value) {
@@ -132,6 +134,11 @@ export function useLive2DModel(containerRef: Ref<HTMLElement | null>) {
       if (pixiApp.value) {
         const view = pixiApp.value.view as HTMLCanvasElement
         if (view?.parentNode) view.parentNode.removeChild(view)
+        // 恢复 sharedTicker 原始 maxFPS，避免全局残留（审查发现：Ticker.shared 受保护，不会随 app 销毁恢复）
+        if (savedMaxFPS !== null && pixiApp.value.ticker) {
+          pixiApp.value.ticker.maxFPS = savedMaxFPS
+          savedMaxFPS = null
+        }
         pixiApp.value.destroy(false, { children: true })
         pixiApp.value = null
       }

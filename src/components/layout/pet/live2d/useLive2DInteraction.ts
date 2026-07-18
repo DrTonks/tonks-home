@@ -9,6 +9,7 @@
  */
 import { type Ref } from 'vue'
 import { LIVE2D_W, LIVE2D_H } from './useLive2DModel'
+import { SLEEP_EYE_OPEN } from './state'
 
 const TRACKING_SMOOTH = 0.1   // 头部跟踪灵敏度（越大越快）
 const BODY_SMOOTH = 0.04       // 身体比头慢半拍
@@ -25,6 +26,18 @@ const BREATH_AMPLITUDE = 0.3   // 呼吸幅度
 const BLINK_INTERVAL_MIN = 2500
 const BLINK_INTERVAL_MAX = 6000
 const BLINK_CLOSE_MS = 90
+
+/** 睡眠偷瞄参数 */
+const PEEK_INTERVAL_MIN = 5000 // 两次偷瞄间隔下限
+const PEEK_INTERVAL_MAX = 10000 // 上限
+const PEEK_HOLD_MIN = 1000     // 单次偷瞄持续下限
+const PEEK_HOLD_MAX = 2000     // 上限
+const PEEK_EYE_OPEN = 0.7      // 偷瞄时右眼睁开程度
+
+/** 掷出下一次偷瞄的时间点 */
+function rollNextPeek(now: number) {
+  return now + PEEK_INTERVAL_MIN + Math.random() * (PEEK_INTERVAL_MAX - PEEK_INTERVAL_MIN)
+}
 
 export function useLive2DInteraction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,11 +64,9 @@ export function useLive2DInteraction(
   let breathPhase = Math.random() * Math.PI * 2
   let baseBodyY = 0 // 分离呼吸与跟踪，避免 breath 逐帧累积
 
-  // 睡眠偷瞄状态机（在 beforeModelUpdate 回调中驱动，确保在顶点计算前覆盖眼睛参数）
-  let sleepPeekActive = false
+  // 睡眠偷瞄状态机（在 beforeModelUpdate 回调中驱动；nextPeekAt===0 → 待播种）
   let nextPeekAt = 0
   let peekUntil = 0
-  let sleepHookInstalled = false
 
   let dragging = false
   let dragStartClientX = 0
@@ -129,7 +140,7 @@ export function useLive2DInteraction(
 
   /** ===== 眨眼系统 ===== */
   function scheduleBlink() {
-    if (isAsleep?.value) return // 睡眠时不调度眨眼
+    if (!blinkTracking || isAsleep?.value) return // 睡眠/已停跟踪时不调度（审查发现：卸载时 90ms 孤儿 timeout 会复活链）
     if (blinkTimer) clearTimeout(blinkTimer)
     blinkTimer = setTimeout(doBlink, BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN))
   }
@@ -154,40 +165,32 @@ export function useLive2DInteraction(
   /** beforeModelUpdate 回调：在 motion/expression/eyeBlink 之后、顶点计算之前设置睡眠闭眼 */
   function onBeforeModelUpdate() {
     if (!isAsleep?.value) {
-      sleepPeekActive = false
-      peekUntil = 0
+      // 清醒：重置偷瞄状态机
       nextPeekAt = 0
+      peekUntil = 0
       return
     }
 
     const now = performance.now()
-    if (!sleepPeekActive) {
-      sleepPeekActive = true
-      nextPeekAt = now + 5000 + Math.random() * 5000
+    // nextPeekAt===0 → 刚进入睡眠，播种下次偷瞄时间
+    if (nextPeekAt === 0) {
+      nextPeekAt = rollNextPeek(now)
     }
+    // 到点 → 开始一次偷瞄
     if (peekUntil === 0 && now >= nextPeekAt) {
-      peekUntil = now + 1000 + Math.random() * 1000
+      peekUntil = now + PEEK_HOLD_MIN + Math.random() * (PEEK_HOLD_MAX - PEEK_HOLD_MIN)
     }
 
-    let eyeR: number
-    if (now < peekUntil) {
-      // 右眼偷瞄
-      eyeR = 0.7
-    } else {
-      if (peekUntil > 0 && now >= peekUntil) {
-        peekUntil = 0
-        nextPeekAt = now + 5000 + Math.random() * 5000
-      }
-      eyeR = 0.05
+    const eyeR = now < peekUntil ? PEEK_EYE_OPEN : SLEEP_EYE_OPEN
+
+    // 偷瞄结束 → 规划下一次
+    if (peekUntil !== 0 && now >= peekUntil) {
+      peekUntil = 0
+      nextPeekAt = rollNextPeek(now)
     }
 
-    // 直接操作 coreModel，避免不必要的 getCoreModel() 查找
-    const core = modelRef.value?.internalModel?.coreModel as Record<string, unknown> | null
-    const fn = core?.setParameterValueById as ((id: string, value: number, weight?: number) => void) | undefined
-    if (fn) {
-      fn.call(core, 'ParamEyeLOpen', 0.05, 1)
-      fn.call(core, 'ParamEyeROpen', eyeR, 1)
-    }
+    setParam('ParamEyeLOpen', SLEEP_EYE_OPEN)
+    setParam('ParamEyeROpen', eyeR)
   }
 
   /** ===== ticker 帧循环 ===== */
@@ -201,33 +204,32 @@ export function useLive2DInteraction(
     tickerFn = () => {
       const lerp = (cur: number, tgt: number) => cur + (tgt - cur) * TRACKING_SMOOTH
       const bLerp = (cur: number, tgt: number) => cur + (tgt - cur) * BODY_SMOOTH
+      // 睡眠时追踪目标衰减回中立（保留呼吸），避免"睡着"还扭头跟随鼠标
+      const tgtX = isAsleep?.value ? 0 : targetAngleX
+      const tgtY = isAsleep?.value ? 0 : targetAngleY
+      const tgtZ = isAsleep?.value ? 0 : targetAngleZ
+      const tgtEBX = isAsleep?.value ? 0 : targetEyeBallX
+      const tgtEBY = isAsleep?.value ? 0 : targetEyeBallY
+      const tgtBX = isAsleep?.value ? 0 : targetBodyX
+      const tgtBY = isAsleep?.value ? 0 : targetBodyY
+      const tgtBZ = isAsleep?.value ? 0 : targetBodyZ
       // 头部旋转
-      setParam('ParamAngleX', lerp(getParam('ParamAngleX'), targetAngleX))
-      setParam('ParamAngleY', lerp(getParam('ParamAngleY'), targetAngleY))
-      setParam('ParamAngleZ', lerp(getParam('ParamAngleZ'), targetAngleZ))
-      setParam('ParamEyeBallX', lerp(getParam('ParamEyeBallX'), targetEyeBallX))
-      setParam('ParamEyeBallY', lerp(getParam('ParamEyeBallY'), targetEyeBallY))
+      setParam('ParamAngleX', lerp(getParam('ParamAngleX'), tgtX))
+      setParam('ParamAngleY', lerp(getParam('ParamAngleY'), tgtY))
+      setParam('ParamAngleZ', lerp(getParam('ParamAngleZ'), tgtZ))
+      setParam('ParamEyeBallX', lerp(getParam('ParamEyeBallX'), tgtEBX))
+      setParam('ParamEyeBallY', lerp(getParam('ParamEyeBallY'), tgtEBY))
       // 身体旋转（跟随头部但更慢，模拟全身联动）
-      setParam('ParamBodyAngleX', bLerp(getParam('ParamBodyAngleX'), targetBodyX))
-      baseBodyY += (targetBodyY - baseBodyY) * BODY_SMOOTH
-      setParam('ParamBodyAngleZ', bLerp(getParam('ParamBodyAngleZ'), targetBodyZ))
-      // 呼吸：缓慢正弦波叠加在身体 Y 上
+      setParam('ParamBodyAngleX', bLerp(getParam('ParamBodyAngleX'), tgtBX))
+      baseBodyY += (tgtBY - baseBodyY) * BODY_SMOOTH
+      setParam('ParamBodyAngleZ', bLerp(getParam('ParamBodyAngleZ'), tgtBZ))
+      // 呼吸：缓慢正弦波叠加在身体 Y 上（睡眠时也保留）
       breathPhase += 0.015
       setParam('ParamBodyAngleY', baseBodyY + Math.sin(breathPhase) * BREATH_AMPLITUDE)
     }
 
     app.ticker.add(tickerFn)
     scheduleBlink()
-
-    // 安装睡眠闭眼钩子（在 beforeModelUpdate 事件中设置，确保在顶点计算前生效）
-    if (!sleepHookInstalled) {
-      const m = modelRef.value
-      const im = m?.internalModel as Record<string, unknown> | null
-      if (im && typeof (im as any).on === 'function') {
-        (im as any).on('beforeModelUpdate', onBeforeModelUpdate)
-        sleepHookInstalled = true
-      }
-    }
   }
 
   function stopTracking() {
@@ -288,11 +290,18 @@ export function useLive2DInteraction(
     mouseIdleTurnFired = false
     window.addEventListener('mousemove', onGlobalMouseMove)
     startTracking()
+
+    // 安装睡眠闭眼钩子（mount 后仅一次；唱歌 pauseTracking 不触碰钩子，唱歌 rAF 与钩子独立并行）
+    const im = modelRef.value?.internalModel as Record<string, unknown> | null
+    ;(im as any)?.on?.('beforeModelUpdate', onBeforeModelUpdate)
   }
 
   function stopMouseTracking() {
     window.removeEventListener('mousemove', onGlobalMouseMove)
     stopTracking()
+    // 对称：卸载睡眠闭眼钩子
+    const im = modelRef.value?.internalModel as Record<string, unknown> | null
+    ;(im as any)?.off?.('beforeModelUpdate', onBeforeModelUpdate)
   }
 
   /** B9: 唱歌时暂停鼠标跟踪的 ParamAngle 写入，避免与唱歌摇头冲突 */
