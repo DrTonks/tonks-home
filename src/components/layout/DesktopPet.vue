@@ -9,20 +9,25 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Notebook } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Notebook, Setting } from '@element-plus/icons-vue'
 import { usePetEnvStore } from '@/stores/petEnv'
+import { useAdminStore } from '@/stores/admin'
 import dialogue from '@/data/pet-dialogue.json'
+import questionsData from '@/data/pet-questions.json'
 import QuestionBubble from './pet/QuestionBubble.vue'
 import CelebrationEffect from './pet/CelebrationEffect.vue'
 import MemoryNotebook from './pet/MemoryNotebook.vue'
+import DevQuestionPanel from './pet/DevQuestionPanel.vue'
 import { usePetMemory } from '@/composables/usePetMemory'
-import { usePetQuestions } from '@/composables/usePetQuestions'
+import { usePetQuestions, type PetQuestion } from '@/composables/usePetQuestions'
 import { useSpecialDate } from '@/composables/useSpecialDate'
 
 const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
 const petRef = ref<HTMLElement | null>(null)
 const petEnv = usePetEnvStore()
+const adminStore = useAdminStore()
+const allQs = questionsData as PetQuestion[]
 
 // Canvas 预渲染 turnside 镜像 → 静态图，避免 CSS scaleX(-1) 的纹理闪帧
 const mirroredTurnSrc = ref(TURN_FRAME_PATH)
@@ -183,6 +188,7 @@ defineExpose({ provoke, getCenter: () => ({ x: state.pos.value.x + W / 2, y: sta
 
 // ===== 右键菜单 =====
 const showNotebook = ref(false)
+const showDevPanel = ref(false)
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
@@ -201,6 +207,9 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
   }
   items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro() })
   items.push({ label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } })
+  if (adminStore.isLoggedIn) {
+    items.push({ label: '调试提问', icon: Setting, action: () => { showDevPanel.value = true } })
+  }
   return items
 })
 
@@ -233,19 +242,52 @@ function playIntro() {
 
 // ===== 提问事件处理 =====
 function onQuestionSubmit(answer: string) {
-  if (questions.currentQuestion.value) {
-    questions.submitAnswer(questions.currentQuestion.value, answer)
+  const q = questions.currentQuestion.value
+  if (q) {
+    questions.submitAnswer(q, answer)
+    questions.dismiss()
+    petEnv.isQuestionActive = false
+    // 心情问题 → 触发对应回复（force 跳过所有守卫）
+    if (q.id === 'q_mood') {
+      const replies = (dialogue as Record<string, unknown>).mood_replies as Record<string, string[]> | undefined
+      const moodLines = replies?.[answer]
+      if (moodLines?.length) {
+        setTimeout(() => bubble.say(pick(moodLines), true), 400)
+      }
+    }
+  } else {
+    questions.dismiss()
+    petEnv.isQuestionActive = false
+  }
+}
+
+function onQuestionReject() {
+  const q = questions.currentQuestion.value
+  if (q) {
+    // 已答问题拒绝时只关闭，不加入拒绝列表
+    if (!q.key || !memory.hasMemory(q.key)) {
+      questions.rejectCurrent(q)
+    }
   }
   questions.dismiss()
   petEnv.isQuestionActive = false
 }
 
-function onQuestionReject() {
-  if (questions.currentQuestion.value) {
-    questions.rejectCurrent(questions.currentQuestion.value)
-  }
-  questions.dismiss()
-  petEnv.isQuestionActive = false
+// ===== 调试面板回调 =====
+function onDevTriggerQuestion(qId: string) {
+  const q = allQs.find(q => q.id === qId)
+  if (!q || questions.isActive.value) return
+  if (q.key && memory.hasMemory(q.key)) return
+  if (memory.isRejected(qId)) memory.unrejectQuestion(qId)
+  bubble.hide()
+  questions.currentQuestion.value = q
+  questions.isActive.value = true
+  petEnv.isQuestionActive = true
+}
+
+function onDevTriggerMemory() {
+  const memLine = memory.pickMemoryLine(dialogue.memory)
+  if (memLine) bubble.say(memLine, true)
 }
 
 // 同步暴怒状态到 petEnv（阻挡切换）
@@ -416,6 +458,17 @@ onBeforeUnmount(() => {
     <MemoryNotebook
       :visible="showNotebook"
       @close="showNotebook = false"
+    />
+
+    <!-- 调试提问面板（仅管理员） -->
+    <DevQuestionPanel
+      :visible="showDevPanel"
+      persona="static"
+      :has-memories="memory.getFilledKeys().length > 0"
+      :question-is-active="questions.isActive.value"
+      @trigger-question="onDevTriggerQuestion"
+      @trigger-memory="onDevTriggerMemory"
+      @close="showDevPanel = false"
     />
   </div>
 </template>

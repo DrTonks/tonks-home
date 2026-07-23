@@ -27,6 +27,8 @@ coverage
 *.sln
 *.sw?
 
+.agents/*
+
 # Env
 .env
 .env.local
@@ -45,3 +47,4 @@ API文档.md
 task_plan.md
 progress.md
 findings.md
+lines.md
