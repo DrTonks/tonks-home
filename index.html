@@ -45,7 +45,7 @@
     <script>
       (function () {
         try {
-          var m = localStorage.getItem('theme') || 'light'
+          var m = localStorage.getItem('theme') || 'system'
           var dark =
             m === 'dark' ||
             (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)

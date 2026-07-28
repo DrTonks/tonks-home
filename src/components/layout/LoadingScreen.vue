@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
-const ROWS = 16
+const ROWS = 18
 const COLS = 18
 const HEX_W = 86.5
 const HEX_H = 74.5

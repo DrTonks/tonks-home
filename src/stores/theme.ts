@@ -7,7 +7,7 @@ const STORAGE_KEY = 'theme'
 const mql = window.matchMedia('(prefers-color-scheme: dark)')
 
 export const useThemeStore = defineStore('theme', () => {
-  const mode = ref<ThemeMode>((localStorage.getItem(STORAGE_KEY) as ThemeMode) || 'light')
+  const mode = ref<ThemeMode>((localStorage.getItem(STORAGE_KEY) as ThemeMode) || 'system')
   const systemDark = ref(mql.matches)
 
   const isDark = computed(
