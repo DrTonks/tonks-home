@@ -42,7 +42,7 @@ const appDescMap: Record<string, string> = {
   'Typora编辑器': '正在编辑Markdown文件，可能在整理笔记！',
   'Edge浏览器': '查询资料中...大概率在逛b站？',
   'VSCode 编辑器': '正在写代码！也可能在看AI写代码。',
-  'Clash': '正在科学上网...',
+  'Clash': '正在配置网络代理...',
   '任务管理器': '在查看资源占用情况...',
   'Steam': '正在查看Steam中...',
   '微信': '与朋友畅聊中...',
@@ -60,6 +60,8 @@ const appDescMap: Record<string, string> = {
   'GitHub Desktop': '正在使用GitHub...',
   'OBS Studio': '录屏中...',
   '似了': '睡似了或不在线，紧急请电话联系。',
+  'Obsidian': '正在编写知识库或整理学习笔记...',
+  'ChatGPT': '和GPT大人讨论问题中...',
 }
 
 interface DisplayState {
