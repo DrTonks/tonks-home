@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { getInitialBackgroundImages } from '@/config/backgroundImages'
 
 const ROWS = 18
 const COLS = 18
@@ -24,6 +25,7 @@ const emit = defineEmits<{ done: [] }>()
 const isMobile = window.matchMedia('(max-width: 768px)').matches
 
 const PRELOAD_IMAGES = [
+  ...getInitialBackgroundImages(isDark),
   '/assets/avatar.jpg',
   ...(isMobile
     ? ['/assets/ph-bg.jpg']

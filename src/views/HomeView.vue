@@ -19,6 +19,10 @@ import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { CalendarMonth, TodayCard, UpcomingHolidays, TodoList } from '@/components/calendar'
 import { MusicVinyl, MusicControls } from '@/components/music'
 import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
+import {
+  BACKGROUND_IMAGE_COUNT,
+  getDeferredBackgroundImages,
+} from '@/config/backgroundImages'
 
 // --- 移动端 ---
 const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
@@ -184,8 +188,41 @@ function onResize() {
 
 // 全局微 3D（±1° 极轻）
 const mainRef = ref<HTMLElement | null>(null)
+const backgroundRef = ref<InstanceType<typeof BackgroundLayer> | null>(null)
+const deferredBackgroundPreloads: HTMLImageElement[] = []
+const backgroundIndex = ref(0)
+const outgoingBackgroundIndex = ref<number | null>(null)
+
+const BACKGROUND_HOLD_MS = 12_000
+const BACKGROUND_TRANSITION_MS = 1_800
+let backgroundCarouselTimer: ReturnType<typeof setTimeout> | null = null
+let backgroundTransitionTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleBackgroundAdvance() {
+  if (BACKGROUND_IMAGE_COUNT < 2) return
+  backgroundCarouselTimer = setTimeout(advanceBackground, BACKGROUND_HOLD_MS)
+}
+
+function advanceBackground() {
+  outgoingBackgroundIndex.value = backgroundIndex.value
+  backgroundIndex.value = (backgroundIndex.value + 1) % BACKGROUND_IMAGE_COUNT
+  backgroundTransitionTimer = setTimeout(() => {
+    outgoingBackgroundIndex.value = null
+    scheduleBackgroundAdvance()
+  }, BACKGROUND_TRANSITION_MS)
+}
+
+function preloadDeferredBackgrounds() {
+  getDeferredBackgroundImages(theme.isDark).forEach((src) => {
+    const image = new Image()
+    image.src = src
+    deferredBackgroundPreloads.push(image)
+  })
+}
+
 function onGlobalMouseMove(e: MouseEvent) {
   if (!mainRef.value || isMobile.value) return
+  backgroundRef.value?.addTrailPoint(e.clientX, e.clientY)
   const cx = window.innerWidth / 2
   const cy = window.innerHeight / 2
   const gx = ((e.clientX - cx) / cx * 1).toFixed(3)
@@ -199,6 +236,8 @@ onMounted(() => {
   window.addEventListener('resize', onResize)
   if (!isMobile.value) {
     window.addEventListener('mousemove', onGlobalMouseMove)
+    preloadDeferredBackgrounds()
+    scheduleBackgroundAdvance()
   }
   // 记住展开状态：上次展开 → 自动展开
   if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
@@ -209,6 +248,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onGlobalMouseMove)
+  if (backgroundCarouselTimer) clearTimeout(backgroundCarouselTimer)
+  if (backgroundTransitionTimer) clearTimeout(backgroundTransitionTimer)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
   stopSignalCheck()
   clearRageEffects()
@@ -221,14 +262,24 @@ const componentListMobile = [
 </script>
 
 <template>
-  <main ref="mainRef" class="relative w-full min-h-dvh overflow-hidden bg-background isolate global-3d">
+  <main
+    ref="mainRef"
+    class="relative w-full min-h-dvh overflow-hidden bg-background isolate global-3d"
+  >
     <BackgroundLayer
       v-if="!theme.isDark"
+      ref="backgroundRef"
+      :current-index="backgroundIndex"
+      :outgoing-index="outgoingBackgroundIndex"
       :rings-opacity="ringsOpacity"
       :rings-speed="ringsSpeed"
       :rings-base-radius="ringsBaseRadius"
     />
-    <GalaxyBackground v-else />
+    <GalaxyBackground
+      v-else
+      :current-index="backgroundIndex"
+      :outgoing-index="outgoingBackgroundIndex"
+    />
     <!-- 睁眼动画（仅亮色；图层在背景之上、内容之下，不遮挡内容） -->
     <img v-if="showEye" :src="eyeSrc" :class="['rage-eye', { sharp: eyeSharp }]" alt="" aria-hidden="true" />
     <ThemeToggle />

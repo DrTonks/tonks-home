@@ -12,6 +12,18 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Galaxy from './Galaxy.vue'
 import { useMusicStore } from '@/stores/music'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
+import { DARK_BACKGROUND_IMAGES } from '@/config/backgroundImages'
+
+withDefaults(
+  defineProps<{
+    currentIndex?: number
+    outgoingIndex?: number | null
+  }>(),
+  {
+    currentIndex: 0,
+    outgoingIndex: null,
+  },
+)
 
 const music = useMusicStore()
 const { hasSignal, startSignalCheck } = useAudioAnalyzer()
@@ -37,11 +49,29 @@ const starSpeed = computed(() => (active.value ? 0.7 : 0.3))
 const glowIntensity = computed(() => (active.value ? 0.3 : 0.1))
 const hueShift = computed(() => (active.value ? 224 : 210))
 const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
+
+function backgroundStyle(index: number) {
+  return { backgroundImage: `url('${DARK_BACKGROUND_IMAGES[index]}')` }
+}
 </script>
 
 <template>
   <div class="galaxy-bg absolute inset-0 -z-10 overflow-hidden pointer-events-none">
     <div class="galaxy-gradient absolute inset-0" />
+    <div class="dark-art-stage absolute inset-0">
+      <div
+        v-if="outgoingIndex !== null"
+        :key="`dark-outgoing-${outgoingIndex}`"
+        class="dark-art dark-art-outgoing absolute inset-0"
+        :style="backgroundStyle(outgoingIndex)"
+      />
+      <div
+        :key="`dark-current-${currentIndex}`"
+        class="dark-art dark-art-current absolute inset-0"
+        :class="{ 'is-entering': outgoingIndex !== null }"
+        :style="backgroundStyle(currentIndex)"
+      />
+    </div>
     <Galaxy
       v-if="!isMobile"
       class="galaxy-canvas absolute inset-0"
@@ -61,9 +91,63 @@ const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
 
 <style scoped>
 .galaxy-gradient {
+  z-index: 0;
   background: radial-gradient(ellipse 120% 90% at 50% 22%, #10203a 0%, #0a1120 46%, #05070e 100%);
 }
+
+.dark-art-stage {
+  z-index: 1;
+  /* 暗色轮播图的可见度与模糊程度，可直接在这里手动调整。 */
+  --dark-bg-opacity: 0.08;
+  --dark-bg-blur: 1.25px;
+}
+
+.dark-art {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(var(--dark-bg-blur));
+}
+
+.dark-art-current {
+  z-index: 0;
+  opacity: var(--dark-bg-opacity);
+  transform: scale(1.006);
+}
+
+.dark-art-current.is-entering {
+  animation: dark-bg-enter 1.8s ease-in-out both;
+}
+
+.dark-art-outgoing {
+  z-index: 1;
+  animation: dark-bg-leave 1.8s ease-in-out both;
+}
+
+@keyframes dark-bg-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.006);
+  }
+  to {
+    opacity: var(--dark-bg-opacity);
+    transform: scale(1.006);
+  }
+}
+
+@keyframes dark-bg-leave {
+  from {
+    opacity: var(--dark-bg-opacity);
+    transform: scale(1.006);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
 .galaxy-canvas {
+  z-index: 2;
   opacity: 0;
   animation: galaxy-fade-in 1.2s ease-out 0.15s forwards;
 }
@@ -73,9 +157,21 @@ const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .dark-art-current.is-entering,
+  .dark-art-outgoing {
+    animation-duration: 1ms;
+    transform: none;
+  }
+
   .galaxy-canvas {
     animation: none;
     opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .dark-art-stage {
+    display: none;
   }
 }
 </style>

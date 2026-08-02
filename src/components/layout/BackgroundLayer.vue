@@ -1,28 +1,131 @@
 <script setup lang="ts">
+import { onBeforeUnmount, ref } from 'vue'
+import { LIGHT_BACKGROUND_IMAGES } from '@/config/backgroundImages'
 import MagicRings from './MagicRings.vue'
 
-withDefaults(defineProps<{
-  ringsOpacity?: number
-  ringsSpeed?: number
-  ringsBaseRadius?: number
-}>(), {
-  ringsOpacity: 0,
-  ringsSpeed: 0.7,
-  ringsBaseRadius: 0.18,
+withDefaults(
+  defineProps<{
+    ringsOpacity?: number
+    ringsSpeed?: number
+    ringsBaseRadius?: number
+    currentIndex?: number
+    outgoingIndex?: number | null
+  }>(),
+  {
+    ringsOpacity: 0,
+    ringsSpeed: 0.7,
+    ringsBaseRadius: 0.18,
+    currentIndex: 0,
+    outgoingIndex: null,
+  },
+)
+
+const TRAIL_MAX_POINTS = 24
+const TRAIL_SAMPLE_MS = 48
+const TRAIL_MIN_DISTANCE = 10
+const TRAIL_HOLD_MS = 500
+const TRAIL_DURATION_MS = 1_500
+
+interface TrailPoint {
+  x: number
+  y: number
+  createdAt: number
+}
+
+const trailLayer = ref<HTMLDivElement | null>(null)
+
+let trailFrame: number | null = null
+let trailPoints: TrailPoint[] = []
+let lastTrailAt = 0
+let lastTrailX = Number.NEGATIVE_INFINITY
+let lastTrailY = Number.NEGATIVE_INFINITY
+
+function backgroundStyle(index: number) {
+  return { backgroundImage: `url('${LIGHT_BACKGROUND_IMAGES[index]}')` }
+}
+
+function renderTrail(now: number) {
+  const layer = trailLayer.value
+  if (!layer) {
+    trailFrame = null
+    return
+  }
+
+  trailPoints = trailPoints.filter((point) => now - point.createdAt < TRAIL_DURATION_MS)
+  if (!trailPoints.length) {
+    layer.style.opacity = '0'
+    layer.style.removeProperty('-webkit-mask-image')
+    layer.style.removeProperty('mask-image')
+    trailFrame = null
+    return
+  }
+
+  const masks = trailPoints.map((point) => {
+    const age = now - point.createdAt
+    const strength = age <= TRAIL_HOLD_MS
+      ? 1
+      : 1 - (age - TRAIL_HOLD_MS) / (TRAIL_DURATION_MS - TRAIL_HOLD_MS)
+    return `radial-gradient(circle clamp(42px, 4.5vw, 68px) at ${point.x}px ${point.y}px, rgba(0, 0, 0, ${strength.toFixed(3)}) 0, rgba(0, 0, 0, ${strength.toFixed(3)}) 45%, transparent 100%)`
+  })
+
+  const maskImage = masks.join(', ')
+  layer.style.opacity = 'var(--light-bg-highlight-opacity)'
+  layer.style.setProperty('-webkit-mask-image', maskImage)
+  layer.style.setProperty('mask-image', maskImage)
+  trailFrame = requestAnimationFrame(renderTrail)
+}
+
+function addTrailPoint(x: number, y: number) {
+  if (window.innerWidth <= 768 || !trailLayer.value) return
+
+  const now = performance.now()
+  const distance = Math.hypot(x - lastTrailX, y - lastTrailY)
+  if (now - lastTrailAt < TRAIL_SAMPLE_MS && distance < TRAIL_MIN_DISTANCE) return
+
+  lastTrailAt = now
+  lastTrailX = x
+  lastTrailY = y
+  trailPoints.push({ x, y, createdAt: now })
+  if (trailPoints.length > TRAIL_MAX_POINTS) trailPoints.shift()
+  if (trailFrame === null) trailFrame = requestAnimationFrame(renderTrail)
+}
+
+defineExpose({ addTrailPoint })
+
+onBeforeUnmount(() => {
+  if (trailFrame !== null) cancelAnimationFrame(trailFrame)
+  trailPoints = []
 })
 </script>
 
 <template>
-  <div class="absolute inset-0 -z-10 overflow-hidden">
-    <!-- 底色微渐变 -->
+  <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+    <!-- 轮播与点亮尾迹仅在桌面端显示，并保持在天蓝色背景效果下方。 -->
+    <div class="bg-art-stage absolute inset-0">
+      <div
+        v-if="outgoingIndex !== null"
+        :key="`outgoing-${outgoingIndex}`"
+        class="bg-art bg-art-outgoing absolute inset-0"
+        :style="backgroundStyle(outgoingIndex)"
+      />
+      <div
+        :key="`current-${currentIndex}`"
+        class="bg-art bg-art-current absolute inset-0"
+        :class="{ 'is-entering': outgoingIndex !== null }"
+        :style="backgroundStyle(currentIndex)"
+      />
+      <div
+        ref="trailLayer"
+        class="bg-art bg-art-trail absolute inset-0"
+        :style="backgroundStyle(currentIndex)"
+      />
+    </div>
+
     <div class="bg-base absolute inset-0" />
-    <!-- 顶部柔光 -->
     <div class="bg-topglow absolute" />
-    <!-- 网格 -->
     <div class="bg-grid absolute inset-0" />
-    <!-- 右下角青蓝色模糊色块 -->
     <div class="bg-corner-glow absolute" />
-    <!-- 魔法环（展开时） -->
+
     <Transition name="rings-fade">
       <MagicRings
         v-if="ringsOpacity > 0"
@@ -53,13 +156,66 @@ withDefaults(defineProps<{
 </template>
 
 <style scoped>
-/* 底色：站点浅底上叠一层天蓝→薄荷的极淡渐变 */
+.bg-art-stage {
+  /* 常态图片可见度，以及鼠标点亮层额外叠加的可见度。 */
+  --light-bg-base-opacity: 0.07;
+  --light-bg-highlight-opacity: 0.11;
+}
+
+.bg-art {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.bg-art-current {
+  z-index: 0;
+  opacity: var(--light-bg-base-opacity);
+}
+
+.bg-art-current.is-entering {
+  animation: bg-carousel-enter 1.8s ease-in-out both;
+}
+
+.bg-art-outgoing {
+  z-index: 1;
+  animation: bg-carousel-leave 1.8s ease-in-out both;
+}
+
+.bg-art-trail {
+  z-index: 2;
+  opacity: 0;
+  will-change: opacity;
+}
+
+@keyframes bg-carousel-enter {
+  from {
+    opacity: 0;
+    transform: scale(1);
+  }
+  to {
+    opacity: var(--light-bg-base-opacity);
+    transform: scale(1);
+  }
+}
+
+@keyframes bg-carousel-leave {
+  from {
+    opacity: var(--light-bg-base-opacity);
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+}
+
 .bg-base {
   background:
     radial-gradient(ellipse 100% 80% at 50% 0%, hsl(var(--color-sky) / 0.12) 0%, transparent 55%),
     linear-gradient(160deg, hsl(var(--color-sky) / 0.06) 0%, transparent 45%, hsl(var(--color-mint) / 0.07) 100%);
 }
-/* 顶部柔光 */
+
 .bg-topglow {
   top: -20vh;
   left: 50%;
@@ -70,7 +226,7 @@ withDefaults(defineProps<{
   filter: blur(30px);
   pointer-events: none;
 }
-/* 网格（淡线 + radial mask，调低调淡） */
+
 .bg-grid {
   background-image:
     linear-gradient(hsl(var(--color-sky-soft) / 0.18) 1px, transparent 1px),
@@ -80,19 +236,46 @@ withDefaults(defineProps<{
   mask-image: radial-gradient(ellipse at center, black 18%, transparent 78%);
   pointer-events: none;
 }
-/* 右下角青蓝色模糊色块（替代流光扫过） */
+
 .bg-corner-glow {
-  bottom: -15%;
   right: -10%;
+  bottom: -15%;
   width: 50%;
   height: 40%;
-  background: radial-gradient(ellipse at center, hsl(var(--color-sky) / 0.18), hsl(var(--color-mint) / 0.1) 50%, transparent 70%);
+  background: radial-gradient(
+    ellipse at center,
+    hsl(var(--color-sky) / 0.18),
+    hsl(var(--color-mint) / 0.1) 50%,
+    transparent 70%
+  );
   filter: blur(60px);
   pointer-events: none;
 }
 
-.rings-fade-enter-active { transition: opacity 1.5s ease-out; }
-.rings-fade-leave-active { transition: opacity 0.8s ease-in; }
+.rings-fade-enter-active {
+  transition: opacity 1.5s ease-out;
+}
+
+.rings-fade-leave-active {
+  transition: opacity 0.8s ease-in;
+}
+
 .rings-fade-enter-from,
-.rings-fade-leave-to { opacity: 0; }
+.rings-fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .bg-art-stage {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-art-current.is-entering,
+  .bg-art-outgoing {
+    animation-duration: 1ms;
+    transform: none;
+  }
+}
 </style>
