@@ -25,7 +25,7 @@ const emit = defineEmits<{ done: [] }>()
 const isMobile = window.matchMedia('(max-width: 768px)').matches
 
 const PRELOAD_IMAGES = [
-  ...getInitialBackgroundImages(isDark),
+  ...(isMobile ? [] : getInitialBackgroundImages(isDark)),
   '/assets/avatar.jpg',
   ...(isMobile
     ? ['/assets/ph-bg.jpg']

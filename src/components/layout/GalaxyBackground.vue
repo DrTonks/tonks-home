@@ -58,7 +58,7 @@ function backgroundStyle(index: number) {
 <template>
   <div class="galaxy-bg absolute inset-0 -z-10 overflow-hidden pointer-events-none">
     <div class="galaxy-gradient absolute inset-0" />
-    <div class="dark-art-stage absolute inset-0">
+    <div v-if="!isMobile" class="theme-carousel-art-stage dark-art-stage absolute inset-0">
       <div
         v-if="outgoingIndex !== null"
         :key="`dark-outgoing-${outgoingIndex}`"
@@ -101,7 +101,7 @@ function backgroundStyle(index: number) {
 .dark-art-stage {
   z-index: 1;
   /* 暗色轮播图的可见度与模糊程度，可直接在这里手动调整。 */
-  --dark-bg-opacity: 0.08;
+  --dark-bg-opacity: 0.12;
   --dark-bg-blur: 1.25px;
 }
 

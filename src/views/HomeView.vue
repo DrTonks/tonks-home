@@ -59,7 +59,7 @@ function onMiddleFinger() {
 // 竖食指横扫 → 以当前桌宠中心为起点，圆形扩散切换主题
 function onSwipe() {
   const c = petRef.value?.getPetCenter?.() ?? { x: window.innerWidth / 2, y: 80 }
-  theme.toggle(c.x, c.y)
+  theme.toggle(c.x, c.y, outgoingBackgroundIndex.value !== null)
 }
 
 // 睁眼动画（仅亮色）
@@ -231,11 +231,17 @@ function onGlobalMouseMove(e: MouseEvent) {
   mainRef.value.style.setProperty('--gy', gy)
 }
 
+function onGlobalMouseLeave() {
+  backgroundRef.value?.endTrailStroke()
+}
+
 onMounted(() => {
   detectMobile()
   window.addEventListener('resize', onResize)
   if (!isMobile.value) {
     window.addEventListener('mousemove', onGlobalMouseMove)
+    window.addEventListener('mouseleave', onGlobalMouseLeave)
+    window.addEventListener('blur', onGlobalMouseLeave)
     preloadDeferredBackgrounds()
     scheduleBackgroundAdvance()
   }
@@ -248,6 +254,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onGlobalMouseMove)
+  window.removeEventListener('mouseleave', onGlobalMouseLeave)
+  window.removeEventListener('blur', onGlobalMouseLeave)
   if (backgroundCarouselTimer) clearTimeout(backgroundCarouselTimer)
   if (backgroundTransitionTimer) clearTimeout(backgroundTransitionTimer)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
@@ -271,6 +279,7 @@ const componentListMobile = [
       ref="backgroundRef"
       :current-index="backgroundIndex"
       :outgoing-index="outgoingBackgroundIndex"
+      :artwork-enabled="!isMobile"
       :rings-opacity="ringsOpacity"
       :rings-speed="ringsSpeed"
       :rings-base-radius="ringsBaseRadius"
@@ -282,7 +291,7 @@ const componentListMobile = [
     />
     <!-- 睁眼动画（仅亮色；图层在背景之上、内容之下，不遮挡内容） -->
     <img v-if="showEye" :src="eyeSrc" :class="['rage-eye', { sharp: eyeSharp }]" alt="" aria-hidden="true" />
-    <ThemeToggle />
+    <ThemeToggle :fade-carousel-art="outgoingBackgroundIndex !== null" />
     <AdminAuth />
     <GestureToggle
       v-if="!isMobile"
@@ -332,7 +341,10 @@ const componentListMobile = [
 
       <!-- 区域 0：左上（热力图 + 技术栈） -->
       <div class="region-anchor region-tl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(0)]"
+        <div
+          :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(0)]"
+          :inert="!isExpanded || isCollapsing || rageShutdown"
+          :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 0ms"
         >
           <div class="flex gap-3">
@@ -344,7 +356,10 @@ const componentListMobile = [
 
       <!-- 区域 1：左下（日历 bento：左月视图 | 右 星期+节日+待办，等高） -->
       <div class="region-anchor region-bl global-tilt">
-        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(1)]"
+        <div
+          :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(1)]"
+          :inert="!isExpanded || isCollapsing || rageShutdown"
+          :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 150ms"
         >
           <div class="flex gap-3 items-stretch">
@@ -360,7 +375,10 @@ const componentListMobile = [
 
       <!-- 区域 2：中下（博客） -->
       <div class="region-anchor region-bc global-tilt">
-        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(2)]"
+        <div
+          :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(2)]"
+          :inert="!isExpanded || isCollapsing || rageShutdown"
+          :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 300ms"
         >
           <BlogUpdates :article-count="isCompact ? 2 : 3" />
@@ -369,7 +387,10 @@ const componentListMobile = [
 
       <!-- 区域 3：右下（胶片 + 控制） -->
       <div class="region-anchor region-br global-tilt">
-        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(3)]"
+        <div
+          :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(3)]"
+          :inert="!isExpanded || isCollapsing || rageShutdown"
+          :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 450ms"
         >
           <div class="flex gap-3 items-center">
@@ -381,7 +402,10 @@ const componentListMobile = [
 
       <!-- 区域 4：右上（设备状态） -->
       <div class="region-anchor region-tr">
-        <div :class="['region-inner', { visible: isExpanded && !rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(4)]"
+        <div
+          :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(4)]"
+          :inert="!isExpanded || isCollapsing || rageShutdown"
+          :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 600ms"
         >
           <DeviceStatus />
@@ -520,6 +544,7 @@ const componentListMobile = [
 */
 .region-inner {
   opacity: 0;
+  pointer-events: none;
   transform: translate(var(--init-x, 0px), var(--init-y, 0px)) scale(0.3);
   transition:
     transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -529,7 +554,11 @@ const componentListMobile = [
 }
 .region-inner.visible {
   opacity: 1;
+  pointer-events: auto;
   transform: translate(0, 0) scale(1);
+}
+.region-inner.interaction-disabled {
+  pointer-events: none;
 }
 /* CRT 关机特效：白光横线展开→收缩消失（~550ms），各卡片用 --shutdown-delay 依次触发 */
 .region-inner.shutting-down {

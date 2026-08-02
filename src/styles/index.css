@@ -329,6 +329,7 @@ html.dark .time-select .el-input__wrapper:hover {
   z-index: 1;
   animation: vt-clip-reveal 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
 @keyframes vt-clip-reveal {
   from {
     clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%));
@@ -340,6 +341,25 @@ html.dark .time-select .el-input__wrapper:hover {
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-new(root) {
     animation: none;
+  }
+}
+
+/* 新主题的轮播图片在圆形主题过渡结束后单独淡入一次。 */
+.theme-carousel-art-stage {
+  opacity: 1;
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+html.theme-art-fade-hold .theme-carousel-art-stage,
+html.theme-art-fade-enter .theme-carousel-art-stage {
+  opacity: 0;
+}
+html.theme-art-fade-hold .theme-carousel-art-stage {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-carousel-art-stage {
+    transition: none;
   }
 }
 

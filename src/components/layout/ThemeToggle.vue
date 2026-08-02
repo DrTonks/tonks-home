@@ -3,9 +3,12 @@ import { Moon, Sun } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
+const props = withDefaults(defineProps<{ fadeCarouselArt?: boolean }>(), {
+  fadeCarouselArt: false,
+})
 
 function onToggle(e: MouseEvent) {
-  theme.toggle(e.clientX, e.clientY)
+  theme.toggle(e.clientX, e.clientY, props.fadeCarouselArt)
 }
 </script>
 
