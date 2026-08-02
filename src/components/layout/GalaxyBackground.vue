@@ -78,6 +78,9 @@ function backgroundStyle(index: number) {
       :density="0.9"
       :hue-shift="hueShift"
       :saturation="0.2"
+      :star-warmth="0.3"
+      :flare-max-radius="0.4"
+      :max-fps="60"
       :glow-intensity="glowIntensity"
       :star-speed="starSpeed"
       :twinkle-intensity="twinkleIntensity"
@@ -149,6 +152,7 @@ function backgroundStyle(index: number) {
 .galaxy-canvas {
   z-index: 2;
   opacity: 0;
+  mix-blend-mode: screen;
   animation: galaxy-fade-in 1.2s ease-out 0.15s forwards;
 }
 @keyframes galaxy-fade-in {

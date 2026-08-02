@@ -37,6 +37,8 @@ uniform float uSpeed;
 uniform vec2 uMouse;
 uniform float uGlowIntensity;
 uniform float uSaturation;
+uniform float uStarWarmth;
+uniform float uFlareMaxRadius;
 uniform bool uMouseRepulsion;
 uniform float uTwinkleIntensity;
 uniform float uRotationSpeed;
@@ -49,6 +51,7 @@ varying vec2 vUv;
 
 #define NUM_LAYER 4.0
 #define STAR_COLOR_CUTOFF 0.2
+#define FLARE_WARMTH 0.15
 #define MAT45 mat2(0.7071, -0.7071, 0.7071, 0.7071)
 #define PERIOD 3.0
 
@@ -78,7 +81,7 @@ vec3 hsv2rgb(vec3 c) {
   return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-float Star(vec2 uv, float flare) {
+float Star(vec2 uv, float flare, float size) {
   float d = length(uv);
   float m = (0.05 * uGlowIntensity) / d;
   float rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 1000.0));
@@ -86,7 +89,8 @@ float Star(vec2 uv, float flare) {
   uv *= MAT45;
   rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 1000.0));
   m += rays * 0.3 * flare * uGlowIntensity;
-  m *= smoothstep(1.0, 0.2, d);
+  float flareRadius = mix(0.2, uFlareMaxRadius, smoothstep(0.9, 1.0, size));
+  m *= 1.0 - smoothstep(flareRadius * 0.55, flareRadius, d);
   return m;
 }
 
@@ -118,8 +122,11 @@ vec3 StarLayer(vec2 uv) {
 
       vec2 pad = vec2(tris(seed * 34.0 + uTime * uSpeed / 10.0), tris(seed * 38.0 + uTime * uSpeed / 30.0)) - 0.5;
 
-      float star = Star(gv - offset - pad, flareSize);
+      float star = Star(gv - offset - pad, flareSize, size);
       vec3 color = base;
+      vec3 warmFlareColor = vec3(1.0, 0.84, 0.18);
+      float warmth = clamp(uStarWarmth + flareSize * FLARE_WARMTH, 0.0, 1.0);
+      color = mix(color, warmFlareColor, warmth);
 
       float twinkle = trisn(uTime * uSpeed + seed * 6.2831) * 0.5 + 1.0;
       twinkle = mix(1.0, twinkle, uTwinkleIntensity);
@@ -190,6 +197,9 @@ interface GalaxyProps {
   mouseInteraction?: boolean
   glowIntensity?: number
   saturation?: number
+  starWarmth?: number
+  flareMaxRadius?: number
+  maxFps?: number
   mouseRepulsion?: boolean
   twinkleIntensity?: number
   rotationSpeed?: number
@@ -209,6 +219,9 @@ const props = withDefaults(defineProps<GalaxyProps>(), {
   mouseInteraction: true,
   glowIntensity: 0.2,
   saturation: 0.25,
+  starWarmth: 0.18,
+  flareMaxRadius: 0.55,
+  maxFps: 45,
   mouseRepulsion: false,
   twinkleIntensity: 0.35,
   rotationSpeed: 0.06,
@@ -276,6 +289,8 @@ const setup = () => {
       uMouse: { value: new Float32Array([smoothMousePos.value.x, smoothMousePos.value.y]) },
       uGlowIntensity: { value: props.glowIntensity },
       uSaturation: { value: props.saturation },
+      uStarWarmth: { value: props.starWarmth },
+      uFlareMaxRadius: { value: props.flareMaxRadius },
       uMouseRepulsion: { value: props.mouseRepulsion },
       uTwinkleIntensity: { value: props.twinkleIntensity },
       uRotationSpeed: { value: props.rotationSpeed },
@@ -288,6 +303,9 @@ const setup = () => {
 
   const mesh = new Mesh(gl, { geometry, program })
   let animateId = 0
+  let isRunning = false
+  let lastRenderAt = 0
+  const frameInterval = 1000 / Math.max(1, props.maxFps)
 
   // 动态参数的当前值（每帧向 props 目标 lerp，实现不重建 WebGL 的平滑过渡）。
   // starSpeed 用增量累积（starAccum），速度突变时不会因 t*speed 而整体跳变。
@@ -295,13 +313,21 @@ const setup = () => {
   let curGlow = props.glowIntensity
   let curHue = props.hueShift
   let curSat = props.saturation
+  let curStarWarmth = props.starWarmth
+  let curFlareMaxRadius = props.flareMaxRadius
   let curTwinkle = props.twinkleIntensity
   let curDensity = props.density
   let starAccum = 0
   let lastT = 0
 
   function update(t: number) {
+    if (!isRunning) return
     animateId = requestAnimationFrame(update)
+
+    const elapsed = t - lastRenderAt
+    if (lastRenderAt && elapsed < frameInterval) return
+    lastRenderAt = t - (elapsed % frameInterval)
+
     const now = t * 0.001
     const dt = lastT ? Math.min(0.1, now - lastT) : 0
     lastT = now
@@ -312,6 +338,8 @@ const setup = () => {
     curGlow += (props.glowIntensity - curGlow) * k
     curHue += (props.hueShift - curHue) * k
     curSat += (props.saturation - curSat) * k
+    curStarWarmth += (props.starWarmth - curStarWarmth) * k
+    curFlareMaxRadius += (props.flareMaxRadius - curFlareMaxRadius) * k
     curTwinkle += (props.twinkleIntensity - curTwinkle) * k
     curDensity += (props.density - curDensity) * k
 
@@ -324,6 +352,8 @@ const setup = () => {
     program.uniforms.uGlowIntensity.value = curGlow
     program.uniforms.uHueShift.value = curHue
     program.uniforms.uSaturation.value = curSat
+    program.uniforms.uStarWarmth.value = curStarWarmth
+    program.uniforms.uFlareMaxRadius.value = curFlareMaxRadius
     program.uniforms.uTwinkleIntensity.value = curTwinkle
     program.uniforms.uDensity.value = curDensity
 
@@ -338,8 +368,30 @@ const setup = () => {
 
     renderer.render({ scene: mesh })
   }
-  animateId = requestAnimationFrame(update)
+
+  function startAnimation() {
+    if (isRunning || document.hidden) return
+    isRunning = true
+    lastRenderAt = 0
+    lastT = 0
+    animateId = requestAnimationFrame(update)
+  }
+
+  function stopAnimation() {
+    if (!isRunning) return
+    isRunning = false
+    cancelAnimationFrame(animateId)
+    animateId = 0
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden) stopAnimation()
+    else startAnimation()
+  }
+
   ctn.appendChild(gl.canvas)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  startAnimation()
 
   function handleMouseMove(e: MouseEvent) {
     const x = e.clientX / window.innerWidth
@@ -357,7 +409,8 @@ const setup = () => {
   }
 
   cleanup = () => {
-    cancelAnimationFrame(animateId)
+    stopAnimation()
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
     window.removeEventListener('resize', resize)
     if (enableMouse) {
       window.removeEventListener('mousemove', handleMouseMove)
