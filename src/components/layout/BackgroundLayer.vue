@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LIGHT_BACKGROUND_IMAGES } from '@/config/backgroundImages'
 import MagicRings from './MagicRings.vue'
 
@@ -24,6 +24,8 @@ const props = withDefaults(
 
 const TRAIL_SAMPLE_MS = 32
 const TRAIL_MIN_DISTANCE = 4
+const RINGS_LEAVE_MS = 800
+const RINGS_UNMOUNT_DELAY_MS = RINGS_LEAVE_MS + 80
 
 const trailPath = ref('')
 const trailImageIndex = ref(props.currentIndex)
@@ -34,6 +36,11 @@ let hasActiveStroke = false
 let lastTrailAt = 0
 let lastTrailX = Number.NEGATIVE_INFINITY
 let lastTrailY = Number.NEGATIVE_INFINITY
+
+const ringsMounted = ref(props.ringsOpacity > 0)
+const ringsVisible = ref(false)
+let ringsUnmountTimer: ReturnType<typeof setTimeout> | null = null
+let ringsVisibilityFrame: number | null = null
 
 function backgroundStyle(index: number) {
   return { backgroundImage: `url('${LIGHT_BACKGROUND_IMAGES[index]}')` }
@@ -92,6 +99,40 @@ watch(() => props.currentIndex, (currentIndex) => {
 
 watch(() => props.artworkEnabled, (enabled) => {
   if (!enabled) clearTrail()
+})
+
+watch(() => props.ringsOpacity, async (opacity) => {
+  if (ringsUnmountTimer) {
+    clearTimeout(ringsUnmountTimer)
+    ringsUnmountTimer = null
+  }
+  if (ringsVisibilityFrame !== null) {
+    cancelAnimationFrame(ringsVisibilityFrame)
+    ringsVisibilityFrame = null
+  }
+
+  if (opacity > 0) {
+    ringsMounted.value = true
+    await nextTick()
+    if (props.ringsOpacity <= 0) return
+    ringsVisibilityFrame = requestAnimationFrame(() => {
+      ringsVisibilityFrame = null
+      ringsVisible.value = true
+    })
+    return
+  }
+
+  ringsVisible.value = false
+  if (!ringsMounted.value) return
+  ringsUnmountTimer = setTimeout(() => {
+    ringsUnmountTimer = null
+    if (props.ringsOpacity <= 0) ringsMounted.value = false
+  }, RINGS_UNMOUNT_DELAY_MS)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (ringsUnmountTimer) clearTimeout(ringsUnmountTimer)
+  if (ringsVisibilityFrame !== null) cancelAnimationFrame(ringsVisibilityFrame)
 })
 
 defineExpose({ addTrailPoint, endTrailStroke })
@@ -166,9 +207,13 @@ defineExpose({ addTrailPoint, endTrailStroke })
     <div class="bg-grid absolute inset-0" />
     <div class="bg-corner-glow absolute" />
 
-    <Transition name="rings-fade">
+    <div
+      v-if="ringsMounted"
+      class="rings-layer absolute inset-0"
+      :class="{ 'is-visible': ringsVisible }"
+      aria-hidden="true"
+    >
       <MagicRings
-        v-if="ringsOpacity > 0"
         color="#4bd7ff"
         color-two="#ffffff"
         :ring-count="4"
@@ -191,15 +236,15 @@ defineExpose({ addTrailPoint, endTrailStroke })
         :parallax="0.05"
         :click-burst="false"
       />
-    </Transition>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .bg-art-stage {
   /* 常态图片可见度，以及鼠标点亮层额外叠加的可见度。 */
-  --light-bg-base-opacity: 0.09;
-  --light-bg-highlight-opacity: 0.2;
+  --light-bg-base-opacity: 0.08;
+  --light-bg-highlight-opacity: 0.18;
 }
 
 .bg-art {
@@ -297,17 +342,14 @@ defineExpose({ addTrailPoint, endTrailStroke })
   pointer-events: none;
 }
 
-.rings-fade-enter-active {
-  transition: opacity 1.5s ease-out;
-}
-
-.rings-fade-leave-active {
+.rings-layer {
+  opacity: 0;
   transition: opacity 0.8s ease-in;
 }
 
-.rings-fade-enter-from,
-.rings-fade-leave-to {
-  opacity: 0;
+.rings-layer.is-visible {
+  opacity: 1;
+  transition: opacity 1.5s ease-out;
 }
 
 @media (max-width: 768px) {

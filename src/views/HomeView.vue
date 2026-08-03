@@ -538,43 +538,70 @@ const componentListMobile = [
 }
 
 /* ===== 区域动画层 =====
-   初始：朝中心方向偏移 + scale(0.3) + opacity(0)
-   展开：归位 + scale(1) + opacity(1)
+   父层只负责位移/缩放；透明度放在玻璃卡片自身，避免父层 opacity 隔断 backdrop-filter。
+   初始：朝中心方向偏移 + scale(0.3)，内部卡片 opacity(0)
+   展开：归位 + scale(1)，内部卡片 opacity(1)
    延迟：左上 0 → 左下 180 → 中下 360 → 右下 540 → 右上 720
 */
 .region-inner {
-  opacity: 0;
+  opacity: 1;
   pointer-events: none;
   transform: translate(var(--init-x, 0px), var(--init-y, 0px)) scale(0.3);
-  transition:
-    transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
-    opacity 0.6s ease-out;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
   transition-delay: var(--delay, 0ms);
-  will-change: transform, opacity;
+}
+.region-inner :deep(.card-3d) {
+  opacity: 0;
+  transition:
+    transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.45s ease-out,
+    opacity 0.6s ease-out;
+  transition-delay: 0ms, 0ms, var(--delay, 0ms);
 }
 .region-inner.visible {
-  opacity: 1;
   pointer-events: auto;
   transform: translate(0, 0) scale(1);
+}
+.region-inner.visible :deep(.card-3d) {
+  opacity: 1;
 }
 .region-inner.interaction-disabled {
   pointer-events: none;
 }
-/* CRT 关机特效：白光横线展开→收缩消失（~550ms），各卡片用 --shutdown-delay 依次触发 */
+.region-inner.interaction-disabled :deep(.card-3d) {
+  opacity: 0;
+  transition-delay: 0ms;
+}
+/* CRT 关机特效：父层负责收缩，卡片自身负责亮度与透明度，避免中断背景模糊。 */
 .region-inner.shutting-down {
-  animation: card-crt-shutdown 0.55s ease-in forwards;
+  animation: card-crt-motion 0.55s ease-in forwards;
   animation-delay: var(--shutdown-delay, 0ms);
 }
-@keyframes card-crt-shutdown {
-  0%   { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(1); }
-  10%  { opacity: 1; transform: translate(0,0) scale(1); filter: brightness(6); }
-  14%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(2.5); }
-  18%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(7); }
-  22%  { opacity: 0.9; transform: translate(0,0) scale(1.01); filter: brightness(1.2); }
-  28%  { opacity: 1; transform: translate(0,0) scale(1.02); filter: brightness(4.5); }
-  45%  { opacity: 0.7; transform: translate(0,0) scale(0.94); filter: brightness(1); }
-  75%  { opacity: 0.25; transform: scale(0.35); filter: brightness(0.4); }
-  100% { opacity: 0; transform: scale(0.08); filter: brightness(0); }
+.region-inner.shutting-down :deep(.card-3d) {
+  animation: card-crt-surface 0.55s ease-in forwards;
+  animation-delay: var(--shutdown-delay, 0ms);
+}
+@keyframes card-crt-motion {
+  0%   { transform: translate(0,0) scale(1); }
+  10%  { transform: translate(0,0) scale(1); }
+  14%  { transform: translate(0,0) scale(1.02); }
+  18%  { transform: translate(0,0) scale(1.02); }
+  22%  { transform: translate(0,0) scale(1.01); }
+  28%  { transform: translate(0,0) scale(1.02); }
+  45%  { transform: translate(0,0) scale(0.94); }
+  75%  { transform: scale(0.35); }
+  100% { transform: scale(0.08); }
+}
+@keyframes card-crt-surface {
+  0%   { opacity: 1; filter: brightness(1); }
+  10%  { opacity: 1; filter: brightness(6); }
+  14%  { opacity: 1; filter: brightness(2.5); }
+  18%  { opacity: 1; filter: brightness(7); }
+  22%  { opacity: 0.9; filter: brightness(1.2); }
+  28%  { opacity: 1; filter: brightness(4.5); }
+  45%  { opacity: 0.7; filter: brightness(1); }
+  75%  { opacity: 0.25; filter: brightness(0.4); }
+  100% { opacity: 0; filter: brightness(0); }
 }
 
 /* 每个区域的"朝中心偏移"方向 + 延迟
@@ -652,32 +679,32 @@ const componentListMobile = [
 /* 0=左上(热力图) -> 右下 */
 .collapse-0 { animation: col-tl 0.6s ease-in forwards; }
 @keyframes col-tl {
-  from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to   { opacity: 0; transform: translate(20rem, 10rem) scale(0.2); }
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(20rem, 10rem) scale(0.2); }
 }
 /* 1=左下(日历) -> 右上 */
 .collapse-1 { animation: col-bl 0.6s ease-in forwards; }
 @keyframes col-bl {
-  from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to   { opacity: 0; transform: translate(25rem, -15rem) scale(0.2); }
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(25rem, -15rem) scale(0.2); }
 }
 /* 2=中下(博客) -> 正上 */
 .collapse-2 { animation: col-bc 0.6s ease-in forwards; }
 @keyframes col-bc {
-  from { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  to   { opacity: 0; transform: translate(-50%, -7rem) scale(0.2); }
+  from { transform: translate(-50%, 0) scale(1); }
+  to   { transform: translate(-50%, -7rem) scale(0.2); }
 }
 /* 3=右下(音乐) -> 左上 */
 .collapse-3 { animation: col-br 0.6s ease-in forwards; }
 @keyframes col-br {
-  from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to   { opacity: 0; transform: translate(-20rem, -10rem) scale(0.2); }
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-20rem, -10rem) scale(0.2); }
 }
 /* 4=右上(设备) -> 左下 */
 .collapse-4 { animation: col-tr 0.6s ease-in forwards; }
 @keyframes col-tr {
-  from { opacity: 1; transform: translate(0, 0) scale(1); }
-  to   { opacity: 0; transform: translate(-10rem, 10rem) scale(0.2); }
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-10rem, 10rem) scale(0.2); }
 }
 
 /* 全局微 3D */
@@ -704,6 +731,10 @@ const componentListMobile = [
 @media (prefers-reduced-motion: reduce) {
   .region-inner,
   .region-inner.visible {
+    transition: none;
+    transition-delay: 0ms;
+  }
+  .region-inner :deep(.card-3d) {
     transition: none;
     transition-delay: 0ms;
   }

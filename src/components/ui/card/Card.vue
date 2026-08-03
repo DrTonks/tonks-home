@@ -50,10 +50,12 @@ function onMouseLeave(e: MouseEvent) {
 .card-3d {
   --mx: 0;
   --my: 0;
-  transform: perspective(1000px) rotateY(calc(var(--mx) * 5deg)) rotateX(calc(var(--my) * -5deg));
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease-out;
+  --card-hover-scale: 1;
+  transform: perspective(1000px) rotateY(calc(var(--mx) * 5deg)) rotateX(calc(var(--my) * -5deg)) scale(var(--card-hover-scale));
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.45s ease-out;
 }
 .card-3d:hover {
+  --card-hover-scale: 1.02;
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.28),
     0 1px 3px rgba(26, 37, 48, 0.08),
