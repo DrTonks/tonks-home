@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="bg-base absolute inset-0" />
-    <div class="bg-topglow absolute" />
+    <!-- <div class="bg-topglow absolute" /> -->
     <div class="bg-grid absolute inset-0" />
     <div class="bg-corner-glow absolute" />
 
@@ -129,13 +129,15 @@ onBeforeUnmount(() => {
 <style scoped>
 .bg-art-stage {
   /* 亮色轮播图的常态可见度。 */
-  --light-bg-base-opacity: 0.08;
+  --light-bg-base-opacity: 0.2;
+  --light-bg-blur: 1.2px;
 }
 
 .bg-art {
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+  filter: blur(var(--light-bg-blur));
 }
 
 .bg-art-current {

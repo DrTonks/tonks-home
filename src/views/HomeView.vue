@@ -186,8 +186,7 @@ function onResize() {
   detectMobile()
 }
 
-// 全局微 3D（±1° 极轻）
-const mainRef = ref<HTMLElement | null>(null)
+// 背景轮播
 const deferredBackgroundPreloads: HTMLImageElement[] = []
 const backgroundIndex = ref(0)
 const outgoingBackgroundIndex = ref<number | null>(null)
@@ -219,21 +218,10 @@ function preloadDeferredBackgrounds() {
   })
 }
 
-function onGlobalMouseMove(e: MouseEvent) {
-  if (!mainRef.value || isMobile.value) return
-  const cx = window.innerWidth / 2
-  const cy = window.innerHeight / 2
-  const gx = ((e.clientX - cx) / cx * 1).toFixed(3)
-  const gy = ((e.clientY - cy) / cy * 1).toFixed(3)
-  mainRef.value.style.setProperty('--gx', gx)
-  mainRef.value.style.setProperty('--gy', gy)
-}
-
 onMounted(() => {
   detectMobile()
   window.addEventListener('resize', onResize)
   if (!isMobile.value) {
-    window.addEventListener('mousemove', onGlobalMouseMove)
     preloadDeferredBackgrounds()
     scheduleBackgroundAdvance()
   }
@@ -245,7 +233,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
-  window.removeEventListener('mousemove', onGlobalMouseMove)
   if (backgroundCarouselTimer) clearTimeout(backgroundCarouselTimer)
   if (backgroundTransitionTimer) clearTimeout(backgroundTransitionTimer)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
@@ -260,10 +247,7 @@ const componentListMobile = [
 </script>
 
 <template>
-  <main
-    ref="mainRef"
-    class="relative w-full min-h-dvh overflow-hidden bg-background isolate global-3d"
-  >
+  <main class="relative w-full min-h-dvh overflow-hidden bg-background isolate">
     <BackgroundLayer
       v-if="!theme.isDark"
       :current-index="backgroundIndex"
@@ -302,7 +286,7 @@ const componentListMobile = [
       </div>
 
       <!-- 中心头像 + 名称简介（名称在上方发光，简介在下方） -->
-      <div v-if="!rageShutdown" class="absolute top-1/2 left-1/2 w-0 h-0 z-30 global-tilt">
+      <div v-if="!rageShutdown" class="absolute top-1/2 left-1/2 w-0 h-0 z-30">
         <div
           class="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 avatar-eye-fade"
           :class="{ 'is-faded': showEye }"
@@ -323,13 +307,13 @@ const componentListMobile = [
         <!-- 简介：头像下方 -->
         <Transition name="intro-fade">
           <div v-if="!isExpanded" class="bio-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
-            <p class="text-[20px] tracking-wider text-brand-mint-deep" style="font-family: KaiTi, STKaiti, serif;">将点滴的美好谱写成诗</p>
+            <p class="bio-copy text-[20px] tracking-wider text-brand-sky-deep" style="font-family: KaiTi, STKaiti, serif;">将点滴的美好谱写成诗</p>
           </div>
         </Transition>
       </div>
 
       <!-- 区域 0：左上（热力图 + 技术栈） -->
-      <div class="region-anchor region-tl global-tilt">
+      <div class="region-anchor region-tl">
         <div
           :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(0)]"
           :inert="!isExpanded || isCollapsing || rageShutdown"
@@ -344,7 +328,7 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 1：左下（日历 bento：左月视图 | 右 星期+节日+待办，等高） -->
-      <div class="region-anchor region-bl global-tilt">
+      <div class="region-anchor region-bl">
         <div
           :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(1)]"
           :inert="!isExpanded || isCollapsing || rageShutdown"
@@ -363,7 +347,7 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 2：中下（博客） -->
-      <div class="region-anchor region-bc global-tilt">
+      <div class="region-anchor region-bc">
         <div
           :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(2)]"
           :inert="!isExpanded || isCollapsing || rageShutdown"
@@ -375,7 +359,7 @@ const componentListMobile = [
       </div>
 
       <!-- 区域 3：右下（胶片 + 控制） -->
-      <div class="region-anchor region-br global-tilt">
+      <div class="region-anchor region-br">
         <div
           :class="['region-inner', { visible: isExpanded && !rageShutdown, 'interaction-disabled': !isExpanded || isCollapsing || rageShutdown, 'shutting-down': rageShutdown }, regionCollapseClass(3)]"
           :inert="!isExpanded || isCollapsing || rageShutdown"
@@ -496,7 +480,7 @@ const componentListMobile = [
 /* ===== 响应式紧凑：≤1200px 等比缩小 + 更紧凑的间距 ===== */
 @media (max-width: 1200px) {
   .region-anchor {
-    transform: scale(0.88) !important; /* 压过 .global-tilt 的 rotate transform */
+    transform: scale(0.88);
   }
   /* 往中心收紧间距（缩小 right/left,放大 bottom/top = 更接近中心） */
   .region-tl { bottom: 55%; right: 55%; }
@@ -631,6 +615,8 @@ const componentListMobile = [
 /* 名称/简介 固定位置（用 CSS class，不用 inline style，否则 Vue transition 无法动画 transform） */
 .name-label  { transform: translate(-50%, -200px); }
 .bio-label   { transform: translate(-50%, 120px); }
+.bio-copy    { text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8); }
+:global(.dark) .bio-copy { text-shadow: none; }
 
 /* 名称：向上偏移消失 + 下方重新出现 */
 .name-up-leave-active {
@@ -694,18 +680,6 @@ const componentListMobile = [
 @keyframes col-tr {
   from { transform: translate(0, 0) scale(1); }
   to   { transform: translate(-10rem, 10rem) scale(0.2); }
-}
-
-/* 全局微 3D */
-.global-3d {
-  --gx: 0;
-  --gy: 0;
-  transform-style: preserve-3d;
-  perspective: 2000px;
-}
-.global-tilt {
-  transform: rotateY(calc(var(--gx) * -4deg)) rotateX(calc(var(--gy) * 3deg));
-  transition: transform 1.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .fade-enter-active,
