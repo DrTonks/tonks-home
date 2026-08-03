@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LIGHT_BACKGROUND_IMAGES } from '@/config/backgroundImages'
 import MagicRings from './MagicRings.vue'
 
@@ -22,20 +22,8 @@ const props = withDefaults(
   },
 )
 
-const TRAIL_SAMPLE_MS = 32
-const TRAIL_MIN_DISTANCE = 4
 const RINGS_LEAVE_MS = 800
 const RINGS_UNMOUNT_DELAY_MS = RINGS_LEAVE_MS + 80
-
-const trailPath = ref('')
-const trailImageIndex = ref(props.currentIndex)
-const trailClearing = ref(false)
-const trailImageHref = computed(() => LIGHT_BACKGROUND_IMAGES[trailImageIndex.value])
-
-let hasActiveStroke = false
-let lastTrailAt = 0
-let lastTrailX = Number.NEGATIVE_INFINITY
-let lastTrailY = Number.NEGATIVE_INFINITY
 
 const ringsMounted = ref(props.ringsOpacity > 0)
 const ringsVisible = ref(false)
@@ -45,61 +33,6 @@ let ringsVisibilityFrame: number | null = null
 function backgroundStyle(index: number) {
   return { backgroundImage: `url('${LIGHT_BACKGROUND_IMAGES[index]}')` }
 }
-
-function clearTrail() {
-  trailPath.value = ''
-  hasActiveStroke = false
-  lastTrailAt = 0
-  lastTrailX = Number.NEGATIVE_INFINITY
-  lastTrailY = Number.NEGATIVE_INFINITY
-}
-
-function addTrailPoint(x: number, y: number) {
-  if (!props.artworkEnabled || props.outgoingIndex !== null || trailClearing.value) return
-
-  const now = performance.now()
-  const distance = Math.hypot(x - lastTrailX, y - lastTrailY)
-  if (
-    hasActiveStroke
-    && (now - lastTrailAt < TRAIL_SAMPLE_MS || distance < TRAIL_MIN_DISTANCE)
-  ) return
-
-  lastTrailAt = now
-  lastTrailX = x
-  lastTrailY = y
-  const command = hasActiveStroke ? 'L' : 'M'
-  trailPath.value += `${command}${x.toFixed(1)},${y.toFixed(1)} `
-  hasActiveStroke = true
-}
-
-function endTrailStroke() {
-  hasActiveStroke = false
-}
-
-watch(() => props.outgoingIndex, (outgoingIndex, previousIndex) => {
-  if (outgoingIndex !== null) {
-    trailClearing.value = true
-    endTrailStroke()
-    return
-  }
-
-  if (previousIndex !== null) {
-    clearTrail()
-    trailImageIndex.value = props.currentIndex
-    trailClearing.value = false
-  }
-})
-
-watch(() => props.currentIndex, (currentIndex) => {
-  if (props.outgoingIndex === null && currentIndex !== trailImageIndex.value) {
-    clearTrail()
-    trailImageIndex.value = currentIndex
-  }
-})
-
-watch(() => props.artworkEnabled, (enabled) => {
-  if (!enabled) clearTrail()
-})
 
 watch(() => props.ringsOpacity, async (opacity) => {
   if (ringsUnmountTimer) {
@@ -135,12 +68,11 @@ onBeforeUnmount(() => {
   if (ringsVisibilityFrame !== null) cancelAnimationFrame(ringsVisibilityFrame)
 })
 
-defineExpose({ addTrailPoint, endTrailStroke })
 </script>
 
 <template>
   <div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-    <!-- 轮播与点亮尾迹仅在桌面端显示，并保持在天蓝色背景效果下方。 -->
+    <!-- 轮播图仅在桌面端显示，并保持在天蓝色背景效果下方。 -->
     <div v-if="artworkEnabled" class="theme-carousel-art-stage bg-art-stage absolute inset-0">
       <div
         v-if="outgoingIndex !== null"
@@ -154,52 +86,6 @@ defineExpose({ addTrailPoint, endTrailStroke })
         :class="{ 'is-entering': outgoingIndex !== null }"
         :style="backgroundStyle(currentIndex)"
       />
-      <svg
-        class="bg-art-trail absolute inset-0 h-full w-full"
-        :class="{ 'is-clearing': trailClearing }"
-        aria-hidden="true"
-      >
-        <defs>
-          <filter id="light-trail-soften" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="16" />
-          </filter>
-          <mask
-            id="light-trail-mask"
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            maskUnits="userSpaceOnUse"
-            style="mask-type: luminance"
-          >
-            <path
-              :d="trailPath"
-              fill="none"
-              stroke="white"
-              stroke-width="140"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              opacity="0.72"
-              filter="url(#light-trail-soften)"
-            />
-            <path
-              :d="trailPath"
-              fill="none"
-              stroke="white"
-              stroke-width="96"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </mask>
-        </defs>
-        <image
-          :href="trailImageHref"
-          width="100%"
-          height="100%"
-          preserveAspectRatio="xMidYMid slice"
-          mask="url(#light-trail-mask)"
-        />
-      </svg>
     </div>
 
     <div class="bg-base absolute inset-0" />
@@ -242,9 +128,8 @@ defineExpose({ addTrailPoint, endTrailStroke })
 
 <style scoped>
 .bg-art-stage {
-  /* 常态图片可见度，以及鼠标点亮层额外叠加的可见度。 */
+  /* 亮色轮播图的常态可见度。 */
   --light-bg-base-opacity: 0.08;
-  --light-bg-highlight-opacity: 0.18;
 }
 
 .bg-art {
@@ -265,17 +150,6 @@ defineExpose({ addTrailPoint, endTrailStroke })
 .bg-art-outgoing {
   z-index: 1;
   animation: bg-carousel-leave 1.8s ease-in-out both;
-}
-
-.bg-art-trail {
-  z-index: 2;
-  opacity: var(--light-bg-highlight-opacity);
-  transition: opacity 1.8s ease-in-out;
-  will-change: opacity;
-}
-
-.bg-art-trail.is-clearing {
-  opacity: 0;
 }
 
 @keyframes bg-carousel-enter {
@@ -360,8 +234,7 @@ defineExpose({ addTrailPoint, endTrailStroke })
 
 @media (prefers-reduced-motion: reduce) {
   .bg-art-current.is-entering,
-  .bg-art-outgoing,
-  .bg-art-trail {
+  .bg-art-outgoing {
     animation-duration: 1ms;
     transition-duration: 1ms;
     transform: none;

@@ -188,7 +188,6 @@ function onResize() {
 
 // 全局微 3D（±1° 极轻）
 const mainRef = ref<HTMLElement | null>(null)
-const backgroundRef = ref<InstanceType<typeof BackgroundLayer> | null>(null)
 const deferredBackgroundPreloads: HTMLImageElement[] = []
 const backgroundIndex = ref(0)
 const outgoingBackgroundIndex = ref<number | null>(null)
@@ -222,7 +221,6 @@ function preloadDeferredBackgrounds() {
 
 function onGlobalMouseMove(e: MouseEvent) {
   if (!mainRef.value || isMobile.value) return
-  backgroundRef.value?.addTrailPoint(e.clientX, e.clientY)
   const cx = window.innerWidth / 2
   const cy = window.innerHeight / 2
   const gx = ((e.clientX - cx) / cx * 1).toFixed(3)
@@ -231,17 +229,11 @@ function onGlobalMouseMove(e: MouseEvent) {
   mainRef.value.style.setProperty('--gy', gy)
 }
 
-function onGlobalMouseLeave() {
-  backgroundRef.value?.endTrailStroke()
-}
-
 onMounted(() => {
   detectMobile()
   window.addEventListener('resize', onResize)
   if (!isMobile.value) {
     window.addEventListener('mousemove', onGlobalMouseMove)
-    window.addEventListener('mouseleave', onGlobalMouseLeave)
-    window.addEventListener('blur', onGlobalMouseLeave)
     preloadDeferredBackgrounds()
     scheduleBackgroundAdvance()
   }
@@ -254,8 +246,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('mousemove', onGlobalMouseMove)
-  window.removeEventListener('mouseleave', onGlobalMouseLeave)
-  window.removeEventListener('blur', onGlobalMouseLeave)
   if (backgroundCarouselTimer) clearTimeout(backgroundCarouselTimer)
   if (backgroundTransitionTimer) clearTimeout(backgroundTransitionTimer)
   if (ringsSmoothId) cancelAnimationFrame(ringsSmoothId)
@@ -276,7 +266,6 @@ const componentListMobile = [
   >
     <BackgroundLayer
       v-if="!theme.isDark"
-      ref="backgroundRef"
       :current-index="backgroundIndex"
       :outgoing-index="outgoingBackgroundIndex"
       :artwork-enabled="!isMobile"
