@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LIGHT_BACKGROUND_IMAGES } from '@/config/backgroundImages'
 import MagicRings from './MagicRings.vue'
+import RippleBackground from './RippleBackground.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -27,12 +28,19 @@ const RINGS_UNMOUNT_DELAY_MS = RINGS_LEAVE_MS + 80
 
 const ringsMounted = ref(props.ringsOpacity > 0)
 const ringsVisible = ref(false)
+const rippleRef = ref<InstanceType<typeof RippleBackground> | null>(null)
 let ringsUnmountTimer: ReturnType<typeof setTimeout> | null = null
 let ringsVisibilityFrame: number | null = null
 
 function backgroundStyle(index: number) {
   return { backgroundImage: `url('${LIGHT_BACKGROUND_IMAGES[index]}')` }
 }
+
+function triggerCenterRipple() {
+  rippleRef.value?.triggerCenter()
+}
+
+defineExpose({ triggerCenterRipple })
 
 watch(() => props.ringsOpacity, async (opacity) => {
   if (ringsUnmountTimer) {
@@ -92,6 +100,7 @@ onBeforeUnmount(() => {
     <!-- <div class="bg-topglow absolute" /> -->
     <div class="bg-grid absolute inset-0" />
     <div class="bg-corner-glow absolute" />
+    <RippleBackground v-if="artworkEnabled" ref="rippleRef" />
 
     <div
       v-if="ringsMounted"

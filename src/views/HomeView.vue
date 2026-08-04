@@ -34,6 +34,7 @@ function detectMobile() {
 
 // --- 展开/收起状态 ---
 const isExpanded = ref(false)
+const backgroundLayerRef = ref<InstanceType<typeof BackgroundLayer> | null>(null)
 
 // --- 音乐状态（驱动 MagicRings 参数） ---
 const router = useRouter()
@@ -148,7 +149,7 @@ const COLLAPSE_TOTAL = 700
 const isCollapsing = ref(false)
 const rageShutdown = ref(false) // CRT 依次关机清场：各卡片用关机特效依次消失
 
-function toggle() {
+function toggle(fromAvatar = false) {
   if (isAnimating.value) return
   isAnimating.value = true
 
@@ -163,6 +164,7 @@ function toggle() {
     }, COLLAPSE_TOTAL)
     localStorage.setItem('home_expanded', '0')
   } else {
+    if (fromAvatar) backgroundLayerRef.value?.triggerCenterRipple()
     isExpanded.value = true
     localStorage.setItem('home_expanded', '1')
     setTimeout(() => {
@@ -227,7 +229,7 @@ onMounted(() => {
   }
   // 记住展开状态：上次展开 → 自动展开
   if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
-    setTimeout(() => toggle(), 1500)
+    setTimeout(() => toggle(true), 1500)
   }
 })
 
@@ -249,6 +251,7 @@ const componentListMobile = [
 <template>
   <main class="relative w-full min-h-dvh overflow-hidden bg-background isolate">
     <BackgroundLayer
+      ref="backgroundLayerRef"
       v-if="!theme.isDark"
       :current-index="backgroundIndex"
       :outgoing-index="outgoingBackgroundIndex"
@@ -292,7 +295,7 @@ const componentListMobile = [
           :class="{ 'is-faded': showEye }"
         >
           <div :class="['avatar-spin-layer', avatarSpinClass]">
-            <AvatarCore :size="110" @click="toggle" />
+            <AvatarCore :size="110" @click="toggle(true)" />
           </div>
         </div>
         <!-- 名称：头像上方，大号发光（位置用 CSS class 定位，不用 inline style，否则 transition 无法覆盖） -->

@@ -41,7 +41,7 @@ const state = createLive2DState()
 const containerRef = ref<HTMLElement | null>(null)
 
 const modelCtrl = useLive2DModel(containerRef)
-const { model, error, loadModel, destroy } = modelCtrl
+const { model, loading, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
 const bubble = useSpeechBubble()
 
@@ -435,6 +435,19 @@ onBeforeUnmount(() => {
         :class="{ 'click-bounce': state.clickScale.value }"
       />
 
+      <Transition name="live2d-loading-fade">
+        <div
+          v-if="loading && !error"
+          class="live2d-loading"
+          role="status"
+          aria-live="polite"
+          aria-label="叫醒U酱中"
+        >
+          <span class="live2d-loading-spinner" aria-hidden="true" />
+          <span class="live2d-loading-text">叫醒U酱中</span>
+        </div>
+      </Transition>
+
       <div
         v-if="error"
         class="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-destructive/10 rounded-xl border border-destructive/30"
@@ -497,6 +510,56 @@ onBeforeUnmount(() => {
 .live2d-canvas-container {
   width: 100%;
   height: 100%;
+}
+
+.live2d-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  pointer-events: none;
+  color: hsl(var(--primary));
+}
+
+.live2d-loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid hsl(var(--primary) / 0.2);
+  border-top-color: hsl(var(--primary));
+  border-radius: 9999px;
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.2);
+  animation: live2d-loading-spin 0.8s linear infinite;
+}
+
+.live2d-loading-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 8px hsl(var(--background) / 0.9);
+}
+
+.live2d-loading-fade-enter-active,
+.live2d-loading-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.live2d-loading-fade-enter-from,
+.live2d-loading-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes live2d-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live2d-loading-spinner {
+    animation-duration: 1.6s;
+  }
 }
 
 .click-bounce {
