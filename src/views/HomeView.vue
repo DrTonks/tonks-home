@@ -21,8 +21,9 @@ import { MusicVinyl, MusicControls } from '@/components/music'
 import AudioVisualizer from '@/components/music/AudioVisualizer.vue'
 import {
   BACKGROUND_IMAGE_COUNT,
-  getDeferredBackgroundImages,
+  getDeferredBackgroundPaths,
 } from '@/config/backgroundImages'
+import { getImageUrl } from '@/config/cdn'
 
 // --- 移动端 ---
 const isMobile = ref(window.matchMedia('(max-width: 768px)').matches)
@@ -213,9 +214,9 @@ function advanceBackground() {
 }
 
 function preloadDeferredBackgrounds() {
-  getDeferredBackgroundImages(theme.isDark).forEach((src) => {
+  getDeferredBackgroundPaths(theme.isDark).forEach((localSrc) => {
     const image = new Image()
-    image.src = src
+    image.src = getImageUrl(localSrc) // CDN 优先，不可达时返回本地路径
     deferredBackgroundPreloads.push(image)
   })
 }

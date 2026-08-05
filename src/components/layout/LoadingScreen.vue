@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getInitialBackgroundImages } from '@/config/backgroundImages'
+import { getInitialBackgroundPaths } from '@/config/backgroundImages'
+import { getCdnUrl, setCdnFailed } from '@/config/cdn'
 
 const ROWS = 18
 const COLS = 18
@@ -25,7 +26,7 @@ const emit = defineEmits<{ done: [] }>()
 const isMobile = window.matchMedia('(max-width: 768px)').matches
 
 const PRELOAD_IMAGES = [
-  ...(isMobile ? [] : getInitialBackgroundImages(isDark)),
+  ...(isMobile ? [] : getInitialBackgroundPaths(isDark)),
   '/assets/avatar.jpg',
   ...(isMobile
     ? ['/assets/ph-bg.jpg']
@@ -44,19 +45,47 @@ const PRELOAD_IMAGES = [
 let imgLoadedCount = 0
 const imagesPreloaded = ref(false)
 
+/**
+ * 预加载关键图片，优先走 CDN。
+ * 如果 CDN 加载失败则自动回退到本地路径，并标记 CDN 不可达
+ * （之后其他组件通过 getImageUrl 获取的也是本地路径）。
+ */
 function preloadImages(): Promise<void> {
   return new Promise((resolve) => {
     if (!PRELOAD_IMAGES.length) { resolve(); return }
-    for (const src of PRELOAD_IMAGES) {
+
+    for (const localSrc of PRELOAD_IMAGES) {
+      const cdnSrc = getCdnUrl(localSrc)
       const img = new Image()
-      img.onload = img.onerror = () => {
+      let retried = false
+
+      img.onload = () => {
         imgLoadedCount++
         if (imgLoadedCount >= PRELOAD_IMAGES.length) {
           imagesPreloaded.value = true
           resolve()
         }
       }
-      img.src = src
+
+      img.onerror = () => {
+        // CDN 加载失败 → 回退到本地重试
+        if (!retried && cdnSrc) {
+          retried = true
+          setCdnFailed(true)
+          img.src = localSrc
+          // 重新加载本地路径，onload/onerror 会再次触发
+        } else {
+          // 本地也失败或没有 CDN 映射，计入完成（不阻塞加载流程）
+          imgLoadedCount++
+          if (imgLoadedCount >= PRELOAD_IMAGES.length) {
+            imagesPreloaded.value = true
+            resolve()
+          }
+        }
+      }
+
+      // 优先从 CDN 加载
+      img.src = cdnSrc ?? localSrc
     }
   })
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { LIGHT_BACKGROUND_IMAGES } from '@/config/backgroundImages'
+import { getLightBackgroundUrl } from '@/config/backgroundImages'
 import MagicRings from './MagicRings.vue'
 import RippleBackground from './RippleBackground.vue'
 
@@ -33,7 +33,7 @@ let ringsUnmountTimer: ReturnType<typeof setTimeout> | null = null
 let ringsVisibilityFrame: number | null = null
 
 function backgroundStyle(index: number) {
-  return { backgroundImage: `url('${LIGHT_BACKGROUND_IMAGES[index]}')` }
+  return { backgroundImage: `url('${getLightBackgroundUrl(index)}')` }
 }
 
 function triggerCenterRipple() {

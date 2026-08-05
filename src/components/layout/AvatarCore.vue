@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { getImageUrl } from '@/config/cdn'
 
 withDefaults(
   defineProps<{
@@ -11,6 +12,17 @@ withDefaults(
 const emit = defineEmits<{ click: [] }>()
 
 const gifReady = ref(false)
+
+// CDN 优先，本地回退
+const gifSrc = ref(getImageUrl('/assets/avatar.gif'))
+const gifFailed = ref(false)
+
+function onGifError() {
+  if (!gifFailed.value) {
+    gifFailed.value = true
+    gifSrc.value = '/assets/avatar.gif' // 回退本地
+  }
+}
 </script>
 
 <template>
@@ -36,13 +48,14 @@ const gifReady = ref(false)
       />
       <!-- gif 加载后淡入覆盖 -->
       <img
-        src="/assets/avatar.gif"
+        :src="gifSrc"
         alt="Tonks"
         class="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
         :class="gifReady ? 'opacity-100' : 'opacity-0'"
         style="transition: opacity 0.5s"
         draggable="false"
         @load="gifReady = true"
+        @error="onGifError"
       />
       <!-- 装饰光环（亮色柔光保持；暗色关闭，改由外层呼吸发光替代）-->
       <div

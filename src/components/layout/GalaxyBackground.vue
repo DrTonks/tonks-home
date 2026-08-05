@@ -12,7 +12,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import Galaxy from './Galaxy.vue'
 import { useMusicStore } from '@/stores/music'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
-import { DARK_BACKGROUND_IMAGES } from '@/config/backgroundImages'
+import { getDarkBackgroundUrl } from '@/config/backgroundImages'
 
 withDefaults(
   defineProps<{
@@ -51,7 +51,7 @@ const hueShift = computed(() => (active.value ? 224 : 210))
 const twinkleIntensity = computed(() => (active.value ? 0.3 : 0.15))
 
 function backgroundStyle(index: number) {
-  return { backgroundImage: `url('${DARK_BACKGROUND_IMAGES[index]}')` }
+  return { backgroundImage: `url('${getDarkBackgroundUrl(index)}')` }
 }
 </script>
 
