@@ -229,7 +229,7 @@ onMounted(async () => {
     cursor = (cursor + 1) % RING_LEN
   }
 
-  const spinnerTimer = setInterval(spinnerTick, 200)
+  const spinnerTimer = setInterval(spinnerTick, 100)
   spinnerTick()
 
   await preloadPromise
