@@ -27,26 +27,17 @@ const LOCAL_TO_CDN: Record<string, string> = {
   '/assets/avatar.gif': `${CDN_BASE}/avatar.gif`,
 }
 
-/**
- * CDN → 本地回退路径
- * l3-d3.png 被亮/暗两套共用，回退时各走各的本地文件
- */
-const CDN_TO_LOCAL: Record<string, string> = {
-  [`${CDN_BASE}/l1.png`]: '/assets/lightbg/l1.png',
-  [`${CDN_BASE}/l2.png`]: '/assets/lightbg/l2.png',
-  [`${CDN_BASE}/l3-d3.png`]: '/assets/lightbg/l3.png', // 默认回退到亮色版
-  [`${CDN_BASE}/l4.png`]: '/assets/lightbg/l4.png',
-  [`${CDN_BASE}/d1.png`]: '/assets/darkbg/d1.png',
-  [`${CDN_BASE}/d2.png`]: '/assets/darkbg/d2.png',
-  [`${CDN_BASE}/d4.png`]: '/assets/darkbg/d4.png',
-  [`${CDN_BASE}/avatar.gif`]: '/assets/avatar.gif',
-}
+/** CDN → 本地回退路径（由 LOCAL_TO_CDN 自动生成） */
+const CDN_TO_LOCAL: Record<string, string> = Object.fromEntries(
+  Object.entries(LOCAL_TO_CDN).map(([local, cdn]) => [cdn, local]),
+)
 
 // --- CDN 不可达标记 ---
 let _cdnFailed = false
 
-/** 标记 CDN 不可达（加载失败时调用） */
+/** 标记 CDN 不可达（加载失败时调用）。幂等：重复设置相同值无副作用。 */
 export function setCdnFailed(failed: boolean): void {
+  if (_cdnFailed === failed) return
   _cdnFailed = failed
 }
 
@@ -77,27 +68,4 @@ export function getCdnUrl(localPath: string): string | null {
 /** 获取 CDN URL 对应的本地回退路径 */
 export function getLocalFallback(cdnUrl: string): string | null {
   return CDN_TO_LOCAL[cdnUrl] ?? null
-}
-
-/**
- * 探测 CDN 是否可达（加载一张已知图片）
- * 超时 3 秒后判定为不可达。
- */
-export function checkCdnAvailability(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    const timeout = setTimeout(() => {
-      resolve(false)
-    }, 3000)
-    img.onload = () => {
-      clearTimeout(timeout)
-      resolve(true)
-    }
-    img.onerror = () => {
-      clearTimeout(timeout)
-      resolve(false)
-    }
-    // 用 l1.png 作为探针（所有 OSS 桶中最小的一张图）
-    img.src = `${CDN_BASE}/l1.png`
-  })
 }

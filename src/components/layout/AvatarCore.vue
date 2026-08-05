@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { getImageUrl } from '@/config/cdn'
+import { getImageUrl, setCdnFailed } from '@/config/cdn'
 
 withDefaults(
   defineProps<{
@@ -20,6 +20,7 @@ const gifFailed = ref(false)
 function onGifError() {
   if (!gifFailed.value) {
     gifFailed.value = true
+    setCdnFailed(true)
     gifSrc.value = '/assets/avatar.gif' // 回退本地
   }
 }
