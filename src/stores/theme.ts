@@ -96,9 +96,17 @@ export const useThemeStore = defineStore('theme', () => {
       Math.max(x, window.innerWidth - x),
       Math.max(y, window.innerHeight - y),
     )
-    el.style.setProperty('--vt-x', `${x}px`)
-    el.style.setProperty('--vt-y', `${y}px`)
-    el.style.setProperty('--vt-r', `${endRadius}px`)
+    // Chrome 的 ::view-transition-new(root) 渲染盒可能不等于 100vw×100vh，
+    // px 值在盒尺寸偏差时会错位。改用百分比，circle() 百分比以元素自身盒为准，
+    // 坐标和半径自动等比缩放，各浏览器行为一致。
+    const px = (x / window.innerWidth) * 100
+    const py = (y / window.innerHeight) * 100
+    // circle() 百分比半径参照 √(w²+h²) / √2，
+    // 因此 pr = endRadius × √2 / hypot(w,h) × 100
+    const pr = (endRadius * Math.SQRT2) / Math.hypot(window.innerWidth, window.innerHeight) * 100
+    el.style.setProperty('--vt-x', `${px}%`)
+    el.style.setProperty('--vt-y', `${py}%`)
+    el.style.setProperty('--vt-r', `${pr}%`)
 
     // 回调返回 Promise（等 Vue flush），确保新主题的 DOM 更新被截入过渡快照
     const vt = startVT.call(document, async () => {

@@ -332,10 +332,10 @@ html.dark .time-select .el-input__wrapper:hover {
 
 @keyframes vt-clip-reveal {
   from {
-    clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 50%));
+    clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
   }
   to {
-    clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 50%) var(--vt-y, 50%));
+    clip-path: circle(var(--vt-r, 150%) at var(--vt-x, 50%) var(--vt-y, 50%));
   }
 }
 @media (prefers-reduced-motion: reduce) {
