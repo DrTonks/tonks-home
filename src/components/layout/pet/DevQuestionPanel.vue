@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
- * DevQuestionPanel — 管理员调试提问面板（可拖拽浮窗）。
+ * DevQuestionPanel — 管理员调试面板（可拖拽浮窗）。
  *
- * 列出所有问题，点击立即触发云朵提问。
- * "触发记忆句"按钮随机调用句库 memory 行。
+ * 列出所有问题 + 记忆句触发 + 天气模拟。
  * 仅管理员可见。
  */
 import { ref } from 'vue'
@@ -32,10 +31,23 @@ withDefaults(
 const emit = defineEmits<{
   'trigger-question': [questionId: string]
   'trigger-memory': []
+  'trigger-weather': [icon: string, desc: string, temp: number, tMin: number, tMax: number]
   close: []
 }>()
 
 const memory = usePetMemory()
+
+/** 可模拟的天气类型 */
+const weatherSims = [
+  { icon: 'sunny',  label: '☀️ 晴', desc: '晴朗', temp: 28, tMin: 18, tMax: 32 },
+  { icon: 'partly-cloudy', label: '🌤️ 少云', desc: '少云', temp: 25, tMin: 17, tMax: 30 },
+  { icon: 'cloudy', label: '☁️ 多云', desc: '多云', temp: 22, tMin: 16, tMax: 26 },
+  { icon: 'rain',   label: '🌧️ 雨', desc: '中雨', temp: 15, tMin: 12, tMax: 18 },
+  { icon: 'shower', label: '🌦️ 阵雨', desc: '阵雨', temp: 18, tMin: 14, tMax: 22 },
+  { icon: 'snow',   label: '❄️ 雪', desc: '小雪', temp: -2, tMin: -5, tMax: 1 },
+  { icon: 'thunder',label: '⛈️ 雷暴', desc: '雷阵雨', temp: 20, tMin: 16, tMax: 24 },
+  { icon: 'fog',    label: '🌫️ 雾', desc: '大雾', temp: 10, tMin: 8, tMax: 14 },
+]
 
 // ===== 拖拽 =====
 const panelPos = ref({ x: 0, y: 0 })
@@ -121,6 +133,23 @@ function statusLabel(s: string): string {
       >
         <Promotion /> 触发记忆句
       </button>
+
+      <div class="dev-divider" />
+
+      <!-- 天气模拟 -->
+      <div class="dev-section-label">🌤 模拟天气气泡</div>
+      <div class="dev-weather-grid">
+        <button
+          v-for="w in weatherSims"
+          :key="w.icon"
+          class="dev-q-btn available"
+          title="模拟 {{ w.desc }} {{ w.temp }}°C"
+          @click="emit('trigger-weather', w.icon, w.desc, w.temp, w.tMin, w.tMax)"
+        >
+          <span class="dev-w-label">{{ w.label }}</span>
+          <span class="dev-w-temp">{{ w.temp }}°C</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -246,5 +275,27 @@ function statusLabel(s: string): string {
 .dev-mem-btn.disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.dev-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  padding: 2px 4px;
+  letter-spacing: 0.03em;
+}
+
+.dev-weather-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.dev-w-label { flex: 1; font-size: 12px; }
+.dev-w-temp {
+  font-size: 11px;
+  color: hsl(var(--primary));
+  font-weight: 600;
+  flex-shrink: 0;
 }
 </style>

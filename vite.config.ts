@@ -35,6 +35,12 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        // IP 定位代理（ip-api.com 免费版仅支持 HTTP，lang=zh-CN 返回中文城市名）
+        '/geoip': {
+          target: 'http://ip-api.com',
+          changeOrigin: true,
+          rewrite: (path) => '/json?lang=zh-CN&fields=city,regionName,country,lat,lon',
+        },
       },
     },
     build: {

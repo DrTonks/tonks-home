@@ -19,6 +19,17 @@ export type PetMemories = Record<string, PetMemoryEntry>
 const LS_MEMORIES = 'pet_memories'
 const LS_REJECTED = 'pet_rejected_questions'
 const LS_LAST_QUESTION = 'pet_last_question_at'
+const LS_LOCATION = 'pet_location'
+
+/** 位置数据结构（与 useWeatherVisitor.LocationData 保持一致） */
+export interface StoredLocation {
+  city: string
+  region: string
+  country: string
+  lat: number
+  lon: number
+  updated_at: string
+}
 
 /** 模块级单例 —— 多个 composable 实例共享同一份响应式数据 */
 let _memories: Ref<PetMemories> | null = null
@@ -203,6 +214,19 @@ export function usePetMemory() {
     return today.getMonth() + 1 === month && today.getDate() === day
   }
 
+  // ===== 位置管理 =====
+
+  function saveLocation(loc: StoredLocation): void {
+    try { localStorage.setItem(LS_LOCATION, JSON.stringify(loc)) } catch { /* ignore */ }
+  }
+
+  function getLocation(): StoredLocation | null {
+    try {
+      const raw = localStorage.getItem(LS_LOCATION)
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  }
+
   // ===== 全部清除 =====
 
   /** 清空所有记忆、拒绝记录和冷却计时器（右键菜单"清空记忆"调用） */
@@ -257,6 +281,8 @@ export function usePetMemory() {
     markQuestionAsked,
     getBirthday,
     isBirthdayToday,
+    saveLocation,
+    getLocation,
     clearAll,
   }
 }

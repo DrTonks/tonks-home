@@ -9,7 +9,7 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Notebook, Setting } from '@element-plus/icons-vue'
+import { RefreshRight, InfoFilled, Notebook, Setting, Sunny } from '@element-plus/icons-vue'
 import { usePetEnvStore } from '@/stores/petEnv'
 import { useAdminStore } from '@/stores/admin'
 import dialogue from '@/data/pet-dialogue.json'
@@ -21,6 +21,9 @@ import DevQuestionPanel from './pet/DevQuestionPanel.vue'
 import { usePetMemory } from '@/composables/usePetMemory'
 import { usePetQuestions, type PetQuestion } from '@/composables/usePetQuestions'
 import { useSpecialDate } from '@/composables/useSpecialDate'
+import { useWeatherVisitor, type WeatherIcon } from '@/composables/useWeatherVisitor'
+import WeatherBubble from './pet/WeatherBubble.vue'
+import WelcomeDialog, { WELCOME_VERSION, WELCOME_LS_KEY } from './WelcomeDialog.vue'
 
 const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
@@ -75,6 +78,7 @@ const bubble = useSpeechBubble()
 const memory = usePetMemory()
 const questions = usePetQuestions()
 const specialDate = useSpecialDate()
+const weatherVisitor = useWeatherVisitor()
 
 // 唱歌时的歌词/音符模式（按播放进度驱动同一个气泡）
 usePetLyrics(state, bubble)
@@ -96,7 +100,9 @@ function canDailyTalk(): boolean {
     !state.rageActive.value &&
     state.mood.value !== 'threat' &&
     !bubble.isMusicMode() &&
-    !questions.isActive.value
+    !questions.isActive.value &&
+    !showWelcomeBubble.value &&
+    !weatherBubbleVisible.value
   )
 }
 
@@ -189,6 +195,13 @@ defineExpose({ provoke, getCenter: () => ({ x: state.pos.value.x + W / 2, y: sta
 // ===== 右键菜单 =====
 const showNotebook = ref(false)
 const showDevPanel = ref(false)
+// 首次访问欢迎引导
+const showWelcomeBubble = ref(false)
+const showWelcomeDialog = ref(false)
+// 天气气泡状态
+const weatherBubbleVisible = ref(false)
+const weatherBubbleData = ref<ReturnType<typeof weatherVisitor.getWeatherData>>(null)
+const weatherCareText = ref('')
 const ctxMenuShow = ref(false)
 const ctxMenuX = ref(0)
 const ctxMenuY = ref(0)
@@ -205,7 +218,8 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
       disabled: !petEnv.canSwitch(),
     })
   }
-  items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro() })
+  items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro(), disabled: !!state.singingState.value })
+  items.push({ label: '今日天气', icon: Sunny, action: () => showWeatherBubble(), disabled: !!state.singingState.value })
   items.push({ label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } })
   if (adminStore.isLoggedIn) {
     items.push({ label: '调试提问', icon: Setting, action: () => { showDevPanel.value = true } })
@@ -221,11 +235,27 @@ function onContextMenu(e: MouseEvent) {
 }
 
 let introPlaying = false
+
+/** 唤醒桌宠：从 sleep/cry/threat 回到 idle，重置闲置计时器。幂等，idle 时调用无副作用。 */
+function wakeUp() {
+  if (state.mood.value === 'sleep' || state.mood.value === 'cry') {
+    core.stopSleepZs()
+    state.sleepZs.value = []
+    core.resetIdleTimers() // 内部：cry/sleep → idle + scheduleBlink + scheduleAction
+  }
+  if (state.mood.value === 'threat') {
+    state.mood.value = 'idle'
+    state.showFrame.value = FRAMES.idle
+    core.resetIdleTimers()
+  }
+}
+
 /** 播放介绍句序列（右键"关于桌宠"触发） */
 function playIntro() {
   if (introPlaying) return // B19: 重入守卫
   const sentences = dialogue.intro
   if (!sentences?.length) return
+  wakeUp()
   introPlaying = true
   let i = 0
   function next() {
@@ -249,6 +279,7 @@ function onQuestionSubmit(answer: string) {
     petEnv.isQuestionActive = false
     // 心情问题 → 触发对应回复（force 跳过所有守卫）
     if (q.id === 'q_mood') {
+      wakeUp()
       const replies = (dialogue as Record<string, unknown>).mood_replies as Record<string, string[]> | undefined
       const moodLines = replies?.[answer]
       if (moodLines?.length) {
@@ -290,20 +321,132 @@ function onDevTriggerMemory() {
   if (memLine) bubble.say(memLine, true)
 }
 
+function onDevTriggerWeather(icon: string, desc: string, temp: number, tMin: number, tMax: number) {
+  const city = weatherVisitor.getLocationData()?.city || '模拟城市'
+  // 模拟心知天气码（用于 weatherCode 字段，图标由 icon 参数直接指定）
+  const mockCode: Record<string, number> = { sunny: 0, 'partly-cloudy': 4, cloudy: 3, rain: 14, shower: 10, snow: 21, thunder: 11, fog: 30 }
+  const wCode = mockCode[icon] ?? 2
+  weatherBubbleData.value = {
+    icon: icon as WeatherIcon,
+    temp,
+    desc,
+    city,
+    weatherCode: wCode,
+    tomorrow: { icon: icon as WeatherIcon, tempMin: tMin, tempMax: tMax, desc, weatherCode: wCode },
+  }
+  weatherCareText.value = weatherVisitor.pickWeatherCareLine(
+    (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+  )
+  weatherBubbleVisible.value = true
+  bubble.hide()
+  console.log('[DesktopPet] 模拟天气气泡:', weatherBubbleData.value)
+}
+
+// ===== 欢迎气泡回调 =====
+function onWelcomeExpand() {
+  showWelcomeBubble.value = false
+  showWelcomeDialog.value = true
+}
+
+function onWelcomeConfirm() {
+  showWelcomeDialog.value = false
+  localStorage.setItem(WELCOME_LS_KEY, WELCOME_VERSION)
+  // 弹窗关闭后补一段问候
+  if (greetTimer) clearTimeout(greetTimer)
+  greetTimer = setTimeout(greet, 400)
+}
+
+// ===== 天气气泡 =====
+async function showWeatherBubble() {
+  wakeUp() // B1: 先唤醒
+  if (!weatherVisitor.getWeatherData()) {
+    bubble.say('正在查询天气…', true)
+    await weatherVisitor.ensureLoaded()
+  }
+  const data = weatherVisitor.getWeatherData()
+  if (!data) {
+    bubble.say('天气数据获取失败…请稍后再试', true)
+    return
+  }
+  console.log('[DesktopPet] showWeatherBubble 数据:', data)
+  weatherBubbleData.value = data
+  weatherCareText.value = weatherVisitor.pickWeatherCareLine(
+    (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+  )
+  weatherBubbleVisible.value = true
+  bubble.hide() // 互斥
+}
+
+function onWeatherBubbleClose() {
+  weatherBubbleVisible.value = false
+}
+
+// 其他气泡出现时自动关闭天气气泡（防止重叠覆盖）
+watch(() => bubble.visible.value, (v) => {
+  if (v) weatherBubbleVisible.value = false
+})
+
 // 同步暴怒状态到 petEnv（阻挡切换）
 watch(() => state.rageActive.value, (v) => {
   petEnv.isRageActive = v
 })
 
-onMounted(() => {
+onMounted(async () => {
   turn.startMouseSystem()
 
-  // 特殊日期检测（生日等）
-  const isSpecialDay = specialDate.checkToday(bubble, '生日快乐。')
-  // 非特殊日期才按时段问候（等桌宠落地动画），避免覆盖生日祝福
-  if (!isSpecialDay) {
-    greetTimer = setTimeout(greet, 1600)
+  // 首次访问 / 版本更新 → 显示欢迎气泡
+  const isFirstVisit = localStorage.getItem(WELCOME_LS_KEY) !== WELCOME_VERSION
+  if (isFirstVisit) {
+    showWelcomeBubble.value = true
   }
+
+  // 特殊日期检测（生日等）—— 最高优先级，覆盖一切
+  const isSpecialDay = specialDate.checkToday(bubble, '生日快乐。')
+
+  if (!isSpecialDay) {
+    // === 每日天气首屏（5s，与欢迎气泡共存） ===
+    if (!weatherVisitor.isDailyWeatherShown()) {
+      await weatherVisitor.ensureLoaded()
+      const wData = weatherVisitor.getWeatherData()
+      if (wData) {
+        weatherBubbleData.value = wData
+        weatherCareText.value = weatherVisitor.pickWeatherCareLine(
+          (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+        )
+        weatherBubbleVisible.value = true
+        weatherVisitor.markDailyWeatherShown()
+        // 5s 后关闭天气气泡；非首次访问时补问候
+        greetTimer = setTimeout(() => {
+          weatherBubbleVisible.value = false
+          if (!isFirstVisit) greet()
+        }, 5000)
+      } else if (!isFirstVisit) {
+        // 天气获取失败且非首次访问 → 降级为正常问候
+        greetTimer = setTimeout(greet, 1600)
+      }
+    } else if (!isFirstVisit) {
+      // === 今天已展示天气 → 正常流程（地址切换 + 按时段问候） ===
+      const locPromise = weatherVisitor.ensureLoaded()
+      const locationChanged = await Promise.race([
+        locPromise.then(() => weatherVisitor.hasLocationChanged()),
+        new Promise<boolean>(r => setTimeout(() => r(false), 1400)),
+      ])
+
+      greetTimer = setTimeout(() => {
+        if (locationChanged) {
+          const line = weatherVisitor.pickLocationChangeLine(
+            (dialogue as Record<string, unknown>).location_change as string[],
+          )
+          if (line) bubble.say(line, true)
+        } else {
+          greet()
+        }
+      }, 1600)
+    }
+    // 首次访问 + 今天已展示天气 → 不做任何事，等用户点欢迎气泡
+    // （onWelcomeConfirm 里会补一段问候）
+  }
+
   // 空闲随机冒泡（仅真正 idle 时）
   idleTalkTimer = setInterval(() => {
     if (
@@ -316,6 +459,16 @@ onMounted(() => {
         const memLine = memory.pickMemoryLine(dialogue.memory)
         if (memLine) {
           bubble.say(memLine)
+          return
+        }
+      }
+      // 30% 概率尝试触发天气闲聊句（1.2 新增）
+      if (Math.random() < 0.3) {
+        const weatherLine = weatherVisitor.pickWeatherLine(
+          (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+        )
+        if (weatherLine) {
+          bubble.say(weatherLine)
           return
         }
       }
@@ -393,6 +546,28 @@ onBeforeUnmount(() => {
           @close="questions.dismiss(); petEnv.isQuestionActive = false"
         />
 
+        <!-- 首次访问欢迎气泡（云朵形态，点击后弹出弹窗而非输入框） -->
+        <QuestionBubble
+          :visible="showWelcomeBubble"
+          question-text="戳我一下~"
+          icon-name="Sunny"
+          placement="top"
+          :vertical-offset="60"
+          :prevent-expand="true"
+          @expand="onWelcomeExpand"
+          @close="showWelcomeBubble = false"
+        />
+
+        <!-- 天气气泡 -->
+        <WeatherBubble
+          :visible="weatherBubbleVisible"
+          :weather-data="weatherBubbleData"
+          :placement="placement"
+          :care-text="weatherCareText"
+          :vertical-offset="14"
+          @close="onWeatherBubbleClose"
+        />
+
         <!-- 庆祝特效 -->
         <CelebrationEffect
           :visible="specialDate.isCelebrating.value"
@@ -460,6 +635,12 @@ onBeforeUnmount(() => {
       @close="showNotebook = false"
     />
 
+    <!-- 首次访问欢迎弹窗 -->
+    <WelcomeDialog
+      :visible="showWelcomeDialog"
+      @confirm="onWelcomeConfirm"
+    />
+
     <!-- 调试提问面板（仅管理员） -->
     <DevQuestionPanel
       :visible="showDevPanel"
@@ -468,6 +649,7 @@ onBeforeUnmount(() => {
       :question-is-active="questions.isActive.value"
       @trigger-question="onDevTriggerQuestion"
       @trigger-memory="onDevTriggerMemory"
+      @trigger-weather="onDevTriggerWeather"
       @close="showDevPanel = false"
     />
   </div>
