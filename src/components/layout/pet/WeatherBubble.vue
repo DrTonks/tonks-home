@@ -117,20 +117,12 @@ const iconClass = computed(() => {
         <!-- 少云：小太阳 + 浅白薄云 -->
         <template v-else-if="weatherData.icon === 'partly-cloudy'">
           <div class="sun-core sun-core--small" />
-          <div class="cloud-shape cloud-partly" style="top: 58%; left: 62%; transform: translate(-50%, -50%); animation-duration: 5s;">
-            <div class="cloud-part cloud-main" />
-            <div class="cloud-part cloud-bump-l" />
-            <div class="cloud-part cloud-bump-r" />
-          </div>
+          <div class="cloud-shape cloud-partly" style="top: 58%; left: 62%; transform: translate(-50%, -50%); animation-duration: 5s;" />
         </template>
 
         <!-- 多云/阴：云朵 -->
         <template v-else-if="weatherData.icon === 'cloudy' || weatherData.icon === 'fog'">
-          <div class="cloud-shape">
-            <div class="cloud-part cloud-main" />
-            <div class="cloud-part cloud-bump-l" />
-            <div class="cloud-part cloud-bump-r" />
-          </div>
+          <div class="cloud-shape" />
           <div v-if="weatherData.icon === 'fog'" class="fog-lines">
             <span v-for="l in 3" :key="l" class="fog-line" :style="{ '--i': l }" />
           </div>
@@ -138,11 +130,7 @@ const iconClass = computed(() => {
 
         <!-- 雨/阵雨：云 + 雨滴 -->
         <template v-else-if="weatherData.icon === 'rain' || weatherData.icon === 'shower'">
-          <div class="cloud-shape cloud-above">
-            <div class="cloud-part cloud-main" />
-            <div class="cloud-part cloud-bump-l" />
-            <div class="cloud-part cloud-bump-r" />
-          </div>
+          <div class="cloud-shape cloud-above" />
           <div class="rain-drops">
             <span v-for="d in 5" :key="d" class="rain-drop" :style="{ '--i': d }" />
           </div>
@@ -150,11 +138,7 @@ const iconClass = computed(() => {
 
         <!-- 雪：浅色云 + 雪花 -->
         <template v-else-if="weatherData.icon === 'snow'">
-          <div class="cloud-shape cloud-above cloud-light">
-            <div class="cloud-part cloud-main" />
-            <div class="cloud-part cloud-bump-l" />
-            <div class="cloud-part cloud-bump-r" />
-          </div>
+          <div class="cloud-shape cloud-above cloud-light" />
           <div class="snow-flakes">
             <span v-for="s in 5" :key="s" class="snow-flake" :style="{ '--i': s }" />
           </div>
@@ -162,11 +146,7 @@ const iconClass = computed(() => {
 
         <!-- 雷暴：乌云 + 闪电 + 雨滴 -->
         <template v-else-if="weatherData.icon === 'thunder'">
-          <div class="cloud-shape cloud-above cloud-dark">
-            <div class="cloud-part cloud-main" />
-            <div class="cloud-part cloud-bump-l" />
-            <div class="cloud-part cloud-bump-r" />
-          </div>
+          <div class="cloud-shape cloud-above cloud-dark" />
           <div class="lightning-glow" />
           <div class="lightning-bolt" />
           <div class="rain-drops">
@@ -284,19 +264,55 @@ const iconClass = computed(() => {
 }
 
 /* ===== 云朵 ===== */
+/*
+ * 用伪元素 ::before / ::after 拼出整朵云，所有部件通过 background:inherit
+ * 继承宿主完全相同的颜色，彻底消除旧方案多个独立 div 叠加导致的半透明接缝。
+ *
+ * 结构：
+ *   .cloud-shape       → 底部扁椭圆（云的主体）
+ *   .cloud-shape::before → 较矮的左侧凸起
+ *   .cloud-shape::after  → 较高的右侧凸起
+ *
+ * 色变体只需改 .cloud-shape 自身的 background，伪元素自动继承。
+ */
+/*
+ * 3 部件（宿主 + ::before + ::after）全部继承同一 opaque 颜色——由 color-mix()
+ * 把半透明前景色预混到气泡背景上产生。不同部件边界处不再有透明度叠加痕迹。
+ */
 .cloud-shape {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   animation: cloud-float 4s ease-in-out infinite;
+  width: 35px; height: 14px;
+  border-radius: 14px;
+  --_cloud-base: var(--cloud-fill, #fff);
+  /* 默认：雨云灰 = hsl(var(--foreground)) 60% 叠加在气泡背景上 */
+  --_cloud-fg: hsl(var(--foreground));
+  --_cloud-alpha: 60%;
+  background: color-mix(in srgb, var(--_cloud-fg) var(--_cloud-alpha), var(--_cloud-base));
 }
-.cloud-above { top: 35%; }
-/* 雷暴乌云 — 深灰 */
-.cloud-dark .cloud-part { background: hsl(var(--muted-foreground) / 0.7); }
-/* 雪云 — 浅灰（比雨云浅） */
-.cloud-light .cloud-part { background: hsl(var(--foreground) / 0.25); }
-/* 少云薄云 — 极浅白（晴天基调） */
-.cloud-partly .cloud-part { background: hsl(var(--foreground) / 0.12); }
+.cloud-shape::before,
+.cloud-shape::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.cloud-shape::before {
+  width: 15px; height: 15px;
+  top: -7px; left: 2px;
+}
+.cloud-shape::after {
+  width: 19px; height: 18px;
+  top: -9px; left: 12px;
+}
+
+/* 位置与颜色变体 — 只覆写 --_cloud-fg / --_cloud-alpha，伪元素自动继承 */
+.cloud-above  { top: 40%; }
+.cloud-dark   { --_cloud-fg: hsl(var(--muted-foreground)); --_cloud-alpha: 75%; background: color-mix(in srgb, var(--_cloud-fg) var(--_cloud-alpha), var(--_cloud-base)); }
+.cloud-light  { --_cloud-fg: hsl(var(--foreground)); --_cloud-alpha: 28%; background: color-mix(in srgb, var(--_cloud-fg) var(--_cloud-alpha), var(--_cloud-base)); }
+.cloud-partly { --_cloud-fg: hsl(var(--foreground)); --_cloud-alpha: 13%; background: color-mix(in srgb, var(--_cloud-fg) var(--_cloud-alpha), var(--_cloud-base)); }
 
 /* 少云的小太阳（缩到正常的 70%） */
 .sun-core--small {
@@ -305,24 +321,6 @@ const iconClass = computed(() => {
   top: 35%; left: 40%;
 }
 
-.cloud-part {
-  position: absolute;
-  background: hsl(var(--foreground) / 0.6);
-  border-radius: 50%;
-}
-.cloud-main {
-  width: 28px; height: 14px;
-  border-radius: 14px;
-  top: 6px; left: -14px;
-}
-.cloud-bump-l {
-  width: 16px; height: 16px;
-  top: -4px; left: -10px;
-}
-.cloud-bump-r {
-  width: 20px; height: 18px;
-  top: -8px; left: 4px;
-}
 @keyframes cloud-float {
   0%, 100% { transform: translate(-50%, -50%); }
   50%      { transform: translate(calc(-50% + 4px), calc(-50% - 2px)); }
@@ -353,8 +351,8 @@ const iconClass = computed(() => {
 /* ===== 雨滴 ===== */
 .rain-drops {
   position: absolute;
-  bottom: 2px; left: 6px; right: 6px;
-  height: 20px;
+  bottom: 10px; left: 6px; right: 6px;
+  height: 14px;
 }
 .rain-drop {
   position: absolute;
@@ -364,20 +362,21 @@ const iconClass = computed(() => {
   height: 6px;
   border-radius: 1px;
   background: hsl(var(--foreground) / 0.5);
-  animation: rain-fall 0.8s linear infinite;
+  opacity: 0; /* 动画 delay 期间不可见，避免一闪而过的静态点 */
+  animation: rain-fall 0.7s linear infinite;
   animation-delay: calc(var(--i) * 0.15s);
 }
 @keyframes rain-fall {
   0%   { transform: translateY(0); opacity: 0; }
   30%  { opacity: 1; }
-  100% { transform: translateY(18px); opacity: 0; }
+  100% { transform: translateY(12px); opacity: 0; }
 }
 
 /* ===== 雪花 ===== */
 .snow-flakes {
   position: absolute;
-  bottom: 2px; left: 4px; right: 4px;
-  height: 22px;
+  bottom: 10px; left: 4px; right: 4px;
+  height: 16px;
 }
 .snow-flake {
   position: absolute;
@@ -386,14 +385,15 @@ const iconClass = computed(() => {
   width: 5px; height: 5px;
   border-radius: 50%;
   background: hsl(var(--foreground) / 0.6);
-  animation: snow-fall 2.2s linear infinite;
+  opacity: 0; /* 动画 delay 期间不可见，避免一排静置圆点闪现 */
+  animation: snow-fall 2s linear infinite;
   animation-delay: calc(var(--i) * 0.4s);
 }
 @keyframes snow-fall {
   0%   { transform: translateY(0) translateX(0); opacity: 0; }
   20%  { opacity: 1; }
-  50%  { transform: translateY(10px) translateX(4px); }
-  100% { transform: translateY(22px) translateX(-3px); opacity: 0; }
+  50%  { transform: translateY(8px) translateX(3px); }
+  100% { transform: translateY(16px) translateX(-3px); opacity: 0; }
 }
 
 /* ===== 闪电 ===== */

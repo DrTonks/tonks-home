@@ -41,6 +41,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => '/json?lang=zh-CN&fields=city,regionName,country,lat,lon',
         },
+        // 心知天气代理：避免浏览器直连 api.seniverse.com 导致 403
+        '/seniverse': {
+          target: 'https://api.seniverse.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/seniverse/, ''),
+        },
       },
     },
     build: {

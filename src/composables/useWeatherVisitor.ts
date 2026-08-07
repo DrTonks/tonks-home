@@ -14,7 +14,7 @@
  *   - 支持坐标 lat:lon 格式，天气码 0-38
  *   - 返回中文城市名（如 "闽侯"），无需英→中映射
  *
- * 缓存策略：位置 24h，天气 1h。
+ * 缓存策略：位置 12h，天气 1h。
  */
 
 import { ref, type Ref } from 'vue'
@@ -109,7 +109,7 @@ export function useWeatherVisitor() {
       if (!raw) return null
       const data = JSON.parse(raw) as LocationData
       const age = Date.now() - new Date(data.updated_at).getTime()
-      if (age > 24 * 60 * 60 * 1000) return null
+      if (age > 12 * 60 * 60 * 1000) return null
       return data
     } catch { return null }
   }
@@ -177,12 +177,12 @@ export function useWeatherVisitor() {
     throw new Error('所有 IP 定位源均失败')
   }
 
-  /** 心知天气实时天气 */
+  /** 心知天气实时天气（走代理路径，避免浏览器直连 403） */
   async function fetchSeniverseNow(lat: number, lon: number): Promise<{
     city: string; path: string
     text: string; code: string; temp: string
   }> {
-    const url = `https://api.seniverse.com/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c`
+    const url = `/seniverse/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c`
     const resp = await fetch(url)
     if (!resp.ok) throw new Error(`Seniverse now returned ${resp.status}`)
     const json = await resp.json()
@@ -192,11 +192,11 @@ export function useWeatherVisitor() {
     return { city: r.location.name, path: r.location.path, text: r.now.text, code: r.now.code, temp: r.now.temperature }
   }
 
-  /** 心知天气每日预报（含明天） */
+  /** 心知天气每日预报（含明天，走代理路径） */
   async function fetchSeniverseDaily(lat: number, lon: number): Promise<{
     date: string; text_day: string; code_day: string; high: string; low: string
   }> {
-    const url = `https://api.seniverse.com/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c&start=0&days=2`
+    const url = `/seniverse/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c&start=0&days=2`
     const resp = await fetch(url)
     if (!resp.ok) throw new Error(`Seniverse daily returned ${resp.status}`)
     const json = await resp.json()
