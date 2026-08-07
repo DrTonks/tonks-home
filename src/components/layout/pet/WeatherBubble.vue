@@ -6,7 +6,7 @@
  * 城市/天气描述/温度/明日预报 + 关怀语打字机效果。
  */
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
-import type { WeatherData, WeatherIcon } from '@/composables/useWeatherVisitor'
+import type { WeatherData } from '@/composables/useWeatherVisitor'
 
 const props = withDefaults(
   defineProps<{
