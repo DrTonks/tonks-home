@@ -3,14 +3,29 @@
  * DesktopPet 写入 isRageActive，PetSwitcher 写入 activePetType，
  * Live2DPet 挂载时读取 isMusicPlaying 决定是否进唱歌模式。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useMusicStore } from '@/stores/music'
 
 export type PetType = 'static' | 'live2d'
 
+const LS_PET_TYPE = 'pet_active_type'
+
+function loadSavedPetType(): PetType {
+  try {
+    const saved = localStorage.getItem(LS_PET_TYPE)
+    if (saved === 'live2d') return 'live2d'
+  } catch { /* ignore */ }
+  return 'static'
+}
+
 export const usePetEnvStore = defineStore('petEnv', () => {
-  const activePetType = ref<PetType>('static')
+  const activePetType = ref<PetType>(loadSavedPetType())
+
+  // 切换桌宠类型时持久化到 localStorage，刷新后自动恢复
+  watch(activePetType, (type) => {
+    try { localStorage.setItem(LS_PET_TYPE, type) } catch { /* ignore */ }
+  })
   const isRageActive = ref(false)
   /** 主页折叠中（桌面宠根元素淡出） */
   const isCollapsing = ref(false)

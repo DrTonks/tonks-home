@@ -316,10 +316,26 @@ export function useWeatherVisitor() {
   }
 
   // ===== 对话句选取 =====
+
+  /** 只有"中性天气"才允许温度覆盖——雨/雪/雷暴等确定性天气保持自己的专属台词 */
+  const NEUTRAL_ICONS = new Set<WeatherIcon>(['sunny', 'partly-cloudy', 'cloudy', 'fog'])
+
   function pickWeatherLine(weatherTalk?: Record<string, string[]>): string | null {
     if (!weatherTalk || !weatherData.value) return null
     const w = weatherData.value
-    const type = iconToWeatherType(w.icon)
+
+    const iconType = iconToWeatherType(w.icon)
+    let type: string
+
+    // 极端温度 + 中性天气（晴/多云/雾）→ hot/cold 覆盖；雪/雨/雷暴不受影响
+    if (w.temp >= 30 && NEUTRAL_ICONS.has(w.icon) && weatherTalk['hot']) {
+      type = 'hot'
+    } else if (w.temp <= 5 && NEUTRAL_ICONS.has(w.icon) && weatherTalk['cold']) {
+      type = 'cold'
+    } else {
+      type = iconType
+    }
+
     const lines = weatherTalk[type] || weatherTalk['default']
     if (!lines?.length) return null
     const line = lines[Math.floor(Math.random() * lines.length)]

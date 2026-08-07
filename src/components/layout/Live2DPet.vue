@@ -238,11 +238,11 @@ function playIntro() {
 function onQuestionSubmit(answer: string) {
   const q = questions.currentQuestion.value
   if (q) {
+    wakeUp() // 任何回答都是主动交互，唤醒桌宠
     questions.submitAnswer(q, answer)
     questions.dismiss()
     petEnv.isQuestionActive = false
     if (q.id === 'q_mood') {
-      wakeUp()
       const moodLines = dl.mood_replies?.[answer]
       if (moodLines?.length) {
         setTimeout(() => bubble.say(pick(moodLines), true), 400)
@@ -459,7 +459,7 @@ onMounted(async () => {
       }
     }
 
-    if (Math.random() < 0.55) {
+    if (Math.random() < 0.8) {
       bubble.say(pick(dl.idle))
     }
   }, 28000)
@@ -560,7 +560,8 @@ onBeforeUnmount(() => {
         :weather-data="weatherBubbleData"
         :placement="placement"
         :care-text="weatherCareText"
-        :vertical-offset="46"
+        :vertical-offset="-40"
+        :horizontal-offset="-40"
         @close="onWeatherBubbleClose"
       />
 

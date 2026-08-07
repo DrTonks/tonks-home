@@ -58,9 +58,28 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
     state.tracking.value = true
     const dur = TRACKING_MIN_MS + Math.random() * (TRACKING_MAX_MS - TRACKING_MIN_MS)
 
+    // 转身计数器：光标反复横扫/转圈 → 累积转身 → 超过阈值才生气
+    const TURN_ANGER_THRESHOLD = 10
+    let turnCount = 0
+    let prevTurnDir: 'left' | 'right' | null = null
+    let firstTransition = true
+
     function trackTick() {
       if (!state.tracking.value) return
       const dir = mouseXDir()
+      const newTurnDir = dir === 'over' ? null : dir
+
+      // 方向变化计数：跳过首次 transition（跟踪开始时的初始朝向），
+      // 后续每次 direction ↔ null 转换计 1 次转身
+      if (newTurnDir !== prevTurnDir) {
+        if (firstTransition) {
+          firstTransition = false
+        } else {
+          turnCount++
+        }
+        prevTurnDir = newTurnDir
+      }
+
       if (dir === 'left') {
         state.turnDirection.value = 'left'
         state.showFrame.value = TURN_FRAME_PATH
@@ -78,16 +97,23 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
       state.tracking.value = false
       t.trackingEndTimer = null
       state.turnDirection.value = null
-      state.showFrame.value = FRAMES.angry
-      state.mood.value = 'angry'
       t.blinking = false
-      setTimeout(() => {
-        if (state.mood.value === 'angry') {
-          state.mood.value = 'idle'
-          state.showFrame.value = FRAMES.idle
-          onTrackingExit()
-        }
-      }, 1500)
+      // 转身超过阈值 → 被调戏了，生气；否则平静回到 idle
+      if (turnCount >= TURN_ANGER_THRESHOLD) {
+        state.showFrame.value = FRAMES.angry
+        state.mood.value = 'angry'
+        setTimeout(() => {
+          if (state.mood.value === 'angry') {
+            state.mood.value = 'idle'
+            state.showFrame.value = FRAMES.idle
+            onTrackingExit()
+          }
+        }, 1500)
+      } else {
+        state.showFrame.value = FRAMES.idle
+        state.mood.value = 'idle'
+        onTrackingExit()
+      }
     }, dur)
 
     requestAnimationFrame(trackTick)

@@ -14,7 +14,10 @@ const props = withDefaults(
     weatherData?: WeatherData | null
     placement?: 'left' | 'right'
     careText?: string
+    /** 垂直偏移（px）：正=上移，负=下移。用 calc 而非 margin-top 避免双负号问题 */
     verticalOffset?: number
+    /** 水平偏移（px）：气泡距离桌宠的水平间距，默认 8 */
+    horizontalOffset?: number
   }>(),
   {
     visible: false,
@@ -22,6 +25,7 @@ const props = withDefaults(
     placement: 'left',
     careText: '',
     verticalOffset: 14,
+    horizontalOffset: 8,
   },
 )
 
@@ -93,7 +97,10 @@ const iconClass = computed(() => {
       v-if="visible && weatherData"
       class="weather-bubble"
       :class="[`place-${placement}`]"
-      :style="{ marginTop: `-${verticalOffset}px` }"
+      :style="{
+        top: `calc(-20% - ${verticalOffset}px)`,
+        [placement === 'left' ? 'right' : 'left']: `calc(100% + ${horizontalOffset}px)`,
+      }"
       @mousemove="resetDismissTimer"
     >
       <!-- 尾巴三角形 -->
@@ -206,14 +213,13 @@ const iconClass = computed(() => {
 }
 
 /* place-left：气泡在宠物左侧，尾巴在气泡右边指向右（宠物方向） */
+/* 注：top/right/left 现在由 inline style 动态计算（verticalOffset + horizontalOffset），CSS 仅保留非定位样式 */
 .place-left {
-  right: calc(100% + 8px);
-  top: -20%;
+  right: auto; /* 由 inline style 设置 */
 }
 /* place-right：气泡在宠物右侧，尾巴在气泡左边指向左（宠物方向） */
 .place-right {
-  left: calc(100% + 8px);
-  top: -20%;
+  left: auto; /* 由 inline style 设置 */
 }
 
 .weather-tail {

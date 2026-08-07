@@ -274,12 +274,12 @@ function playIntro() {
 function onQuestionSubmit(answer: string) {
   const q = questions.currentQuestion.value
   if (q) {
+    wakeUp() // 任何回答都是主动交互，唤醒桌宠
     questions.submitAnswer(q, answer)
     questions.dismiss()
     petEnv.isQuestionActive = false
     // 心情问题 → 触发对应回复（force 跳过所有守卫）
     if (q.id === 'q_mood') {
-      wakeUp()
       const replies = (dialogue as Record<string, unknown>).mood_replies as Record<string, string[]> | undefined
       const moodLines = replies?.[answer]
       if (moodLines?.length) {
@@ -473,7 +473,7 @@ onMounted(async () => {
         }
       }
       // 正常 idle 闲聊
-      if (Math.random() < 0.55) {
+      if (Math.random() < 0.8) {
         bubble.say(pick(dialogue.idle))
       }
     }
@@ -565,6 +565,7 @@ onBeforeUnmount(() => {
           :placement="placement"
           :care-text="weatherCareText"
           :vertical-offset="14"
+          :horizontal-offset="8"
           @close="onWeatherBubbleClose"
         />
 
