@@ -415,11 +415,11 @@ onMounted(async () => {
         )
         weatherBubbleVisible.value = true
         weatherVisitor.markDailyWeatherShown()
-        // 5s 后关闭天气气泡；非首次访问时补问候
+        // 7s 后关闭天气气泡；非首次访问时补问候
         greetTimer = setTimeout(() => {
           weatherBubbleVisible.value = false
           if (!isFirstVisit) greet()
-        }, 5000)
+        }, 7000)
       } else if (!isFirstVisit) {
         // 天气获取失败且非首次访问 → 降级为正常问候
         greetTimer = setTimeout(greet, 1600)
