@@ -118,6 +118,12 @@ export function useWeatherVisitor() {
       const raw = localStorage.getItem(LS_LOCATION)
       if (!raw) return null
       const data = JSON.parse(raw) as LocationData
+      // 旧版位置缓存没有省份，无法组成稳定的“省份 + 城市”天气查询；自动失效一次。
+      if (!data.region?.trim()) {
+        localStorage.removeItem(LS_LOCATION)
+        localStorage.removeItem(LS_WEATHER)
+        return null
+      }
       const age = Date.now() - new Date(data.updated_at).getTime()
       if (age > 12 * 60 * 60 * 1000) return null
       return data
@@ -152,8 +158,12 @@ export function useWeatherVisitor() {
    * 使用纯前端 HTTPS API（非服务端代理），确保无论部署到哪里都定位的是访客而非服务器。
    * 多层 fallback 保证可用性。
    */
-  async function fetchLatLon(): Promise<{ lat: number; lon: number; city?: string }> {
-    const sources: Array<() => Promise<{ lat: number; lon: number; city?: string }>> = [
+  async function fetchLatLon(): Promise<{
+    lat: number; lon: number; city?: string; region?: string; country?: string
+  }> {
+    const sources: Array<() => Promise<{
+      lat: number; lon: number; city?: string; region?: string; country?: string
+    }>> = [
       // 1) ip.sb — CORS OK, HTTPS, 全球节点, 返回 city/latitude/longitude
       async () => {
         const resp = await fetch('https://api.ip.sb/geoip', { signal: AbortSignal.timeout(5000) })
@@ -164,6 +174,8 @@ export function useWeatherVisitor() {
           lat: json.latitude || 0,
           lon: json.longitude || 0,
           city: json.city || '',
+          region: json.region || '',
+          country: json.country_code || json.country || '',
         }
       },
       // 2) Vite proxy（仅开发环境可用；生产环境需 Nginx 透传 $remote_addr）
@@ -172,7 +184,13 @@ export function useWeatherVisitor() {
         if (!resp.ok) throw new Error(`${resp.status}`)
         const json = await resp.json()
         console.log('[useWeatherVisitor] /geoip proxy:', json)
-        return { lat: json.lat || 0, lon: json.lon || 0, city: json.city || json.regionName || '' }
+        return {
+          lat: json.lat || 0,
+          lon: json.lon || 0,
+          city: json.city || json.regionName || '',
+          region: json.regionName || '',
+          country: json.country || '',
+        }
       },
     ]
 
@@ -188,11 +206,11 @@ export function useWeatherVisitor() {
   }
 
   /** 心知天气实时天气（走代理路径，避免浏览器直连 403） */
-  async function fetchSeniverseNow(lat: number, lon: number): Promise<{
+  async function fetchSeniverseNow(location: string): Promise<{
     city: string; path: string
     text: string; code: string; temp: string
   }> {
-    const url = `/seniverse/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c`
+    const url = `/seniverse/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${encodeURIComponent(location)}&language=zh-Hans&unit=c`
     const resp = await fetch(url)
     if (!resp.ok) throw new WeatherHttpError(resp.status, 'now')
     const json = await resp.json()
@@ -203,10 +221,10 @@ export function useWeatherVisitor() {
   }
 
   /** 心知天气每日预报（含明天，走代理路径） */
-  async function fetchSeniverseDaily(lat: number, lon: number): Promise<{
+  async function fetchSeniverseDaily(location: string): Promise<{
     date: string; text_day: string; code_day: string; high: string; low: string
   }> {
-    const url = `/seniverse/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c&start=0&days=2`
+    const url = `/seniverse/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${encodeURIComponent(location)}&language=zh-Hans&unit=c&start=0&days=2`
     const resp = await fetch(url)
     if (!resp.ok) throw new WeatherHttpError(resp.status, 'daily')
     const json = await resp.json()
@@ -220,18 +238,23 @@ export function useWeatherVisitor() {
     const geo = await fetchLatLon()
     return {
       city: geo.city || '未知城市',
-      region: '',
-      country: 'CN',
+      region: geo.region || '',
+      country: geo.country || 'CN',
       lat: geo.lat,
       lon: geo.lon,
       updated_at: new Date().toISOString(),
     }
   }
 
-  async function fetchWeather(lat: number, lon: number, _city: string): Promise<WeatherData> {
+  async function fetchWeather(location: LocationData): Promise<WeatherData> {
+    const city = location.city.trim()
+    const region = location.region.trim()
+    const query = city && city !== '未知城市'
+      ? [region, city].filter(Boolean).join(' ')
+      : `${location.lat}:${location.lon}`
     const [now, daily] = await Promise.all([
-      fetchSeniverseNow(lat, lon),
-      fetchSeniverseDaily(lat, lon),
+      fetchSeniverseNow(query),
+      fetchSeniverseDaily(query),
     ])
 
     const code = parseInt(now.code, 10) || 0
@@ -274,7 +297,7 @@ export function useWeatherVisitor() {
         let w = weatherData.value
         if (!w) {
           console.log('[useWeatherVisitor] 天气无缓存，请求中…')
-          w = await fetchWeather(loc.lat, loc.lon, loc.city)
+          w = await fetchWeather(loc)
           weatherData.value = w
           saveCachedWeather(w)
           // 用 心知天气 返回的中文城市名更新位置缓存
