@@ -6,6 +6,8 @@ import {
   deleteMusic,
   reorderMusic,
   getMusicStreamUrl,
+  getMusicCoverUrl,
+  uploadMusicCover,
   type MusicFile,
 } from '@/api/music'
 
@@ -111,8 +113,14 @@ export const useMusicStore = defineStore('music', () => {
   }
 
   // 管理员
-  async function upload(file: File, title?: string, artist?: string, lyrics?: File | null) {
-    const res = await uploadMusic(file, title, artist, lyrics)
+  async function upload(file: File, title?: string, artist?: string, lyrics?: File | null, cover?: File | null) {
+    const res = await uploadMusic(file, title, artist, lyrics, cover)
+    if (res.success) await fetchList()
+    return res
+  }
+
+  async function uploadCover(filename: string, cover: File) {
+    const res = await uploadMusicCover(filename, cover)
     if (res.success) await fetchList()
     return res
   }
@@ -147,6 +155,10 @@ export const useMusicStore = defineStore('music', () => {
     return getMusicStreamUrl(filename)
   }
 
+  function getCoverUrl(filename: string) {
+    return getMusicCoverUrl(filename)
+  }
+
   return {
     songs,
     currentIndex,
@@ -168,8 +180,10 @@ export const useMusicStore = defineStore('music', () => {
     cycleRepeat,
     stop,
     upload,
+    uploadCover,
     remove,
     reorder,
     getStreamUrl,
+    getCoverUrl,
   }
 })

@@ -5,6 +5,9 @@ export interface MusicFile {
   title: string
   artist: string
   hasLyrics?: boolean
+  hasCover?: boolean
+  coverUrl?: string | null
+  coverVersion?: number | null
 }
 
 export interface MusicListResponse {
@@ -18,17 +21,35 @@ export function getMusicList() {
 }
 
 /** 上传音乐（管理员）；可选一并上传 LRC 歌词，无则为纯音乐 */
-export function uploadMusic(file: File, title?: string, artist?: string, lyrics?: File | null) {
+export function uploadMusic(file: File, title?: string, artist?: string, lyrics?: File | null, cover?: File | null) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('title', title || file.name.replace(/\.[^.]+$/, ''))
   formData.append('artist', artist || 'Unknown')
   if (lyrics) formData.append('lyrics', lyrics)
+  if (cover) formData.append('cover', cover)
   return api
     .post('/music/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     .then((r) => r.data)
+}
+
+/** 为存量歌曲新增或替换封面（管理员） */
+export function uploadMusicCover(filename: string, cover: File) {
+  const formData = new FormData()
+  formData.append('filename', filename)
+  formData.append('cover', cover)
+  return api
+    .post('/music/cover/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((r) => r.data)
+}
+
+/** 封面与音频一样保留 /music 前缀，由 Vite/生产代理转发。 */
+export function getMusicCoverUrl(filename: string): string {
+  return `/music/cover/${encodeURIComponent(filename)}`
 }
 
 /** 获取 LRC 歌词纯文本；无歌词时后端返回 not found，这里兜底成空串 */

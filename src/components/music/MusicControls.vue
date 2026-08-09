@@ -14,35 +14,25 @@ import {
   Volume2,
   Volume1,
   VolumeX,
-  Upload,
-  Trash2,
 } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
 import { useAdminStore } from '@/stores/admin'
 import { useAudioAnalyzer } from '@/composables/useAudioAnalyzer'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import MusicUploadDialog from './MusicUploadDialog.vue'
 import { cn, formatTime } from '@/lib/utils'
 
-const { isCompact = false } = defineProps<{ isCompact?: boolean }>()
+defineProps<{ isCompact?: boolean }>()
 const store = useMusicStore()
 const admin = useAdminStore()
-const showUpload = ref(false) // 紧凑模式管理员上传弹窗
 
-function onRemove() {
-  if (store.currentSong) store.remove(store.currentSong.filename)
-}
-
-// 管理员排序：把第 idx 项上移(dir=-1)/下移(dir=1)一位，提交完整新顺序
 function moveTrack(idx: number, dir: -1 | 1) {
   const to = idx + dir
   if (to < 0 || to >= store.songs.length) return
-  const order = store.songs.map((s) => s.filename)
+  const order = store.songs.map((song) => song.filename)
   ;[order[idx], order[to]] = [order[to], order[idx]]
-  store.reorder(order)
+  void store.reorder(order)
 }
-
 const audio = ref<HTMLAudioElement | null>(null)
 const currentTime = ref(0)
 const duration = ref(0)
@@ -237,15 +227,6 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
 
 <template>
   <Card class="w-[clamp(240px,18vw,320px)] p-4 !overflow-visible">
-    <!-- 紧凑模式管理员按钮（MusicVinyl 不挂载时在此兜底） -->
-    <div v-if="admin.isLoggedIn && isCompact" class="flex items-center gap-0.5 self-end -mt-1 -mr-1 mb-2 justify-end">
-      <Button variant="ghost" size="icon-sm" class="h-6 w-6" aria-label="上传音乐" @click="showUpload = true">
-        <Upload class="h-3 w-3" />
-      </Button>
-      <Button v-if="store.currentSong" variant="ghost" size="icon-sm" class="h-6 w-6 hover:text-destructive" aria-label="删除当前歌曲" @click="onRemove">
-        <Trash2 class="h-3 w-3" />
-      </Button>
-    </div>
     <!-- 歌名（花体）/ 歌手 -->
     <div class="text-center mb-3 min-h-[2.5em] flex flex-col justify-center">
       <p class="font-script text-xl font-semibold text-brand-sky-deep line-clamp-1">
@@ -412,20 +393,19 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
               {{ song.artist }}
             </p>
           </div>
-          <!-- 管理员排序：上移 / 下移 -->
-          <div v-if="admin.isLoggedIn" class="flex flex-col shrink-0 -my-1">
+          <div v-if="admin.isLoggedIn" class="flex shrink-0 flex-col -my-1">
             <button
-              class="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              class="p-0.5 text-muted-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-30"
               :disabled="idx === 0"
-              aria-label="上移"
+              :aria-label="`上移《${song.title}》`"
               @click.stop="moveTrack(idx, -1)"
             >
               <ChevronUp class="h-3.5 w-3.5" />
             </button>
             <button
-              class="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              class="p-0.5 text-muted-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-30"
               :disabled="idx === store.songs.length - 1"
-              aria-label="下移"
+              :aria-label="`下移《${song.title}》`"
               @click.stop="moveTrack(idx, 1)"
             >
               <ChevronDown class="h-3.5 w-3.5" />
@@ -450,7 +430,6 @@ watch(() => store.isPlaying, (p) => { if (p) resumeCtx() })
       @ended="onEnded"
       @error="() => { store.isPlaying = false }"
     />
-    <MusicUploadDialog v-model:open="showUpload" />
   </Card>
 </template>
 

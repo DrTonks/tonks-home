@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Upload } from 'lucide-vue-next'
+import { ImagePlus, Upload } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
 import {
   Dialog,
@@ -21,6 +21,8 @@ const uploadTitle = ref('')
 const uploadArtist = ref('')
 const uploadFile = ref<File | null>(null)
 const uploadLyrics = ref<File | null>(null)
+const uploadCover = ref<File | null>(null)
+const coverError = ref('')
 const isUploading = ref(false)
 
 watch(open, (val) => {
@@ -29,6 +31,8 @@ watch(open, (val) => {
     uploadArtist.value = ''
     uploadFile.value = null
     uploadLyrics.value = null
+    uploadCover.value = null
+    coverError.value = ''
   }
 })
 
@@ -57,11 +61,34 @@ function pickLyrics() {
   input.click()
 }
 
+function pickCover() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp'
+  input.onchange = () => {
+    const file = input.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      coverError.value = '封面图片不能超过 5MB'
+      return
+    }
+    coverError.value = ''
+    uploadCover.value = file
+  }
+  input.click()
+}
+
 async function doUpload() {
   if (!uploadFile.value) return
   isUploading.value = true
   try {
-    await store.upload(uploadFile.value, uploadTitle.value, uploadArtist.value, uploadLyrics.value)
+    await store.upload(
+      uploadFile.value,
+      uploadTitle.value,
+      uploadArtist.value,
+      uploadLyrics.value,
+      uploadCover.value,
+    )
     open.value = false
   } finally {
     isUploading.value = false
@@ -116,6 +143,20 @@ async function doUpload() {
               {{ uploadLyrics ? uploadLyrics.name : '选择 .lrc 文件（不选则为纯音乐）' }}
             </span>
           </button>
+        </div>
+        <div class="space-y-1.5">
+          <label class="text-xs text-muted-foreground">唱片封面（可选 · 最大 5MB）</label>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-md border border-border bg-background/60 px-3 py-2 text-left text-sm transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            @click="pickCover"
+          >
+            <ImagePlus class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span class="truncate" :class="uploadCover ? 'text-foreground' : 'text-muted-foreground'">
+              {{ uploadCover ? uploadCover.name : '选择 JPG / PNG / WebP 图片' }}
+            </span>
+          </button>
+          <p v-if="coverError" class="text-xs text-destructive" role="alert">{{ coverError }}</p>
         </div>
       </div>
       <DialogFooter>

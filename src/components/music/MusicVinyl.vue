@@ -1,70 +1,136 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useMusicStore } from '@/stores/music'
-import { useAdminStore } from '@/stores/admin'
-import { Upload, Trash2 } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import VinylDisc from './VinylDisc.vue'
-import MusicUploadDialog from './MusicUploadDialog.vue'
-import { ref, onMounted } from 'vue'
+import MusicLibraryDialog from './MusicLibraryDialog.vue'
 
 const store = useMusicStore()
-const admin = useAdminStore()
+const showLibrary = ref(false)
+const discSpinning = ref(false)
+let spinDelayTimer: ReturnType<typeof setTimeout> | null = null
 
-const showUpload = ref(false)
+const coverUrl = computed(() =>
+  store.currentSong?.hasCover
+    ? `${store.getCoverUrl(store.currentSong.filename)}?v=${store.currentSong.coverVersion || 0}`
+    : null,
+)
 
 onMounted(() => {
   store.fetchList()
 })
 
-function onRemove() {
-  if (store.currentSong) {
-    store.remove(store.currentSong.filename)
-  }
-}
+watch(
+  () => store.isPlaying,
+  (playing) => {
+    if (spinDelayTimer) {
+      clearTimeout(spinDelayTimer)
+      spinDelayTimer = null
+    }
+    if (!playing) {
+      discSpinning.value = false
+      return
+    }
+    spinDelayTimer = setTimeout(() => {
+      discSpinning.value = true
+      spinDelayTimer = null
+    }, 600)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (spinDelayTimer) clearTimeout(spinDelayTimer)
+})
 </script>
 
 <template>
-  <Card class="w-[clamp(140px,11vw,180px)] p-4 flex flex-col items-center justify-center gap-2">
-    <!-- 管理员按钮（顶部小） -->
-    <div v-if="admin.isLoggedIn" class="flex items-center gap-0.5 self-end -mt-1 -mr-1">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        class="h-6 w-6"
-        aria-label="上传音乐"
-        @click="showUpload = true"
-      >
-        <Upload class="h-3 w-3" />
-      </Button>
-      <Button
-        v-if="store.currentSong"
-        variant="ghost"
-        size="icon-sm"
-        class="h-6 w-6 hover:text-destructive"
-        aria-label="删除当前歌曲"
-        @click="onRemove"
-      >
-        <Trash2 class="h-3 w-3" />
-      </Button>
-    </div>
+  <Card class="flex w-[clamp(156px,12vw,180px)] flex-col items-center justify-center overflow-visible p-2">
+    <button
+      type="button"
+      class="vinyl-player relative h-[128px] w-[140px] cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      aria-label="打开唱片曲库"
+      @click="showLibrary = true"
+    >
+      <VinylDisc class="absolute left-0 top-1" :size="112" :spinning="discSpinning" :cover-url="coverUrl" />
+      <svg class="tonearm" viewBox="0 0 140 128" aria-hidden="true">
+        <circle cx="132" cy="55" r="9" class="tonearm-base" />
+        <circle cx="132" cy="55" r="4.5" class="tonearm-pivot" />
+        <g :class="['tonearm-moving', { playing: store.isPlaying }]">
+          <path d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108" class="tonearm-shadow" />
+          <path d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108" class="tonearm-arm" />
+          <path d="M 102 104 L 111 106 L 109 119 L 99 117 Z" class="tonearm-head" />
+        </g>
+      </svg>
+    </button>
 
-    <!-- 大胶片 + 唱针 -->
-    <div class="relative">
-      <VinylDisc :size="120" :spinning="store.isPlaying" />
-      <!-- 唱针臂：初始水平（0°=flat），播放时逆时针转 -25° 搭上唱片 -->
-      <div
-        class="absolute top-[8%] -right-[15%] w-[55px] h-[2px] origin-right transition-transform duration-500"
-        :class="store.isPlaying ? 'rotate-[-25deg]' : 'rotate-[0deg]'"
-        style="
-          background: linear-gradient(270deg, #999 30%, #ddd 70%, #999);
-          border-radius: 2px;
-          box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
-        "
-      >
-        <div class="absolute left-0 -top-[1.5px] w-[5px] h-[5px] rounded-full bg-red-500/80 shadow-sm" />
-      </div>
-    </div>
-    <MusicUploadDialog v-model:open="showUpload" />
+    <MusicLibraryDialog v-model:open="showLibrary" />
   </Card>
 </template>
+
+<style scoped>
+.vinyl-player {
+  isolation: isolate;
+}
+
+.tonearm {
+  position: absolute;
+  z-index: 2;
+  left: -3px;
+  top: 6px;
+  width: 140px;
+  height: 128px;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(1px 2px 2px rgb(0 0 0 / 0.28));
+}
+
+.tonearm-base {
+  fill: hsl(var(--muted));
+  stroke: rgb(80 80 86 / 0.38);
+  stroke-width: 1.5;
+}
+
+.tonearm-pivot {
+  fill: #f7f6f2;
+  stroke: #d6d3cf;
+  stroke-width: 2.5;
+}
+
+.tonearm-moving {
+  transform-box: view-box;
+  transform-origin: 132px 55px;
+  transform: rotate(-8deg);
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tonearm-moving.playing {
+  transform: rotate(22deg);
+}
+
+.tonearm-shadow,
+.tonearm-arm {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.tonearm-shadow {
+  stroke: rgb(0 0 0 / 0.18);
+  stroke-width: 7;
+}
+
+.tonearm-arm {
+  stroke: #f7f6f2;
+  stroke-width: 5;
+}
+
+.tonearm-head {
+  fill: #f4f2ee;
+  stroke: #d1ceca;
+  stroke-width: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tonearm-moving { transition: none; }
+}
+</style>
