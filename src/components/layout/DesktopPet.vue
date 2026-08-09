@@ -9,7 +9,14 @@ import { useSpeechBubble } from './pet/useSpeechBubble'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
-import { RefreshRight, InfoFilled, Notebook, Setting, Sunny } from '@element-plus/icons-vue'
+import {
+  RefreshRight,
+  InfoFilled,
+  Notebook,
+  Setting,
+  Sunny,
+  MessageBox,
+} from '@element-plus/icons-vue'
 import { usePetEnvStore } from '@/stores/petEnv'
 import { useAdminStore } from '@/stores/admin'
 import dialogue from '@/data/pet-dialogue.json'
@@ -18,8 +25,11 @@ import QuestionBubble from './pet/QuestionBubble.vue'
 import CelebrationEffect from './pet/CelebrationEffect.vue'
 import MemoryNotebook from './pet/MemoryNotebook.vue'
 import DevQuestionPanel from './pet/DevQuestionPanel.vue'
+import RecommendationManager from './pet/RecommendationManager.vue'
 import { usePetMemory } from '@/composables/usePetMemory'
 import { usePetQuestions, type PetQuestion } from '@/composables/usePetQuestions'
+import { usePetQuestionResponder } from '@/composables/usePetQuestionResponder'
+import { usePetRecommendation } from '@/composables/usePetRecommendation'
 import { useSpecialDate } from '@/composables/useSpecialDate'
 import { useWeatherVisitor, type WeatherIcon } from '@/composables/useWeatherVisitor'
 import WeatherBubble from './pet/WeatherBubble.vue'
@@ -40,9 +50,11 @@ onMounted(() => {
   img.src = TURN_FRAME_PATH
   img.onload = () => {
     const c = document.createElement('canvas')
-    c.width = img.naturalWidth; c.height = img.naturalHeight
+    c.width = img.naturalWidth
+    c.height = img.naturalHeight
     const ctx = c.getContext('2d')!
-    ctx.translate(c.width, 0); ctx.scale(-1, 1)
+    ctx.translate(c.width, 0)
+    ctx.scale(-1, 1)
     ctx.drawImage(img, 0, 0)
     mirroredTurnSrc.value = c.toDataURL()
     mirrorReady.value = true
@@ -79,6 +91,10 @@ const memory = usePetMemory()
 const questions = usePetQuestions()
 const specialDate = useSpecialDate()
 const weatherVisitor = useWeatherVisitor()
+const questionResponder = usePetQuestionResponder('static', dialogue, bubble, () => ({
+  x: state.pos.value.x + W / 2,
+  y: state.pos.value.y + H / 2,
+}))
 
 // 唱歌时的歌词/音符模式（按播放进度驱动同一个气泡）
 usePetLyrics(state, bubble)
@@ -108,7 +124,12 @@ function canDailyTalk(): boolean {
 
 // 能否说"情绪"台词——含威胁态（专属情绪句），只挡唱歌/暴走/歌词/提问
 function canEmotionTalk(): boolean {
-  return !state.singingState.value && !state.rageActive.value && !bubble.isMusicMode() && !questions.isActive.value
+  return (
+    !state.singingState.value &&
+    !state.rageActive.value &&
+    !bubble.isMusicMode() &&
+    !questions.isActive.value
+  )
 }
 
 // 进页面按时段问候
@@ -168,7 +189,9 @@ function handleClick(e: MouseEvent) {
     return
   }
   state.clickScale.value = true
-  setTimeout(() => { state.clickScale.value = false }, 300)
+  setTimeout(() => {
+    state.clickScale.value = false
+  }, 300)
   if (state.singingState.value) {
     singing.spawnSingingNotes(5)
     return
@@ -182,7 +205,10 @@ let provokeTimer: ReturnType<typeof setTimeout> | null = null
 function provoke() {
   if (state.rageActive.value) return
   if (state.singingState.value) singing.stopAllSinging()
-  if (state.mood.value === 'sleep') { core.stopSleepZs(); state.sleepZs.value = [] }
+  if (state.mood.value === 'sleep') {
+    core.stopSleepZs()
+    state.sleepZs.value = []
+  }
   state.mood.value = 'threat'
   state.showFrame.value = FRAMES.threat
   if (provokeTimer) clearTimeout(provokeTimer)
@@ -190,11 +216,15 @@ function provoke() {
     if (state.mood.value === 'threat' && !state.rageActive.value) core.startRage()
   }, 1000)
 }
-defineExpose({ provoke, getCenter: () => ({ x: state.pos.value.x + W / 2, y: state.pos.value.y + H / 2 }) })
+defineExpose({
+  provoke,
+  getCenter: () => ({ x: state.pos.value.x + W / 2, y: state.pos.value.y + H / 2 }),
+})
 
 // ===== 右键菜单 =====
 const showNotebook = ref(false)
 const showDevPanel = ref(false)
+const showRecommendations = ref(false)
 // 首次访问欢迎引导
 const showWelcomeBubble = ref(false)
 const showWelcomeDialog = ref(false)
@@ -218,11 +248,40 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
       disabled: !petEnv.canSwitch(),
     })
   }
-  items.push({ label: '关于我？', icon: InfoFilled, action: () => playIntro(), disabled: !!state.singingState.value })
-  items.push({ label: '今日天气', icon: Sunny, action: () => showWeatherBubble(), disabled: !!state.singingState.value })
-  items.push({ label: '查看记忆', icon: Notebook, action: () => { showNotebook.value = true } })
+  items.push({
+    label: '关于我？',
+    icon: InfoFilled,
+    action: () => playIntro(),
+    disabled: !!state.singingState.value,
+  })
+  items.push({
+    label: '今日天气',
+    icon: Sunny,
+    action: () => showWeatherBubble(),
+    disabled: !!state.singingState.value,
+  })
+  items.push({
+    label: '查看记忆',
+    icon: Notebook,
+    action: () => {
+      showNotebook.value = true
+    },
+  })
   if (adminStore.isLoggedIn) {
-    items.push({ label: '调试提问', icon: Setting, action: () => { showDevPanel.value = true } })
+    items.push({
+      label: '推荐收件箱',
+      icon: MessageBox,
+      action: () => {
+        showRecommendations.value = true
+      },
+    })
+    items.push({
+      label: '调试提问',
+      icon: Setting,
+      action: () => {
+        showDevPanel.value = true
+      },
+    })
   }
   return items
 })
@@ -259,7 +318,10 @@ function playIntro() {
   introPlaying = true
   let i = 0
   function next() {
-    if (i >= sentences.length) { introPlaying = false; return }
+    if (i >= sentences.length) {
+      introPlaying = false
+      return
+    }
     bubble.say(sentences[i], true)
     i++
     const s = sentences[i - 1]
@@ -271,47 +333,51 @@ function playIntro() {
 }
 
 // ===== 提问事件处理 =====
-function onQuestionSubmit(answer: string) {
+function onQuestionSubmit(answer: string, recommended = false) {
   const q = questions.currentQuestion.value
   if (q) {
     wakeUp() // 任何回答都是主动交互，唤醒桌宠
-    questions.submitAnswer(q, answer)
+    const submitted = questions.submitAnswer(q, answer)
     questions.dismiss()
     petEnv.isQuestionActive = false
-    // 心情问题 → 触发对应回复（force 跳过所有守卫）
-    if (q.id === 'q_mood') {
-      const replies = (dialogue as Record<string, unknown>).mood_replies as Record<string, string[]> | undefined
-      const moodLines = replies?.[answer]
-      if (moodLines?.length) {
-        setTimeout(() => bubble.say(pick(moodLines), true), 400)
-      }
-    }
+    void questionResponder.respond(q, submitted, recommended ? '谢谢，已经收到推荐。' : '')
   } else {
     questions.dismiss()
     petEnv.isQuestionActive = false
   }
 }
 
+const recommendation = usePetRecommendation(
+  () => questions.currentQuestion.value?.id,
+  () => memory.getValue('user_name'),
+  () => weatherVisitor.getLocationData()?.city || null,
+  onQuestionSubmit,
+)
+
 function onQuestionReject() {
   const q = questions.currentQuestion.value
   if (q) {
-    // 已答问题拒绝时只关闭，不加入拒绝列表
-    if (!q.key || !memory.hasMemory(q.key)) {
-      questions.rejectCurrent(q)
-    }
+    questions.rejectCurrent(q)
   }
+  questions.dismiss()
+  petEnv.isQuestionActive = false
+}
+
+function onQuestionClose() {
+  const q = questions.currentQuestion.value
+  if (q?.replyMode === 'action') questionResponder.dismissAction(q)
   questions.dismiss()
   petEnv.isQuestionActive = false
 }
 
 // ===== 调试面板回调 =====
 function onDevTriggerQuestion(qId: string) {
-  const q = allQs.find(q => q.id === qId)
+  const q = allQs.find((q) => q.id === qId)
   if (!q || questions.isActive.value) return
-  if (q.key && memory.hasMemory(q.key)) return
+  if (q.kind === 'memory' && q.key && memory.hasMemory(q.key)) return
   if (memory.isRejected(qId)) memory.unrejectQuestion(qId)
   bubble.hide()
-  questions.currentQuestion.value = q
+  questions.currentQuestion.value = questions.hydrateQuestion(q)
   questions.isActive.value = true
   petEnv.isQuestionActive = true
 }
@@ -324,7 +390,16 @@ function onDevTriggerMemory() {
 function onDevTriggerWeather(icon: string, desc: string, temp: number, tMin: number, tMax: number) {
   const city = weatherVisitor.getLocationData()?.city || '模拟城市'
   // 模拟心知天气码（用于 weatherCode 字段，图标由 icon 参数直接指定）
-  const mockCode: Record<string, number> = { sunny: 0, 'partly-cloudy': 4, cloudy: 3, rain: 14, shower: 10, snow: 21, thunder: 11, fog: 30 }
+  const mockCode: Record<string, number> = {
+    sunny: 0,
+    'partly-cloudy': 4,
+    cloudy: 3,
+    rain: 14,
+    shower: 10,
+    snow: 21,
+    thunder: 11,
+    fog: 30,
+  }
   const wCode = mockCode[icon] ?? 2
   weatherBubbleData.value = {
     icon: icon as WeatherIcon,
@@ -382,17 +457,28 @@ function onWeatherBubbleClose() {
 }
 
 // 其他气泡出现时自动关闭天气气泡（防止重叠覆盖）
-watch(() => bubble.visible.value, (v) => {
-  if (v) weatherBubbleVisible.value = false
-})
+watch(
+  () => bubble.visible.value,
+  (v) => {
+    if (v) weatherBubbleVisible.value = false
+  },
+)
 
 // 同步暴怒状态到 petEnv（阻挡切换）
-watch(() => state.rageActive.value, (v) => {
-  petEnv.isRageActive = v
-})
+watch(
+  () => state.rageActive.value,
+  (v) => {
+    petEnv.isRageActive = v
+  },
+)
 
 onMounted(async () => {
   turn.startMouseSystem()
+
+  if (import.meta.env.DEV) {
+    const debugQuestionId = new URLSearchParams(window.location.search).get('pet_question')
+    if (debugQuestionId) setTimeout(() => onDevTriggerQuestion(debugQuestionId), 1_000)
+  }
 
   // 首次访问 / 版本更新 → 显示欢迎气泡
   const isFirstVisit = localStorage.getItem(WELCOME_LS_KEY) !== WELCOME_VERSION
@@ -411,7 +497,8 @@ onMounted(async () => {
       if (wData) {
         weatherBubbleData.value = wData
         weatherCareText.value = weatherVisitor.pickWeatherCareLine(
-          (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+          (dialogue as Record<string, unknown>).weather_talk as
+            Record<string, string[]> | undefined,
         )
         weatherBubbleVisible.value = true
         weatherVisitor.markDailyWeatherShown()
@@ -429,7 +516,7 @@ onMounted(async () => {
       const locPromise = weatherVisitor.ensureLoaded()
       const locationChanged = await Promise.race([
         locPromise.then(() => weatherVisitor.hasLocationChanged()),
-        new Promise<boolean>(r => setTimeout(() => r(false), 1400)),
+        new Promise<boolean>((r) => setTimeout(() => r(false), 1400)),
       ])
 
       greetTimer = setTimeout(() => {
@@ -449,11 +536,7 @@ onMounted(async () => {
 
   // 空闲随机冒泡（仅真正 idle 时）
   idleTalkTimer = setInterval(() => {
-    if (
-      state.mood.value === 'idle' &&
-      canDailyTalk() &&
-      !bubble.visible.value
-    ) {
+    if (state.mood.value === 'idle' && canDailyTalk() && !bubble.visible.value) {
       // 30% 概率尝试触发记忆句
       if (Math.random() < 0.3) {
         const memLine = memory.pickMemoryLine(dialogue.memory)
@@ -465,7 +548,8 @@ onMounted(async () => {
       // 30% 概率尝试触发天气闲聊句（1.2 新增）
       if (Math.random() < 0.3) {
         const weatherLine = weatherVisitor.pickWeatherLine(
-          (dialogue as Record<string, unknown>).weather_talk as Record<string, string[]> | undefined,
+          (dialogue as Record<string, unknown>).weather_talk as
+            Record<string, string[]> | undefined,
         )
         if (weatherLine) {
           bubble.say(weatherLine)
@@ -509,7 +593,12 @@ onBeforeUnmount(() => {
   <div
     class="fixed z-50 select-none cursor-grab active:cursor-grabbing"
     :class="{ 'pet-collapsing': petEnv.isCollapsing }"
-    :style="{ left: `${state.pos.value.x}px`, top: `${state.pos.value.y}px`, width: `${W}px`, height: `${H}px` }"
+    :style="{
+      left: `${state.pos.value.x}px`,
+      top: `${state.pos.value.y}px`,
+      width: `${W}px`,
+      height: `${H}px`,
+    }"
     @pointerdown="core.onPointerDown"
     @pointermove="core.onPointerMove"
     @pointerup="core.onPointerUp"
@@ -539,11 +628,16 @@ onBeforeUnmount(() => {
           :choices="questions.currentQuestion.value?.choices ?? []"
           :placeholder="questions.currentQuestion.value?.placeholder ?? ''"
           :icon-name="questions.currentQuestion.value?.icon ?? 'User'"
+          :max-length="questions.currentQuestion.value?.maxLength ?? 100"
+          :recommendation-category="recommendation.category.value"
+          :recommendation-state="recommendation.state.value"
+          :permanent-reject="questions.currentQuestion.value?.allowPermanentReject ?? true"
           placement="top"
           :vertical-offset="60"
           @submit="onQuestionSubmit"
+          @recommend="recommendation.recommend"
           @reject="onQuestionReject"
-          @close="questions.dismiss(); petEnv.isQuestionActive = false"
+          @close="onQuestionClose"
         />
 
         <!-- 首次访问欢迎气泡（云朵形态，点击后弹出弹窗而非输入框） -->
@@ -594,18 +688,33 @@ onBeforeUnmount(() => {
           :key="z.id"
           class="sleep-z absolute pointer-events-none z-50 select-none"
           :style="{ left: `${z.x}px`, top: `${z.y}px`, animationDelay: `${z.delay}ms` }"
-        >{{ z.text }}</span>
+        >
+          {{ z.text }}
+        </span>
         <!-- 唱歌音符 -->
         <span
           v-for="n in state.singingNotes.value"
           :key="n.id"
           class="singing-note absolute pointer-events-none z-50 select-none"
-          :style="{ left: `${n.x}px`, top: `${n.y}px`, '--hue': `${n.hue}`, animationDelay: `${n.delay}ms` }"
-        >{{ n.symbol }}</span>
+          :style="{
+            left: `${n.x}px`,
+            top: `${n.y}px`,
+            '--hue': `${n.hue}`,
+            animationDelay: `${n.delay}ms`,
+          }"
+        >
+          {{ n.symbol }}
+        </span>
         <!-- 桌宠本体 -->
         <span :class="state.clickScale.value ? 'click-bounce' : ''" class="inline-block">
           <img
-            :src="state.turnDirection.value === 'left' && mirrorReady && state.showFrame.value === TURN_FRAME_PATH ? mirroredTurnSrc : state.showFrame.value"
+            :src="
+              state.turnDirection.value === 'left' &&
+              mirrorReady &&
+              state.showFrame.value === TURN_FRAME_PATH
+                ? mirroredTurnSrc
+                : state.showFrame.value
+            "
             alt="桌宠"
             class="pointer-events-none select-none pet-breathe"
             :style="{ width: `${W}px`, height: `${H}px`, objectFit: 'contain' }"
@@ -631,16 +740,10 @@ onBeforeUnmount(() => {
     />
 
     <!-- 记忆笔记窗口 -->
-    <MemoryNotebook
-      :visible="showNotebook"
-      @close="showNotebook = false"
-    />
+    <MemoryNotebook :visible="showNotebook" @close="showNotebook = false" />
 
     <!-- 首次访问欢迎弹窗 -->
-    <WelcomeDialog
-      :visible="showWelcomeDialog"
-      @confirm="onWelcomeConfirm"
-    />
+    <WelcomeDialog :visible="showWelcomeDialog" @confirm="onWelcomeConfirm" />
 
     <!-- 调试提问面板（仅管理员） -->
     <DevQuestionPanel
@@ -653,6 +756,8 @@ onBeforeUnmount(() => {
       @trigger-weather="onDevTriggerWeather"
       @close="showDevPanel = false"
     />
+
+    <RecommendationManager :visible="showRecommendations" @close="showRecommendations = false" />
   </div>
 </template>
 
@@ -662,29 +767,48 @@ onBeforeUnmount(() => {
   transform-origin: bottom center;
 }
 @keyframes pet-breathe {
-  0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(1.03); }
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.03);
+  }
 }
 
 .click-bounce {
   animation: click-bounce 0.3s ease-out;
 }
 @keyframes click-bounce {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(1.12); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .pet-particle {
   animation: pet-particle 0.8s ease-out forwards;
   animation-delay: var(--delay);
   background: #fff !important;
-  box-shadow: 0 0 6px 2px rgba(255,255,255,0.7);
+  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.7);
 }
 @keyframes pet-particle {
-  0%   { opacity: 1; transform: scale(1.3); }
-  40%  { opacity: 0.8; }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+  0% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+  40% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.4);
+  }
 }
 
 .sleep-z {
@@ -698,36 +822,73 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 @keyframes sleep-z-float {
-  0%   { opacity: 0; transform: translateY(0) scale(0.6); }
-  15%  { opacity: 0.9; transform: translateY(-5px) scale(1); }
-  70%  { opacity: 0.5; transform: translateY(-50px) translateX(8px) scale(1.1); }
-  100% { opacity: 0; transform: translateY(-80px) translateX(15px) scale(0.7); }
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  15% {
+    opacity: 0.9;
+    transform: translateY(-5px) scale(1);
+  }
+  70% {
+    opacity: 0.5;
+    transform: translateY(-50px) translateX(8px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) translateX(15px) scale(0.7);
+  }
 }
 
 .angry-mark {
-  top: -12px; right: 2px; width: 28px; height: 28px;
+  top: -12px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   animation: angry-pop 0.3s ease-out;
 }
 @keyframes angry-pop {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.4); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .singing-note {
   font-size: 18px;
   color: hsl(var(--hue, 50), 80%, 65%);
-  text-shadow: 0 0 10px hsl(var(--hue, 50), 90%, 60%),
-               0 0 20px hsl(var(--hue, 50), 80%, 55%);
+  text-shadow:
+    0 0 10px hsl(var(--hue, 50), 90%, 60%),
+    0 0 20px hsl(var(--hue, 50), 80%, 55%);
   animation: note-float 2.5s ease-out forwards;
   animation-delay: var(--delay, 0ms);
   opacity: 0;
 }
 @keyframes note-float {
-  0%   { opacity: 0; transform: translateY(0) scale(0.5) rotate(-10deg); }
-  20%  { opacity: 1; transform: translateY(-10px) scale(1.2) rotate(5deg); }
-  60%  { opacity: 0.7; transform: translateY(-45px) translateX(10px) scale(1) rotate(15deg); }
-  100% { opacity: 0; transform: translateY(-75px) translateX(20px) scale(0.5) rotate(30deg); }
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5) rotate(-10deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.2) rotate(5deg);
+  }
+  60% {
+    opacity: 0.7;
+    transform: translateY(-45px) translateX(10px) scale(1) rotate(15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-75px) translateX(20px) scale(0.5) rotate(30deg);
+  }
 }
 </style>

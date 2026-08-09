@@ -9,10 +9,16 @@ import { ref, watch, nextTick, computed } from 'vue'
 import { Edit, Delete, Close } from '@element-plus/icons-vue'
 import { usePetMemory } from '@/composables/usePetMemory'
 import questionsData from '@/data/pet-questions.json'
+import { getPetMemoryLabel } from '@/data/petMemoryLabels'
 
 interface PetQuestion {
-  id: string; key: string | null; personas: { static: string; live2d: string }
-  inputType: string; choices: string[] | null; placeholder: string; icon: string
+  id: string
+  key: string | null
+  personas: { static: string; live2d: string }
+  inputType: string
+  choices: string[] | null
+  placeholder: string
+  icon: string
 }
 const allQuestions = questionsData as PetQuestion[]
 
@@ -53,26 +59,15 @@ const entries = computed(() => {
 
 // ===== 已拒绝列表（含问题文案） =====
 const rejectedItems = computed(() => {
-  return memory.getRejectedIds()
-    .map(id => {
-      const q = allQuestions.find(q => q.id === id)
-      return {
-        id,
-        questionText: q?.personas?.static ?? id,
-        key: q?.key ?? null,
-      }
-    })
+  return memory.getRejectedIds().map((id) => {
+    const q = allQuestions.find((q) => q.id === id)
+    return {
+      id,
+      questionText: q?.personas?.static ?? id,
+      key: q?.key ?? null,
+    }
+  })
 })
-
-function keyLabel(key: string): string {
-  const labels: Record<string, string> = {
-    user_name: '称呼',
-    birthday: '生日',
-    favorite_color: '喜欢的颜色',
-    favorite_food: '喜欢的食物',
-  }
-  return labels[key] || key
-}
 
 // ===== 记忆操作 =====
 
@@ -109,7 +104,7 @@ function startFill(qId: string) {
 }
 
 function confirmFill(qId: string) {
-  const q = allQuestions.find(q => q.id === qId)
+  const q = allQuestions.find((q) => q.id === qId)
   if (!q?.key || !fillValue.value.trim()) return
   memory.unrejectQuestion(qId)
   memory.setValue(q.key, fillValue.value.trim(), qId)
@@ -123,12 +118,15 @@ function cancelFill() {
 }
 
 // visible 变化时重置
-watch(() => props.visible, (v) => {
-  if (!v) {
-    editingKey.value = null
-    fillQuestionId.value = null
-  }
-})
+watch(
+  () => props.visible,
+  (v) => {
+    if (!v) {
+      editingKey.value = null
+      fillQuestionId.value = null
+    }
+  },
+)
 
 function onKeydown(e: KeyboardEvent, key?: string) {
   if (e.key === 'Enter' && key) saveEdit(key)
@@ -147,11 +145,7 @@ function onKeydown(e: KeyboardEvent, key?: string) {
         <div class="notebook-card" tabindex="-1" @keydown="onKeydown">
           <!-- ===== 左侧装订线 ===== -->
           <div class="binding-strip">
-            <span
-              v-for="i in 6"
-              :key="i"
-              class="binding-hole"
-            />
+            <span v-for="i in 6" :key="i" class="binding-hole" />
             <span class="binding-thread" />
           </div>
 
@@ -175,17 +169,17 @@ function onKeydown(e: KeyboardEvent, key?: string) {
               <!-- ===== 已拒绝分区 ===== -->
               <template v-if="rejectedItems.length">
                 <div class="notebook-section-label">还不知道的事情qwq</div>
-                <div
-                  v-for="item in rejectedItems"
-                  :key="item.id"
-                  class="memory-row rejected-row"
-                >
+                <div v-for="item in rejectedItems" :key="item.id" class="memory-row rejected-row">
                   <span class="memory-label rejected-label">{{ item.questionText }}</span>
 
                   <!-- 填写态 -->
                   <template v-if="fillQuestionId === item.id">
                     <input
-                      :ref="(el) => { fillInputEl = el as HTMLInputElement | null }"
+                      :ref="
+                        (el) => {
+                          fillInputEl = el as HTMLInputElement | null
+                        }
+                      "
                       v-model="fillValue"
                       class="memory-edit-input"
                       placeholder="输入答案..."
@@ -193,16 +187,27 @@ function onKeydown(e: KeyboardEvent, key?: string) {
                       @keydown.escape="cancelFill"
                     />
                     <span class="memory-actions">
-                      <button class="memory-action-btn save-hint" @click.stop="confirmFill(item.id)">✓</button>
-                      <button class="memory-action-btn delete-btn" @click.stop="cancelFill">✕</button>
+                      <button
+                        class="memory-action-btn save-hint"
+                        @click.stop="confirmFill(item.id)"
+                      >
+                        ✓
+                      </button>
+                      <button class="memory-action-btn delete-btn" @click.stop="cancelFill">
+                        ✕
+                      </button>
                     </span>
                   </template>
 
                   <!-- 查看态 -->
                   <template v-else>
                     <span class="memory-value muted-value">—</span>
-                    <span class="memory-actions" style="opacity:1">
-                      <button class="memory-action-btn fill-btn" title="填写" @click.stop="startFill(item.id)">
+                    <span class="memory-actions" style="opacity: 1">
+                      <button
+                        class="memory-action-btn fill-btn"
+                        title="填写"
+                        @click.stop="startFill(item.id)"
+                      >
                         <Edit />
                       </button>
                     </span>
@@ -217,7 +222,7 @@ function onKeydown(e: KeyboardEvent, key?: string) {
                 class="memory-row"
                 :class="{ editing: editingKey === entry.key }"
               >
-                <span class="memory-label">{{ keyLabel(entry.key) }}</span>
+                <span class="memory-label">{{ getPetMemoryLabel(entry.key) }}</span>
 
                 <!-- 查看态 -->
                 <template v-if="editingKey !== entry.key">
@@ -243,18 +248,23 @@ function onKeydown(e: KeyboardEvent, key?: string) {
                 <!-- 编辑态 -->
                 <template v-else>
                   <input
-                    :ref="(el) => { editInputEl = el as HTMLInputElement | null }"
+                    :ref="
+                      (el) => {
+                        editInputEl = el as HTMLInputElement | null
+                      }
+                    "
                     v-model="editValue"
                     class="memory-edit-input"
                     @keydown="onKeydown($event, entry.key)"
                     @blur="saveEdit(entry.key)"
                   />
                   <span class="memory-actions">
-                    <button class="memory-action-btn save-hint" @click.stop="saveEdit(entry.key)">✓</button>
+                    <button class="memory-action-btn save-hint" @click.stop="saveEdit(entry.key)">
+                      ✓
+                    </button>
                   </span>
                 </template>
               </div>
-
             </div>
           </div>
         </div>
@@ -286,7 +296,7 @@ function onKeydown(e: KeyboardEvent, key?: string) {
   border-radius: 6px 14px 14px 6px;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.18),
-    0 2px 8px rgba(0, 0, 0, 0.10);
+    0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
@@ -295,12 +305,7 @@ function onKeydown(e: KeyboardEvent, key?: string) {
   position: relative;
   width: 26px;
   flex-shrink: 0;
-  background: linear-gradient(
-    to right,
-    hsl(32 20% 72%),
-    hsl(34 22% 80%) 40%,
-    hsl(32 20% 76%)
-  );
+  background: linear-gradient(to right, hsl(32 20% 72%), hsl(34 22% 80%) 40%, hsl(32 20% 76%));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -343,14 +348,13 @@ function onKeydown(e: KeyboardEvent, key?: string) {
   min-width: 0;
   /* 纸张质感：奶油色底 + 淡横线 */
   background-color: #faf6f0;
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0px,
-      transparent 27px,
-      hsl(35 20% 86%) 27px,
-      hsl(35 20% 86%) 28px
-    );
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 27px,
+    hsl(35 20% 86%) 27px,
+    hsl(35 20% 86%) 28px
+  );
 }
 
 /* ===== 标题栏 ===== */
@@ -553,7 +557,9 @@ function onKeydown(e: KeyboardEvent, key?: string) {
 }
 
 .notebook-enter-active .notebook-card {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease-out;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.25s ease-out;
 }
 
 .notebook-leave-active {
@@ -561,7 +567,9 @@ function onKeydown(e: KeyboardEvent, key?: string) {
 }
 
 .notebook-leave-active .notebook-card {
-  transition: transform 0.2s ease-in, opacity 0.18s ease-in;
+  transition:
+    transform 0.2s ease-in,
+    opacity 0.18s ease-in;
 }
 
 .notebook-enter-from,
@@ -585,12 +593,7 @@ function onKeydown(e: KeyboardEvent, key?: string) {
 }
 
 :global(html.dark) .binding-strip {
-  background: linear-gradient(
-    to right,
-    hsl(30 10% 28%),
-    hsl(30 12% 34%) 40%,
-    hsl(30 10% 30%)
-  );
+  background: linear-gradient(to right, hsl(30 10% 28%), hsl(30 12% 34%) 40%, hsl(30 10% 30%));
 }
 
 :global(html.dark) .binding-hole {
@@ -610,14 +613,13 @@ function onKeydown(e: KeyboardEvent, key?: string) {
 
 :global(html.dark) .notebook-body {
   background-color: hsl(30 10% 14%);
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0px,
-      transparent 27px,
-      hsl(30 8% 20%) 27px,
-      hsl(30 8% 20%) 28px
-    );
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 27px,
+    hsl(30 8% 20%) 27px,
+    hsl(30 8% 20%) 28px
+  );
 }
 
 :global(html.dark) .notebook-header {
@@ -688,5 +690,4 @@ function onKeydown(e: KeyboardEvent, key?: string) {
   background: hsl(140 20% 20%);
   color: hsl(140 40% 55%);
 }
-
 </style>

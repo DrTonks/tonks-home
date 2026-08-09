@@ -2,6 +2,11 @@
   {
     "id": "q_name",
     "key": "user_name",
+    "kind": "memory",
+    "replyMode": "fixed",
+    "fallbackKey": "name_saved",
+    "schedule": { "mode": "once" },
+    "allowPermanentReject": true,
     "personas": {
       "static": "初次见面，请问怎么称呼？",
       "live2d": "老板怎么称呼？"
@@ -16,6 +21,11 @@
   {
     "id": "q_birthday",
     "key": "birthday",
+    "kind": "memory",
+    "replyMode": "fixed",
+    "fallbackKey": "birthday_saved",
+    "schedule": { "mode": "once" },
+    "allowPermanentReject": true,
     "personas": {
       "static": "我不会忘记你的生日，你也不准忘记我。",
       "live2d": "你的生日是什么时候呀？我会给老板庆祝的！"
@@ -30,19 +40,30 @@
   {
     "id": "q_color",
     "key": "favorite_color",
+    "kind": "memory",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "favorite_color",
+    "schedule": { "mode": "once" },
+    "allowPermanentReject": true,
     "personas": {
       "static": "你偏好什么颜色？",
-      "live2d": "你喜欢什么颜色呀~？"
+      "live2d": "你喜欢什么颜色呀~"
     },
     "inputType": "choice",
-    "choices": ["蓝色", "红色", "绿色", "紫色", "黑色", "白色", "...？"],
-    "placeholder": "选一个吧~",
+    "choices": ["蓝色", "红色", "绿色", "紫色", "黑色", "白色", "黄色"],
+    "placeholder": "也可以自己输入...",
     "required": false,
+    "maxLength": 50,
     "icon": "Brush"
   },
   {
     "id": "q_food",
     "key": "favorite_food",
+    "kind": "memory",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "favorite_food",
+    "schedule": { "mode": "once" },
+    "allowPermanentReject": true,
     "personas": {
       "static": "你喜欢吃什么？",
       "live2d": "你最喜欢吃什么呀？"
@@ -56,9 +77,14 @@
   },
   {
     "id": "q_mood",
-    "key": null,
+    "key": "latest_mood",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "mood",
+    "schedule": { "mode": "daily", "limit": 2 },
+    "allowPermanentReject": false,
     "personas": {
-      "static": "今天心情如何？",
+      "static": "心情如何？",
       "live2d": "嘿~今天心情怎么样呀？"
     },
     "inputType": "choice",
@@ -66,5 +92,158 @@
     "placeholder": "",
     "required": false,
     "icon": "Sunny"
+  },
+  {
+    "id": "q_recent_music",
+    "key": "recent_song",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "recent_music",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "最近在听什么歌？",
+      "live2d": "交出你的歌单！最近在听什么呀？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入歌名...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "Headset"
+  },
+  {
+    "id": "q_recent_game",
+    "key": "recent_game",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "recent_game",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "最近有在玩什么游戏吗？",
+      "live2d": "最近又沉迷什么游戏啦？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入游戏名...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "Trophy"
+  },
+  {
+    "id": "q_recent_food",
+    "key": "recent_food",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "recent_food",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "有没有什么美食推荐？",
+      "live2d": "最近吃到什么好吃的啦？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入最近吃到的美食...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "Dish"
+  },
+  {
+    "id": "q_recent_book",
+    "key": "recent_book",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "recent_book",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "最近有在读什么新书吗？",
+      "live2d": "最近在看什么书呀？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入书名...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "Reading"
+  },
+  {
+    "id": "q_recent_anime",
+    "key": "recent_anime",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "recent_anime",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "最近有什么番剧推荐吗？我还没怎么看过。",
+      "live2d": "老板最近在追什么番吗？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "输入番剧名称...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "VideoPlay"
+  },
+  {
+    "id": "q_city_life",
+    "key": "city_life",
+    "kind": "recurring",
+    "replyMode": "ai_with_fallback",
+    "fallbackKey": "city_life",
+    "condition": "has_city",
+    "schedule": { "mode": "weekly", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "最近在{{city}}的生活怎么样？",
+      "live2d": "老板最近在{{city}}过得怎么样呀？"
+    },
+    "inputType": "text",
+    "choices": null,
+    "placeholder": "写下最近的生活...",
+    "required": false,
+    "maxLength": 100,
+    "icon": "Location"
+  },
+  {
+    "id": "q_theme_suggestion",
+    "key": null,
+    "kind": "action",
+    "replyMode": "action",
+    "action": "toggle_theme",
+    "condition": "theme_unmodified",
+    "schedule": { "mode": "once" },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "现在会不会有点{{theme_brightness}}，需要我替你调整吗？",
+      "live2d": "老板，现在会不会有点{{theme_brightness}}呀？需要我帮忙换一下吗？"
+    },
+    "inputType": "confirm",
+    "choices": null,
+    "placeholder": "",
+    "required": false,
+    "icon": "MoonNight"
+  },
+  {
+    "id": "q_play_music",
+    "key": null,
+    "kind": "action",
+    "replyMode": "action",
+    "action": "play_music",
+    "condition": "music_available",
+    "schedule": { "mode": "daily", "limit": 1 },
+    "allowPermanentReject": false,
+    "personas": {
+      "static": "想听首歌吗？",
+      "live2d": "老板，想不想听首歌？我也准备好开唱啦！"
+    },
+    "inputType": "confirm",
+    "choices": null,
+    "placeholder": "",
+    "required": false,
+    "icon": "Headset"
   }
 ]

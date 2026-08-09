@@ -7,6 +7,12 @@
  *   pet_last_question_at   → ISO timestamp string
  */
 import { ref, type Ref } from 'vue'
+import {
+  canShowForSchedule,
+  recordShown,
+  type QuestionActivity,
+  type QuestionSchedule,
+} from '@/lib/petQuestionSchedule'
 
 export interface PetMemoryEntry {
   value: string
@@ -20,6 +26,13 @@ const LS_MEMORIES = 'pet_memories'
 const LS_REJECTED = 'pet_rejected_questions'
 const LS_LAST_QUESTION = 'pet_last_question_at'
 const LS_LOCATION = 'pet_location'
+const LS_QUESTION_ACTIVITY = 'pet_question_activity_v2'
+const LS_ACTION_OUTCOMES = 'pet_action_outcomes'
+
+export const PET_GLOBAL_QUESTION_COOLDOWN_MINUTES = 5
+
+export type PetActionOutcome = 'accepted' | 'rejected'
+export type PetActionOutcomes = Record<string, PetActionOutcome>
 
 /** 位置数据结构（与 useWeatherVisitor.LocationData 保持一致） */
 export interface StoredLocation {
@@ -35,6 +48,8 @@ export interface StoredLocation {
 let _memories: Ref<PetMemories> | null = null
 let _rejected: Ref<Set<string>> | null = null
 let _lastQuestionAt: Ref<string | null> | null = null
+let _questionActivity: Ref<QuestionActivity> | null = null
+let _actionOutcomes: Ref<PetActionOutcomes> | null = null
 let _initialized = false
 
 function loadMemories(): PetMemories {
@@ -63,11 +78,33 @@ function loadLastQuestionAt(): string | null {
   }
 }
 
+function loadQuestionActivity(): QuestionActivity {
+  try {
+    const raw = localStorage.getItem(LS_QUESTION_ACTIVITY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function loadActionOutcomes(): PetActionOutcomes {
+  try {
+    const raw = localStorage.getItem(LS_ACTION_OUTCOMES)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
 function ensureInit() {
   if (_initialized) return
   _memories = ref(loadMemories())
   _rejected = ref(loadRejected())
   _lastQuestionAt = ref(loadLastQuestionAt())
+  _questionActivity = ref(loadQuestionActivity())
+  _actionOutcomes = ref(loadActionOutcomes())
   _initialized = true
 }
 
@@ -76,6 +113,8 @@ export function usePetMemory() {
   const memories = _memories!
   const rejectedQuestions = _rejected!
   const lastQuestionAt = _lastQuestionAt!
+  const questionActivity = _questionActivity!
+  const actionOutcomes = _actionOutcomes!
 
   // ===== 记忆 CRUD =====
 
@@ -110,8 +149,8 @@ export function usePetMemory() {
 
   function getAnsweredQuestionIds(): string[] {
     return Object.values(memories.value)
-      .filter(v => !!v?.value)
-      .map(v => v.question_id)
+      .filter((v) => !!v?.value)
+      .map((v) => v.question_id)
   }
 
   // ===== 模板替换 =====
@@ -139,9 +178,7 @@ export function usePetMemory() {
   function pickMemoryLine(sentences: string[]): string | null {
     if (!sentences?.length) return null
     // 先过滤出所有模板可填充的句子
-    const usable = sentences
-      .map(s => renderTemplate(s))
-      .filter(Boolean) as string[]
+    const usable = sentences.map((s) => renderTemplate(s)).filter(Boolean) as string[]
     if (!usable.length) return null
     return usable[Math.floor(Math.random() * usable.length)]
   }
@@ -173,14 +210,18 @@ export function usePetMemory() {
 
   // ===== 提问冷却 =====
 
-  /** 默认冷却 15 分钟 */
-  function canAskQuestion(cooldownMinutes = 15): boolean {
+  /** 默认全局冷却 5 分钟 */
+  function canAskQuestion(cooldownMinutes = PET_GLOBAL_QUESTION_COOLDOWN_MINUTES): boolean {
     if (!lastQuestionAt.value) return true
     const ts = new Date(lastQuestionAt.value).getTime()
     if (isNaN(ts)) {
       // 损坏的时间戳 → 清除并允许提问
       lastQuestionAt.value = null
-      try { localStorage.removeItem(LS_LAST_QUESTION) } catch { /* ignore */ }
+      try {
+        localStorage.removeItem(LS_LAST_QUESTION)
+      } catch {
+        /* ignore */
+      }
       return true
     }
     const elapsed = Date.now() - ts
@@ -190,7 +231,47 @@ export function usePetMemory() {
   function markQuestionAsked(): void {
     const ts = new Date().toISOString()
     lastQuestionAt.value = ts
-    try { localStorage.setItem(LS_LAST_QUESTION, ts) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(LS_LAST_QUESTION, ts)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // ===== 按问题的自然日/自然周调度 =====
+
+  function canShowQuestion(questionId: string, schedule: QuestionSchedule): boolean {
+    return canShowForSchedule(questionActivity.value[questionId], schedule)
+  }
+
+  function markQuestionShown(questionId: string, schedule: QuestionSchedule): void {
+    questionActivity.value = {
+      ...questionActivity.value,
+      [questionId]: recordShown(questionActivity.value[questionId], schedule),
+    }
+    markQuestionAsked()
+    persistQuestionActivity()
+  }
+
+  function markQuestionAnswered(questionId: string): void {
+    const current = questionActivity.value[questionId]
+    if (!current) return
+    questionActivity.value = {
+      ...questionActivity.value,
+      [questionId]: { ...current, answered_at: new Date().toISOString() },
+    }
+    persistQuestionActivity()
+  }
+
+  // ===== 本地动作结果 =====
+
+  function getActionOutcome(questionId: string): PetActionOutcome | null {
+    return actionOutcomes.value[questionId] ?? null
+  }
+
+  function setActionOutcome(questionId: string, outcome: PetActionOutcome): void {
+    actionOutcomes.value = { ...actionOutcomes.value, [questionId]: outcome }
+    persistActionOutcomes()
   }
 
   // ===== 生日管理 =====
@@ -217,14 +298,20 @@ export function usePetMemory() {
   // ===== 位置管理 =====
 
   function saveLocation(loc: StoredLocation): void {
-    try { localStorage.setItem(LS_LOCATION, JSON.stringify(loc)) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(LS_LOCATION, JSON.stringify(loc))
+    } catch {
+      /* ignore */
+    }
   }
 
   function getLocation(): StoredLocation | null {
     try {
       const raw = localStorage.getItem(LS_LOCATION)
       return raw ? JSON.parse(raw) : null
-    } catch { return null }
+    } catch {
+      return null
+    }
   }
 
   // ===== 全部清除 =====
@@ -234,10 +321,14 @@ export function usePetMemory() {
     memories.value = {}
     rejectedQuestions.value = new Set()
     lastQuestionAt.value = null
+    questionActivity.value = {}
+    actionOutcomes.value = {}
     try {
       localStorage.removeItem(LS_MEMORIES)
       localStorage.removeItem(LS_REJECTED)
       localStorage.removeItem(LS_LAST_QUESTION)
+      localStorage.removeItem(LS_QUESTION_ACTIVITY)
+      localStorage.removeItem(LS_ACTION_OUTCOMES)
     } catch {
       // 静默降级
     }
@@ -261,10 +352,28 @@ export function usePetMemory() {
     }
   }
 
+  function persistQuestionActivity(): void {
+    try {
+      localStorage.setItem(LS_QUESTION_ACTIVITY, JSON.stringify(questionActivity.value))
+    } catch {
+      // 静默降级
+    }
+  }
+
+  function persistActionOutcomes(): void {
+    try {
+      localStorage.setItem(LS_ACTION_OUTCOMES, JSON.stringify(actionOutcomes.value))
+    } catch {
+      // 静默降级
+    }
+  }
+
   return {
     memories,
     rejectedQuestions,
     lastQuestionAt,
+    questionActivity,
+    actionOutcomes,
     getValue,
     setValue,
     removeValue,
@@ -279,6 +388,11 @@ export function usePetMemory() {
     unrejectQuestion,
     canAskQuestion,
     markQuestionAsked,
+    canShowQuestion,
+    markQuestionShown,
+    markQuestionAnswered,
+    getActionOutcome,
+    setActionOutcome,
     getBirthday,
     isBirthdayToday,
     saveLocation,

@@ -9,6 +9,7 @@
     "deploy": "node scripts/deploy.js",
     "ship": "pnpm build && pnpm run deploy",
     "preview": "vite preview",
+    "test": "vitest run",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{vue,js,ts,jsx,tsx,css,scss,md}\""
   },
@@ -52,6 +53,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.7.2",
     "vite": "^6.0.7",
+    "vitest": "^3.2.4",
     "vue-tsc": "^2.2.0"
   }
 }

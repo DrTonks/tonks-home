@@ -18,13 +18,23 @@ import {
   Brush,
   ForkSpoon,
   Sunny,
+  Headset,
+  Trophy,
+  Dish,
+  Reading,
+  VideoPlay,
+  Location,
+  MoonNight,
+  Promotion,
+  Loading,
 } from '@element-plus/icons-vue'
+import type { RecommendationCategory } from '@/api/recommendations'
 
 const props = withDefaults(
   defineProps<{
     visible?: boolean
     questionText?: string
-    inputType?: 'text' | 'choice'
+    inputType?: 'text' | 'choice' | 'confirm'
     choices?: string[]
     placeholder?: string
     iconName?: string
@@ -32,6 +42,10 @@ const props = withDefaults(
     verticalOffset?: number
     /** 设为 true 阻止点击云朵后展开为输入卡片，父组件可通过 @expand 事件执行自定义操作 */
     preventExpand?: boolean
+    maxLength?: number
+    recommendationCategory?: RecommendationCategory | null
+    recommendationState?: 'idle' | 'sending' | 'error'
+    permanentReject?: boolean
   }>(),
   {
     visible: false,
@@ -43,6 +57,10 @@ const props = withDefaults(
     placement: 'top',
     verticalOffset: 90,
     preventExpand: false,
+    maxLength: 100,
+    recommendationCategory: null,
+    recommendationState: 'idle',
+    permanentReject: true,
   },
 )
 
@@ -52,6 +70,7 @@ const emit = defineEmits<{
   close: []
   /** 点击 collapsed 云朵时触发；配合 preventExpand 可实现自定义展开行为 */
   expand: []
+  recommend: [answer: string]
 }>()
 
 // ===== 状态 =====
@@ -87,6 +106,13 @@ const iconMap: Record<string, Component> = {
   Brush,
   ForkSpoon,
   Sunny,
+  Headset,
+  Trophy,
+  Dish,
+  Reading,
+  VideoPlay,
+  Location,
+  MoonNight,
 }
 const resolvedIcon = computed(() => iconMap[props.iconName] || User)
 
@@ -122,11 +148,14 @@ function onDragPointerUp(_e: PointerEvent) {
 }
 
 // visible 变化时重置拖拽位置
-watch(() => props.visible, (v) => {
-  if (v) {
-    dragOffset.value = { x: 0, y: 0 }
-  }
-})
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) {
+      dragOffset.value = { x: 0, y: 0 }
+    }
+  },
+)
 
 // ===== 操作 =====
 
@@ -146,9 +175,9 @@ function stopPointer(e: PointerEvent) {
 }
 
 function submitAnswer() {
-  const answer = props.inputType === 'choice'
-    ? (selectedChoice.value || inputValue.value)
-    : inputValue.value
+  if (props.inputType === 'confirm') return
+  const answer =
+    props.inputType === 'choice' ? selectedChoice.value || inputValue.value : inputValue.value
   if (!answer.trim()) return
 
   isClosing.value = true
@@ -158,6 +187,22 @@ function submitAnswer() {
     isClosing.value = false
     inputValue.value = ''
     selectedChoice.value = ''
+  }, 250)
+}
+
+function submitAsRecommendation() {
+  const answer =
+    props.inputType === 'choice' ? selectedChoice.value || inputValue.value : inputValue.value
+  if (!answer.trim() || props.recommendationState === 'sending') return
+  emit('recommend', answer.trim())
+}
+
+function submitConfirmation(answer: 'confirm' | 'cancel') {
+  isClosing.value = true
+  emit('submit', answer)
+  setTimeout(() => {
+    isExpanded.value = false
+    isClosing.value = false
   }, 250)
 }
 
@@ -222,7 +267,9 @@ function selectChoice(c: string) {
           <component :is="resolvedIcon" />
         </span>
         <span class="cloud-dots" aria-label="点击展开提问">
-          <i /><i /><i />
+          <i />
+          <i />
+          <i />
         </span>
       </div>
 
@@ -237,6 +284,9 @@ function selectChoice(c: string) {
         @pointercancel="onDragPointerUp"
       >
         <p class="cloud-question-text">{{ questionText }}</p>
+        <p v-if="recommendationCategory" class="cloud-recommend-notice">
+          (可以将你喜欢的作品向我推荐~)
+        </p>
 
         <!-- choice 预设选项 -->
         <div v-if="inputType === 'choice' && choices.length" class="cloud-choices">
@@ -252,13 +302,13 @@ function selectChoice(c: string) {
         </div>
 
         <!-- 输入行 -->
-        <div class="cloud-input-row">
+        <div v-if="inputType !== 'confirm'" class="cloud-input-row">
           <input
             ref="inputRef"
             v-model="inputValue"
             class="cloud-input"
             :placeholder="placeholder || '输入...'"
-            :maxlength="100"
+            :maxlength="maxLength"
             @keydown="onKeydown"
             @click.stop
             @pointerdown.stop="stopPointer"
@@ -266,7 +316,39 @@ function selectChoice(c: string) {
         </div>
 
         <!-- 操作按钮行 -->
-        <div class="cloud-action-row">
+        <div v-if="inputType === 'confirm'" class="cloud-confirm-row">
+          <button
+            class="cloud-confirm-btn confirm-yes"
+            title="确认"
+            @click.stop="submitConfirmation('confirm')"
+            @pointerdown.stop="stopPointer"
+          >
+            <Check />
+            <span>确认</span>
+          </button>
+          <button
+            class="cloud-confirm-btn confirm-no"
+            title="不了"
+            @click.stop="submitConfirmation('cancel')"
+            @pointerdown.stop="stopPointer"
+          >
+            <Close />
+            <span>不了</span>
+          </button>
+        </div>
+
+        <div v-else class="cloud-action-row">
+          <button
+            v-if="recommendationCategory"
+            class="cloud-recommend-btn"
+            :disabled="(!inputValue.trim() && !selectedChoice) || recommendationState === 'sending'"
+            @click.stop="submitAsRecommendation"
+            @pointerdown.stop="stopPointer"
+          >
+            <Loading v-if="recommendationState === 'sending'" class="is-loading" />
+            <Promotion v-else />
+            <span>{{ recommendationState === 'sending' ? '发送中' : '发送推荐' }}</span>
+          </button>
           <button
             class="cloud-action-btn submit-btn"
             :class="{ disabled: !inputValue.trim() && !selectedChoice }"
@@ -278,13 +360,16 @@ function selectChoice(c: string) {
           </button>
           <button
             class="cloud-action-btn reject-btn"
-            title="拒绝（不再提问）"
+            :title="permanentReject ? '拒绝（不再提问）' : '本次不回答'"
             @click.stop="handleReject"
             @pointerdown.stop="stopPointer"
           >
             <Close />
           </button>
         </div>
+        <p v-if="recommendationState === 'error'" class="cloud-recommend-error" role="alert">
+          推荐发送失败，内容仍在，可以重试
+        </p>
       </div>
     </div>
   </Transition>
@@ -322,20 +407,14 @@ function selectChoice(c: string) {
   box-shadow:
     /* 左下大凸起 */
     -20px 4px 0 4px var(--cloud-fill),
-    /* 右下凸起 */
-    17px 4px 0 3px var(--cloud-fill),
-    /* 左远凸起 */
-    -32px 8px 0 -2px var(--cloud-fill),
-    /* 右远凸起 */
-    29px 8px 0 -2px var(--cloud-fill),
-    /* 顶部中央凸起 */
-    0px -10px 0 3px var(--cloud-fill),
-    /* 左上凸起 */
-    -14px -6px 0 1px var(--cloud-fill),
-    /* 右上凸起 */
-    12px -6px 0 1px var(--cloud-fill),
-    /* 底部阴影 */
-    var(--cloud-shadow, 0 4px 16px rgba(0,0,0,0.08)), 0 1px 3px rgba(0,0,0,0.04);
+    /* 右下凸起 */ 17px 4px 0 3px var(--cloud-fill),
+    /* 左远凸起 */ -32px 8px 0 -2px var(--cloud-fill),
+    /* 右远凸起 */ 29px 8px 0 -2px var(--cloud-fill),
+    /* 顶部中央凸起 */ 0px -10px 0 3px var(--cloud-fill),
+    /* 左上凸起 */ -14px -6px 0 1px var(--cloud-fill),
+    /* 右上凸起 */ 12px -6px 0 1px var(--cloud-fill),
+    /* 底部阴影 */ var(--cloud-shadow, 0 4px 16px rgba(0, 0, 0, 0.08)),
+    0 1px 3px rgba(0, 0, 0, 0.04);
   transition: transform 0.3s ease;
 }
 
@@ -371,8 +450,12 @@ function selectChoice(c: string) {
   animation: dot-bounce 1.2s ease-in-out infinite;
 }
 
-.cloud-collapsed .cloud-dots i:nth-child(2) { animation-delay: 0.15s; }
-.cloud-collapsed .cloud-dots i:nth-child(3) { animation-delay: 0.3s; }
+.cloud-collapsed .cloud-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.cloud-collapsed .cloud-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 /* ===== expanded：干净圆角卡片（无伪元素） ===== */
 .cloud-expanded {
@@ -385,7 +468,9 @@ function selectChoice(c: string) {
   padding: 16px 20px;
   background: var(--cloud-fill, #fff);
   border-radius: 20px;
-  box-shadow: var(--cloud-shadow, 0 4px 20px rgba(0,0,0,0.12)), 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow:
+    var(--cloud-shadow, 0 4px 20px rgba(0, 0, 0, 0.12)),
+    0 1px 3px rgba(0, 0, 0, 0.06);
   cursor: grab;
   user-select: none;
   transition:
@@ -396,7 +481,9 @@ function selectChoice(c: string) {
 
 .cloud-expanded.dragging {
   cursor: grabbing;
-  box-shadow: var(--cloud-shadow, 0 8px 32px rgba(0,0,0,0.18)), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow:
+    var(--cloud-shadow, 0 8px 32px rgba(0, 0, 0, 0.18)),
+    0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .cloud-question-text {
@@ -406,6 +493,14 @@ function selectChoice(c: string) {
   text-align: center;
   margin: 0;
   word-break: break-word;
+}
+
+.cloud-recommend-notice {
+  margin: -5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .cloud-choices {
@@ -473,6 +568,113 @@ function selectChoice(c: string) {
   width: 100%;
 }
 
+.cloud-recommend-btn {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: auto;
+  padding: 5px 10px;
+  border: 1px solid hsl(var(--primary) / 0.3);
+  border-radius: 9999px;
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+}
+
+.cloud-recommend-btn:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.16);
+}
+
+.cloud-recommend-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cloud-recommend-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cloud-recommend-btn .is-loading {
+  animation: recommend-spin 0.8s linear infinite;
+}
+
+.cloud-recommend-btn:focus-visible,
+.cloud-action-btn:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.cloud-recommend-error {
+  margin: -5px 0 0;
+  color: hsl(var(--destructive));
+  font-size: 10px;
+  text-align: left;
+}
+
+@keyframes recommend-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cloud-confirm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.cloud-confirm-btn {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) ease;
+}
+
+.cloud-confirm-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.cloud-confirm-btn.confirm-yes {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.35);
+}
+
+.cloud-confirm-btn.confirm-yes:hover {
+  background: hsl(var(--primary) / 0.1);
+}
+
+.cloud-confirm-btn.confirm-no {
+  color: hsl(var(--muted-foreground));
+}
+
+.cloud-confirm-btn.confirm-no:hover {
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.3);
+  background: hsl(var(--destructive) / 0.08);
+}
+
+.cloud-confirm-btn:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 .cloud-action-btn {
   width: 30px;
   height: 30px;
@@ -518,22 +720,39 @@ function selectChoice(c: string) {
 
 /* ===== 动画 ===== */
 @keyframes cloud-float {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50%      { transform: translateX(-50%) translateY(-4px); }
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-4px);
+  }
 }
 
 @keyframes dot-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30%           { transform: translateY(-3px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
 }
 
 /* ===== 进出场 ===== */
 .cloud-enter-active {
-  transition: opacity 0.3s ease-out, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    opacity 0.3s ease-out,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .cloud-leave-active {
-  transition: opacity 0.2s ease-in, transform 0.25s ease-in;
+  transition:
+    opacity 0.2s ease-in,
+    transform 0.25s ease-in;
 }
 
 .cloud-enter-from,

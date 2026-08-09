@@ -11,10 +11,14 @@ import { usePetMemory } from '@/composables/usePetMemory'
 import questionsData from '@/data/pet-questions.json'
 
 interface PetQuestion {
-  id: string; key: string | null
+  id: string
+  key: string | null
+  kind: 'memory' | 'recurring' | 'action'
   personas: { static: string; live2d: string }
-  inputType: string; choices: string[] | null
-  placeholder: string; icon: string
+  inputType: string
+  choices: string[] | null
+  placeholder: string
+  icon: string
 }
 const allQuestions = questionsData as PetQuestion[]
 
@@ -39,14 +43,14 @@ const memory = usePetMemory()
 
 /** 可模拟的天气类型 */
 const weatherSims = [
-  { icon: 'sunny',  label: '☀️ 晴', desc: '晴朗', temp: 28, tMin: 18, tMax: 32 },
+  { icon: 'sunny', label: '☀️ 晴', desc: '晴朗', temp: 28, tMin: 18, tMax: 32 },
   { icon: 'partly-cloudy', label: '🌤️ 少云', desc: '少云', temp: 25, tMin: 17, tMax: 30 },
   { icon: 'cloudy', label: '☁️ 多云', desc: '多云', temp: 22, tMin: 16, tMax: 26 },
-  { icon: 'rain',   label: '🌧️ 雨', desc: '中雨', temp: 15, tMin: 12, tMax: 18 },
+  { icon: 'rain', label: '🌧️ 雨', desc: '中雨', temp: 15, tMin: 12, tMax: 18 },
   { icon: 'shower', label: '🌦️ 阵雨', desc: '阵雨', temp: 18, tMin: 14, tMax: 22 },
-  { icon: 'snow',   label: '❄️ 雪', desc: '小雪', temp: -2, tMin: -5, tMax: 1 },
-  { icon: 'thunder',label: '⛈️ 雷暴', desc: '雷阵雨', temp: 20, tMin: 16, tMax: 24 },
-  { icon: 'fog',    label: '🌫️ 雾', desc: '大雾', temp: 10, tMin: 8, tMax: 14 },
+  { icon: 'snow', label: '❄️ 雪', desc: '小雪', temp: -2, tMin: -5, tMax: 1 },
+  { icon: 'thunder', label: '⛈️ 雷暴', desc: '雷阵雨', temp: 20, tMin: 16, tMax: 24 },
+  { icon: 'fog', label: '🌫️ 雾', desc: '大雾', temp: 10, tMin: 8, tMax: 14 },
 ]
 
 // ===== 拖拽 =====
@@ -77,7 +81,7 @@ function onPointerUp(e: PointerEvent) {
 }
 
 function getQuestionStatus(q: PetQuestion): 'answered' | 'rejected' | 'available' {
-  if (q.key && memory.hasMemory(q.key)) return 'answered'
+  if (q.kind === 'memory' && q.key && memory.hasMemory(q.key)) return 'answered'
   if (memory.isRejected(q.id)) return 'rejected'
   return 'available'
 }
@@ -98,10 +102,7 @@ function statusLabel(s: string): string {
     @pointercancel.stop="onPointerUp"
   >
     <!-- 标题栏（拖拽手柄） -->
-    <div
-      class="dev-header"
-      @pointerdown.stop="onHeaderPointerDown"
-    >
+    <div class="dev-header" @pointerdown.stop="onHeaderPointerDown">
       <span class="dev-title">🛠 调试提问</span>
       <button class="dev-close" title="关闭" @click="emit('close')">
         <Close />
@@ -131,7 +132,8 @@ function statusLabel(s: string): string {
         title="随机触发一句记忆句"
         @click="emit('trigger-memory')"
       >
-        <Promotion /> 触发记忆句
+        <Promotion />
+        触发记忆句
       </button>
 
       <div class="dev-divider" />
@@ -167,8 +169,8 @@ function statusLabel(s: string): string {
   border: 1px solid hsl(var(--border));
   border-radius: 14px;
   box-shadow:
-    0 8px 32px rgba(0,0,0,0.18),
-    0 2px 8px rgba(0,0,0,0.08);
+    0 8px 32px rgba(0, 0, 0, 0.18),
+    0 2px 8px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
   display: flex;
@@ -187,7 +189,9 @@ function statusLabel(s: string): string {
   background: hsl(var(--muted) / 0.3);
 }
 
-.dev-header:active { cursor: grabbing; }
+.dev-header:active {
+  cursor: grabbing;
+}
 
 .dev-title {
   font-size: 13px;
@@ -195,13 +199,21 @@ function statusLabel(s: string): string {
 }
 
 .dev-close {
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border: none; border-radius: 50%;
-  background: transparent; color: hsl(var(--muted-foreground));
-  cursor: pointer; font-size: 14px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 14px;
 }
-.dev-close:hover { background: hsl(var(--muted)); }
+.dev-close:hover {
+  background: hsl(var(--muted));
+}
 
 .dev-body {
   flex: 1;
@@ -232,13 +244,25 @@ function statusLabel(s: string): string {
   border-color: hsl(var(--primary) / 0.4);
   background: hsl(var(--primary) / 0.06);
 }
-.dev-q-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dev-q-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
-.dev-q-btn.answered { border-left: 3px solid hsl(var(--primary)); }
-.dev-q-btn.rejected { border-left: 3px solid hsl(var(--muted-foreground) / 0.5); opacity: 0.65; }
-.dev-q-btn.available { border-left: 3px solid transparent; }
+.dev-q-btn.answered {
+  border-left: 3px solid hsl(var(--primary));
+}
+.dev-q-btn.rejected {
+  border-left: 3px solid hsl(var(--muted-foreground) / 0.5);
+  opacity: 0.65;
+}
+.dev-q-btn.available {
+  border-left: 3px solid transparent;
+}
 
-.dev-q-persona { flex: 1; }
+.dev-q-persona {
+  flex: 1;
+}
 .dev-q-badge {
   font-size: 10px;
   padding: 1px 6px;
@@ -291,7 +315,10 @@ function statusLabel(s: string): string {
   gap: 4px;
 }
 
-.dev-w-label { flex: 1; font-size: 12px; }
+.dev-w-label {
+  flex: 1;
+  font-size: 12px;
+}
 .dev-w-temp {
   font-size: 11px;
   color: hsl(var(--primary));

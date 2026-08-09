@@ -4,7 +4,7 @@
  * 修改此值后，所有已访问过的用户都会再次看到欢迎弹窗（公告效果）。
  * 例如从 '1.1' 改为 '1.2'，浏览器发现版本不一致就会重新弹出。
  */
-export const WELCOME_VERSION = '1.1'
+export const WELCOME_VERSION = '1.2'
 export const WELCOME_LS_KEY = 'welcome_shown_version'
 </script>
 
@@ -61,6 +61,7 @@ watch(() => props.visible, (v) => {
           <p>· 右键桌宠可唤出菜单，可以和它们互动</p>
           <p>· 左键点击桌宠可以戳一戳（不要戳太过了！）</p>
           <p>· 桌宠偶尔会通过提问来记录与你的回忆</p>
+          <p>· 对于一些提问，桌宠会调用大模型进行回答，信息来源请自行鉴别真伪（仅娱乐用途，使用opencode-zen里的免费模型，受限额与请求频率影响严重）</p>
           <p>· 天气播报相关：仅通过访客ip来查询当地天气情况，数据缓存在本地，不会用于其他目的</p>
           <p>· 右下角可开启网站手势控制模式</p>
         </DialogDescription>

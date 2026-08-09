@@ -10,7 +10,8 @@
 import { ref } from 'vue'
 import { usePetEnvStore } from '@/stores/petEnv'
 
-export type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes' | 'emoji'
+export type BubbleMode = 'thinking' | 'status' | 'typing' | 'lyric' | 'notes' | 'emoji'
+export type BubbleStatusStage = 'thinking' | 'searching'
 
 const THINK_MS = 600 // "..." 思考缓冲
 const THINK_MIN_LEN = 4 // 句子 ≥ 此长度才走思考态（短句直接打字，免拖沓）
@@ -49,7 +50,7 @@ export function useSpeechBubble() {
   }
 
   /** 说一句日常话：（长句）思考 → 打字机 → 停留 → 淡出；短句跳过思考直接打字。force=true 跳过结束冷却（用于威胁句等重要时刻） */
-  function say(sentence: string, force = false) {
+  function say(sentence: string, force = false, skipThinking = false) {
     if (!sentence) return
     // 提问气泡激活时阻塞所有 SpeechBubble（集中互斥锁）
     const petEnv = usePetEnvStore()
@@ -77,12 +78,21 @@ export function useSpeechBubble() {
       const dwell = sentence.length * TYPE_SPEED + READ_BASE + sentence.length * READ_PER_CHAR
       hideTimer = setTimeout(hide, dwell)
     }
-    if (sentence.length >= THINK_MIN_LEN) {
+    if (!skipThinking && sentence.length >= THINK_MIN_LEN) {
       mode.value = 'thinking'
       thinkTimer = setTimeout(showText, THINK_MS)
     } else {
       showText()
     }
+  }
+
+  /** 外部异步流程状态：常显，直到 say/hide/其它模式显式替换。 */
+  function showStatus(stage: BubbleStatusStage) {
+    clearTimers()
+    mode.value = 'status'
+    text.value = stage === 'searching' ? '联网搜索中…' : '思考中…'
+    original.value = stage
+    visible.value = true
   }
 
   /** 歌词模式：常显，外部按进度反复调用切行 */
@@ -120,6 +130,7 @@ export function useSpeechBubble() {
     translation,
     emoji,
     say,
+    showStatus,
     showLyric,
     showNotes,
     hide,

@@ -11,7 +11,7 @@
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { NOTE_SYMBOLS } from './state'
 
-type BubbleMode = 'thinking' | 'typing' | 'lyric' | 'notes' | 'emoji'
+type BubbleMode = 'thinking' | 'status' | 'typing' | 'lyric' | 'notes' | 'emoji'
 type Placement = 'left' | 'right'
 
 const props = withDefaults(
@@ -90,20 +90,39 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       v-if="visible"
       class="pet-bubble"
       :class="[`place-${placement}`, { 'is-emoji': mode === 'emoji' }]"
-      :style="placement && mode !== 'emoji'
-        ? { top: `${verticalOffset}px`, [placement === 'left' ? 'right' : 'left']: `calc(100% - ${horizontalOffset}px)` }
-        : undefined"
+      :style="
+        placement && mode !== 'emoji'
+          ? {
+              top: `${verticalOffset}px`,
+              [placement === 'left' ? 'right' : 'left']: `calc(100% - ${horizontalOffset}px)`,
+            }
+          : undefined
+      "
       role="status"
       aria-live="polite"
     >
       <!-- 思考态：三点 -->
       <span v-if="mode === 'thinking'" class="dots" aria-label="正在输入">
-        <i /><i /><i />
+        <i />
+        <i />
+        <i />
+      </span>
+
+      <!-- 大模型/工具调用状态：仅显示安全的阶段枚举 -->
+      <span v-else-if="mode === 'status'" class="async-status">
+        <i
+          class="status-icon"
+          :class="original === 'searching' ? 'is-searching' : 'is-thinking'"
+          aria-hidden="true"
+        />
+        <span>{{ text }}</span>
       </span>
 
       <!-- 日常句：打字机 -->
-      <span v-else-if="mode === 'typing'" class="bubble-text">{{ typed
-        }}<i v-if="!typingDone" class="caret" /></span>
+      <span v-else-if="mode === 'typing'" class="bubble-text">
+        {{ typed }}
+        <i v-if="!typingDone" class="caret" />
+      </span>
 
       <!-- 歌词：原文主 + 译文次 -->
       <span v-else-if="mode === 'lyric'" class="lyric">
@@ -122,13 +141,9 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 
       <!-- 无歌词时段：彩色跳动音符 -->
       <span v-else class="notes" aria-hidden="true">
-        <i
-          v-for="(n, idx) in noteSymbols"
-          :key="idx"
-          class="note"
-          :style="{ '--i': idx }"
-          >{{ n }}</i
-        >
+        <i v-for="(n, idx) in noteSymbols" :key="idx" class="note" :style="{ '--i': idx }">
+          {{ n }}
+        </i>
       </span>
 
       <!-- 尾巴 -->
@@ -267,6 +282,55 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 .dots i:nth-child(3) {
   animation-delay: 0.3s;
 }
+
+.async-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 21px;
+  white-space: nowrap;
+}
+.status-icon {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.status-icon.is-thinking {
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.78;
+  animation: status-spin 0.8s linear infinite;
+}
+.status-icon.is-searching::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  left: 0;
+  top: 0;
+}
+.status-icon.is-searching::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: rotate(45deg);
+  transform-origin: left center;
+  right: -1px;
+  bottom: 1px;
+}
+@keyframes status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @keyframes dot-bounce {
   0%,
   60%,
@@ -289,7 +353,9 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 }
 .note {
   color: hsl(calc(var(--i) * 60 + 200) 80% 60%);
-  animation: note-bob 1.4s ease-in-out infinite, note-hue 4s linear infinite;
+  animation:
+    note-bob 1.4s ease-in-out infinite,
+    note-hue 4s linear infinite;
   animation-delay: calc(var(--i) * 0.18s);
 }
 @keyframes note-bob {
@@ -309,10 +375,14 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 
 /* ===== 进出场 ===== */
 .bubble-enter-active {
-  transition: opacity 0.25s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .bubble-leave-active {
-  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+  transition:
+    opacity 0.2s ease-in,
+    transform 0.2s ease-in;
 }
 .bubble-enter-from,
 .bubble-leave-to {
@@ -322,6 +392,7 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
 
 @media (prefers-reduced-motion: reduce) {
   .dots i,
+  .status-icon,
   .note,
   .caret {
     animation: none;

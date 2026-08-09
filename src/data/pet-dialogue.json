@@ -1,29 +1,10 @@
 {
-  "intro": [
-    "我是普瑞赛斯，语言学家。请多指教。",
-    "...别让那个闹腾的家伙出来。"
-  ],
+  "intro": ["我是普瑞赛斯，语言学家。请多指教。", "...别让那个闹腾的家伙出来。"],
   "greeting": {
-    "morning": [
-      "早上好。",
-      "/assets/emoji/happy-1.jpg",
-      "/assets/emoji/happy-2.jpg"
-    ],
-    "afternoon": [
-      "很高兴见到你。",
-      "/assets/emoji/happy-1.jpg",
-      "/assets/emoji/happy-2.jpg"
-    ],
-    "evening": [
-      "晚上好。",
-      "/assets/emoji/happy-1.jpg",
-      "/assets/emoji/happy-2.jpg"
-    ],
-    "night": [
-      "我们会再见面的。",
-      "夜深了。",
-      "/assets/emoji/sleep.jpg"
-    ]
+    "morning": ["早上好。", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
+    "afternoon": ["很高兴见到你。", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
+    "evening": ["晚上好。", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
+    "night": ["我们会再见面的。", "夜深了。", "/assets/emoji/sleep.jpg"]
   },
   "click": {
     "idle": ["？", "...", "。。。"]
@@ -35,16 +16,19 @@
     "你在忙什么？"
   ],
   "happy": ["^ ^", "你好!", "/assets/emoji/happy-1.jpg", "/assets/emoji/happy-2.jpg"],
-  "angry": ["。。。", "/assets/emoji/angry2.jpg", "STOP!","别这么做。", "停下。"],
+  "angry": ["。。。", "/assets/emoji/angry2.jpg", "STOP!", "别这么做。", "停下。"],
   "sleep": ["zzZ", "/assets/emoji/sleep.jpg"],
-  "cry": ["不准忘记我", "你在哪？","/assets/emoji/cry.jpg"],
+  "cry": ["不准忘记我", "你在哪？", "/assets/emoji/cry.jpg"],
   "threat": ["· · ·", "/assets/emoji/angry.jpg"],
-  "turn": ["/assets/emoji/wait.jpg", "在忙什么？", "。。。","/assets/emoji/think.jpg"],
+  "turn": ["/assets/emoji/wait.jpg", "在忙什么？", "。。。", "/assets/emoji/think.jpg"],
   "memory": [
     "{{user_name}}...我在记录。",
     "{{user_name}}，你还在这里。很好。",
     "我喜欢紫色，而你喜欢{{favorite_color}}。我们天生一对。",
-    "{{user_name}}。只是想确认一下你还在。"
+    "{{user_name}}。只是想确认一下你还在。",
+    "{{user_name}}，你还在听{{recent_song}}吗？",
+    "下次请你吃{{favorite_food}}。",
+    "有机会我会去尝尝{{recent_food}}。"
   ],
   "mood_replies": {
     "开心": ["一切都好。^ ^", "/assets/emoji/happy-1.jpg", "那就好。"],
@@ -59,13 +43,54 @@
     "最近在{{city}}过得怎么样？"
   ],
   "weather_talk": {
-    "sunny": ["今天的{{city}}放晴了。", "阳光正好，万里无云。","天气不错。要不要出去逛逛？"],
-    "rain": ["{{city}}最近可能有雨，你出门要记得带伞。", "下雨了…千万别淋湿了。","...记得带伞。"],
-    "hot": ["最近{{city}}气温有点高…注意防暑。", "{{temp}}°C？那要小心中暑。","比较适合待在室内。","{{temp}}°C...能不出门吗？"],
-    "cold": ["{{city}}最近降温了，多穿点。注意保暖。","今天好冷——添几件衣服吧。","小心着凉。","{{temp}}°C...怎么不下雪？"],
-    "cloudy": ["今天的{{city}}多云，有点阴沉。","外面看不见太阳了呢。还好有你在。","要不要一起看会儿书？","偶尔也宅在家里吧。"],
-    "partly_cloudy": ["{{city}}今天晴间多云。", "很适合郊游的天气，出去走走？", "天气还不错，替我出去逛逛吧。","你想出门吗？"],
-    "snow": ["下雪了。外面一定很安静。", "{{city}}下雪了。穿暖和些。", "千树万树梨花开。", "下雪天路滑，小心。"],
+    "sunny": ["今天的{{city}}放晴了。", "阳光正好，万里无云。", "天气不错。要不要出去逛逛？"],
+    "rain": ["{{city}}最近可能有雨，你出门要记得带伞。", "下雨了…千万别淋湿了。", "...记得带伞。"],
+    "hot": [
+      "最近{{city}}气温有点高…注意防暑。",
+      "{{temp}}°C？那要小心中暑。",
+      "比较适合待在室内。",
+      "{{temp}}°C...能不出门吗？"
+    ],
+    "cold": [
+      "{{city}}最近降温了，多穿点。注意保暖。",
+      "今天好冷——添几件衣服吧。",
+      "小心着凉。",
+      "{{temp}}°C...怎么不下雪？"
+    ],
+    "cloudy": [
+      "今天的{{city}}多云，有点阴沉。",
+      "外面看不见太阳了呢。还好有你在。",
+      "要不要一起看会儿书？",
+      "偶尔也宅在家里吧。"
+    ],
+    "partly_cloudy": [
+      "{{city}}今天晴间多云。",
+      "很适合郊游的天气，出去走走？",
+      "天气还不错，替我出去逛逛吧。",
+      "你想出门吗？"
+    ],
+    "snow": [
+      "下雪了。外面一定很安静。",
+      "{{city}}下雪了。穿暖和些。",
+      "千树万树梨花开。",
+      "下雪天路滑，小心。"
+    ],
     "default": ["{{city}}今天{{desc}}，气温{{temp}}°C。"]
+  },
+  "question_replies": {
+    "name_saved": ["{{answer}}……我记下了。", "{{answer}}。我不会忘记的。"],
+    "birthday_saved": ["{{answer}}……我明白了。"],
+    "favorite_color": ["原来你喜欢{{answer}}……"],
+    "favorite_food": ["听起来不错。"],
+    "recent_music": ["{{answer}}……原来你最近在听这个。"],
+    "recent_game": ["{{answer}}。看来它最近占据了你不少时间。"],
+    "recent_food": ["{{answer}}……能被你记住，味道应该很好。"],
+    "recent_book": ["{{answer}}。我会记住你最近读过它。"],
+    "recent_anime": ["{{answer}}……我记下了你最近的故事。"],
+    "city_life": ["原来你最近在{{city}}过着这样的生活……我记下了。"],
+    "theme_accept": ["好。现在替你切换——"],
+    "theme_reject": ["了解。以后在右上角也可以随时切换主题。"],
+    "play_music_accept": ["那就听一首吧。"],
+    "play_music_reject": ["好。想听的时候，唱片一直在那里。"]
   }
 }

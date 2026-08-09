@@ -6,7 +6,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // 从环境变量读取后端地址，避免 IP 硬编码进公开仓库
-  const apiTarget = env.VITE_API_TARGET || 'http://localhost:9010'
+  const apiTarget = process.env.VITE_API_TARGET || env.VITE_API_TARGET || 'http://localhost:9010'
 
   return {
     plugins: [vue()],
