@@ -96,6 +96,16 @@ let _weatherData: Ref<WeatherData | null> | null = null
 let _initialized = false
 let _initPromise: Promise<void> | null = null
 
+class WeatherHttpError extends Error {
+  constructor(
+    readonly status: number,
+    endpoint: 'now' | 'daily',
+  ) {
+    super(`Seniverse ${endpoint} returned ${status}`)
+    this.name = 'WeatherHttpError'
+  }
+}
+
 export function useWeatherVisitor() {
   if (!_locationData) _locationData = ref(loadCachedLocation())
   if (!_weatherData) _weatherData = ref(loadCachedWeather())
@@ -184,7 +194,7 @@ export function useWeatherVisitor() {
   }> {
     const url = `/seniverse/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c`
     const resp = await fetch(url)
-    if (!resp.ok) throw new Error(`Seniverse now returned ${resp.status}`)
+    if (!resp.ok) throw new WeatherHttpError(resp.status, 'now')
     const json = await resp.json()
     console.log('[useWeatherVisitor] 心知天气 now:', json)
     if (!json.results?.length) throw new Error('Seniverse now: empty results')
@@ -198,7 +208,7 @@ export function useWeatherVisitor() {
   }> {
     const url = `/seniverse/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${lat}:${lon}&language=zh-Hans&unit=c&start=0&days=2`
     const resp = await fetch(url)
-    if (!resp.ok) throw new Error(`Seniverse daily returned ${resp.status}`)
+    if (!resp.ok) throw new WeatherHttpError(resp.status, 'daily')
     const json = await resp.json()
     console.log('[useWeatherVisitor] 心知天气 daily:', json)
     if (!json.results?.length || !json.results[0].daily?.length) throw new Error('Seniverse daily: empty results')
@@ -278,6 +288,15 @@ export function useWeatherVisitor() {
           console.log('[useWeatherVisitor] 使用缓存天气:', w.desc, w.temp + '°C')
         }
       } catch (e) {
+        if (e instanceof WeatherHttpError && e.status === 403) {
+          locationData.value = null
+          try {
+            localStorage.removeItem(LS_LOCATION)
+          } catch {
+            /* ignore */
+          }
+          console.warn('[useWeatherVisitor] 天气返回 403，已清除位置缓存')
+        }
         console.warn('[useWeatherVisitor] 获取失败:', e)
         _initPromise = null
       } finally {
