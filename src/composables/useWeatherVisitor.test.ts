@@ -31,7 +31,11 @@ function cacheLocation(city = 'San Jose', lat = 37.34, lon = -121.89, region = '
   )
 }
 
-function geoResponse(city: string, latitude: number, longitude: number, region = 'Fujian') {
+function geoResponse(city: string, lat: number, lon: number, region = '福建') {
+  return jsonResponse({ success: true, city, region, country: 'CN', lat, lon })
+}
+
+function ipSbResponse(city: string, latitude: number, longitude: number, region = 'Fujian') {
   return jsonResponse({ city, region, country_code: 'CN', latitude, longitude })
 }
 
@@ -84,7 +88,7 @@ describe('useWeatherVisitor location cache after weather 403', () => {
     const visitor = await loadWeatherVisitor()
     await visitor.ensureLoaded()
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(visitor.getLocationData()).toBeNull()
     expect(visitor.getWeatherData()).toBeNull()
     expect(localStorage.getItem('pet_location')).toBeNull()
@@ -95,13 +99,12 @@ describe('useWeatherVisitor location cache after weather 403', () => {
       .fn()
       .mockResolvedValueOnce(geoResponse('San Jose', 37.34, -121.89, 'California'))
       .mockResolvedValueOnce(jsonResponse({}, 403))
-      .mockResolvedValueOnce(jsonResponse({}, 403))
     vi.stubGlobal('fetch', fetchMock)
 
     const visitor = await loadWeatherVisitor()
     await visitor.ensureLoaded()
 
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(visitor.getLocationData()).toBeNull()
     expect(localStorage.getItem('pet_location')).toBeNull()
   })
@@ -109,7 +112,7 @@ describe('useWeatherVisitor location cache after weather 403', () => {
   it('keeps the location and weather caches when weather succeeds', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(geoResponse('Fuzhou', 26.08, 119.3))
+      .mockResolvedValueOnce(geoResponse('福州', 26.08, 119.3))
       .mockResolvedValueOnce(nowResponse('福州'))
       .mockResolvedValueOnce(dailyResponse())
     vi.stubGlobal('fetch', fetchMock)
@@ -118,8 +121,8 @@ describe('useWeatherVisitor location cache after weather 403', () => {
     await visitor.ensureLoaded()
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(fetchMock.mock.calls[1]?.[0]).toContain('location=Fujian%20Fuzhou')
-    expect(fetchMock.mock.calls[2]?.[0]).toContain('location=Fujian%20Fuzhou')
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('location=26.08%3A119.3')
+    expect(fetchMock.mock.calls[2]?.[0]).toContain('location=26.08%3A119.3')
     expect(visitor.getLocationData()).toMatchObject({ city: '福州', lat: 26.08, lon: 119.3 })
     expect(visitor.getWeatherData()).toMatchObject({ city: '福州', desc: '晴' })
     expect(JSON.parse(localStorage.getItem('pet_location') || '{}')).not.toHaveProperty('ip')
@@ -134,7 +137,7 @@ describe('useWeatherVisitor location cache after weather 403', () => {
     )
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(geoResponse('Fuzhou', 34.77, 113.72))
+      .mockResolvedValueOnce(geoResponse('福州', 26.08, 119.3))
       .mockResolvedValueOnce(nowResponse('福州'))
       .mockResolvedValueOnce(dailyResponse())
     vi.stubGlobal('fetch', fetchMock)
@@ -143,8 +146,8 @@ describe('useWeatherVisitor location cache after weather 403', () => {
     await visitor.ensureLoaded()
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(fetchMock.mock.calls[1]?.[0]).toContain('location=Fujian%20Fuzhou')
-    expect(visitor.getLocationData()).toMatchObject({ city: '福州', region: 'Fujian' })
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('location=26.08%3A119.3')
+    expect(visitor.getLocationData()).toMatchObject({ city: '福州', region: '福建' })
     expect(visitor.getWeatherData()).toMatchObject({ city: '福州' })
   })
 
@@ -159,8 +162,106 @@ describe('useWeatherVisitor location cache after weather 403', () => {
     const visitor = await loadWeatherVisitor()
     await visitor.ensureLoaded()
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(visitor.getLocationData()).toMatchObject({ city: 'San Jose' })
     expect(localStorage.getItem('pet_location')).not.toBeNull()
+  })
+
+  it('uses ip.sb coordinates when primary coordinates resolve to a different city', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(geoResponse('福州', 34.77, 113.72))
+      .mockResolvedValueOnce(nowResponse('郑州'))
+      .mockResolvedValueOnce(ipSbResponse('Fuzhou', 26.08, 119.3))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(dailyResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const visitor = await loadWeatherVisitor()
+    await visitor.ensureLoaded()
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('location=34.77%3A113.72')
+    expect(fetchMock.mock.calls[3]?.[0]).toContain('location=26.08%3A119.3')
+    expect(fetchMock.mock.calls[4]?.[0]).toContain('location=26.08%3A119.3')
+    expect(visitor.getLocationData()).toMatchObject({ city: '福州', lat: 34.77, lon: 113.72 })
+    expect(visitor.getWeatherData()).toMatchObject({ city: '福州' })
+  })
+
+  it('falls back to primary province and city when both coordinate lookups disagree', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(geoResponse('福州', 34.77, 113.72))
+      .mockResolvedValueOnce(nowResponse('郑州'))
+      .mockResolvedValueOnce(ipSbResponse('Hangzhou', 30.27, 120.15, 'Zhejiang'))
+      .mockResolvedValueOnce(nowResponse('杭州'))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(dailyResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const visitor = await loadWeatherVisitor()
+    await visitor.ensureLoaded()
+
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(fetchMock.mock.calls[4]?.[0]).toContain('location=%E7%A6%8F%E5%BB%BA%20%E7%A6%8F%E5%B7%9E')
+    expect(fetchMock.mock.calls[5]?.[0]).toContain('location=%E7%A6%8F%E5%BB%BA%20%E7%A6%8F%E5%B7%9E')
+    expect(visitor.getLocationData()).toMatchObject({ city: '福州', region: '福建' })
+  })
+
+  it('does not repeat the same coordinate weather lookup when both providers agree', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(geoResponse('福州', 26.08, 119.3))
+      .mockResolvedValueOnce(nowResponse('闽侯'))
+      .mockResolvedValueOnce(ipSbResponse('Fuzhou', 26.0805, 119.3005))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(dailyResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const visitor = await loadWeatherVisitor()
+    await visitor.ensureLoaded()
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock.mock.calls[3]?.[0]).toContain('location=%E7%A6%8F%E5%BB%BA%20%E7%A6%8F%E5%B7%9E')
+    expect(fetchMock.mock.calls[4]?.[0]).toContain('location=%E7%A6%8F%E5%BB%BA%20%E7%A6%8F%E5%B7%9E')
+  })
+
+  it('accepts ip.sb coordinates after dynamically matching Fuzhou with 福州', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, 502))
+      .mockResolvedValueOnce(ipSbResponse('Fuzhou', 26.08, 119.3))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(dailyResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const visitor = await loadWeatherVisitor()
+    await visitor.ensureLoaded()
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock.mock.calls[2]?.[0]).toContain('location=26.08%3A119.3')
+    expect(fetchMock.mock.calls[3]?.[0]).toContain('location=Fujian%20Fuzhou')
+    expect(fetchMock.mock.calls[4]?.[0]).toContain('location=26.08%3A119.3')
+    expect(visitor.getLocationData()).toMatchObject({ city: 'Fuzhou', region: 'Fujian' })
+    expect(visitor.getWeatherData()).toMatchObject({ city: '福州' })
+  })
+
+  it('rejects wrong ip.sb coordinates after comparing them with the English city query', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, 502))
+      .mockResolvedValueOnce(ipSbResponse('Fuzhou', 34.77, 113.72))
+      .mockResolvedValueOnce(nowResponse('郑州'))
+      .mockResolvedValueOnce(nowResponse('福州'))
+      .mockResolvedValueOnce(dailyResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const visitor = await loadWeatherVisitor()
+    await visitor.ensureLoaded()
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(fetchMock.mock.calls[4]?.[0]).toContain('location=Fujian%20Fuzhou')
+    expect(visitor.getWeatherData()).toMatchObject({ city: '福州' })
   })
 })

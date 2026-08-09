@@ -2,17 +2,19 @@
  * useWeatherVisitor — 访客位置 + 天气数据层。
  *
  * 数据流：
- *   ip.sb（或 fallback /geoip）→ 获取客户端公网 IP 的 lat/lon
- *   → 心知天气 free API（now.json + daily.json）→ 获取天气 + 中文城市名
+ *   同源 /geoip（ip-api）→ 获取客户端公网 IP 的位置（不缓存 IP）
+ *   → 经纬度查询心知天气
+ *   → 城市不一致时用 ip.sb 经纬度复核
+ *   → 仍不一致时用首选位置的“省份 + 城市”兜底
  *
- * 注意：用的是纯前端 HTTPS 请求到 ip.sb，不经过服务端代理，
- * 因此无论部署到哪里（云服务器 / CDN / 静态托管），定位的都是访客 IP。
+ * 生产环境的 /geoip 由 sleepy 读取可信代理传来的访客地址并查询 ip-api；
+ * 浏览器和服务端都不保存或返回访客 IP。ip.sb 只作为独立复核源。
  *
  * 心知天气免费版：
  *   - 私钥 SEFuPYYOQzfvLE_DK，作为 key 参数直传
  *   - 400 次/天，足够个人站使用
  *   - 支持坐标 lat:lon 格式，天气码 0-38
- *   - 返回中文城市名（如 "闽侯"），无需英→中映射
+ *   - 返回中文城市名（如 "闽侯"）；英文定位名通过城市查询动态校准，无需维护静态映射表
  *
  * 缓存策略：位置 12h，天气 1h。
  */
@@ -33,6 +35,14 @@ export interface LocationData {
   lat: number
   lon: number
   updated_at: string
+}
+
+interface GeoLocation {
+  lat: number
+  lon: number
+  city: string
+  region: string
+  country: string
 }
 
 export interface WeatherData {
@@ -155,43 +165,44 @@ export function useWeatherVisitor() {
   /**
    * 获取客户端公网 IP 对应的 lat/lon + 城市。
    *
-   * 使用纯前端 HTTPS API（非服务端代理），确保无论部署到哪里都定位的是访客而非服务器。
-   * 多层 fallback 保证可用性。
+   * 首选同源 ip-api 代理，失败时使用浏览器直连的 ip.sb。
+   * 两个来源都只返回粗略位置，均不写入或缓存访客 IP。
    */
-  async function fetchLatLon(): Promise<{
-    lat: number; lon: number; city?: string; region?: string; country?: string
-  }> {
-    const sources: Array<() => Promise<{
-      lat: number; lon: number; city?: string; region?: string; country?: string
-    }>> = [
-      // 1) ip.sb — CORS OK, HTTPS, 全球节点, 返回 city/latitude/longitude
-      async () => {
-        const resp = await fetch('https://api.ip.sb/geoip', { signal: AbortSignal.timeout(5000) })
-        if (!resp.ok) throw new Error(`${resp.status}`)
-        const json = await resp.json()
-        console.log('[useWeatherVisitor] ip.sb:', json)
-        return {
-          lat: json.latitude || 0,
-          lon: json.longitude || 0,
-          city: json.city || '',
-          region: json.region || '',
-          country: json.country_code || json.country || '',
-        }
-      },
-      // 2) Vite proxy（仅开发环境可用；生产环境需 Nginx 透传 $remote_addr）
-      async () => {
-        const resp = await fetch('/geoip', { signal: AbortSignal.timeout(5000) })
-        if (!resp.ok) throw new Error(`${resp.status}`)
-        const json = await resp.json()
-        console.log('[useWeatherVisitor] /geoip proxy:', json)
-        return {
-          lat: json.lat || 0,
-          lon: json.lon || 0,
-          city: json.city || json.regionName || '',
-          region: json.regionName || '',
-          country: json.country || '',
-        }
-      },
+  function parseGeoLocation(json: Record<string, unknown>): GeoLocation {
+    const lat = Number(json.lat ?? json.latitude)
+    const lon = Number(json.lon ?? json.longitude)
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) {
+      throw new Error('定位服务返回了无效经纬度')
+    }
+    return {
+      lat,
+      lon,
+      city: String(json.city || ''),
+      region: String(json.region || json.regionName || ''),
+      country: String(json.country_code || json.countryCode || json.country || ''),
+    }
+  }
+
+  async function fetchPrimaryGeo(): Promise<GeoLocation> {
+    const resp = await fetch('/geoip', { signal: AbortSignal.timeout(7000) })
+    if (!resp.ok) throw new Error(`/geoip ${resp.status}`)
+    const json = await resp.json()
+    console.log('[useWeatherVisitor] ip-api:', json)
+    return parseGeoLocation(json)
+  }
+
+  async function fetchSecondaryGeo(): Promise<GeoLocation> {
+    const resp = await fetch('https://api.ip.sb/geoip', { signal: AbortSignal.timeout(7000) })
+    if (!resp.ok) throw new Error(`ip.sb ${resp.status}`)
+    const json = await resp.json()
+    console.log('[useWeatherVisitor] ip.sb:', json)
+    return parseGeoLocation(json)
+  }
+
+  async function fetchLatLon(): Promise<GeoLocation> {
+    const sources: Array<() => Promise<GeoLocation>> = [
+      fetchPrimaryGeo,
+      fetchSecondaryGeo,
     ]
 
     for (const fn of sources) {
@@ -238,7 +249,7 @@ export function useWeatherVisitor() {
     const geo = await fetchLatLon()
     return {
       city: geo.city || '未知城市',
-      region: geo.region || '',
+      region: geo.region,
       country: geo.country || 'CN',
       lat: geo.lat,
       lon: geo.lon,
@@ -246,16 +257,83 @@ export function useWeatherVisitor() {
     }
   }
 
+  function normalizeCity(value: string): string {
+    return value
+      .trim()
+      .toLocaleLowerCase()
+      .replace(/[\s·・]/g, '')
+      .replace(/(特别行政区|自治州|地区|盟|市)$/u, '')
+  }
+
+  function isSameCity(expected: string, actual: string): boolean {
+    const left = normalizeCity(expected)
+    const right = normalizeCity(actual)
+    return Boolean(left && right && left === right)
+  }
+
+  function containsCjk(value: string): boolean {
+    return /[\u3400-\u9fff]/u.test(value)
+  }
+
+  function coordinateQuery(location: Pick<GeoLocation, 'lat' | 'lon'>): string {
+    return `${location.lat}:${location.lon}`
+  }
+
+  function coordinatesAreEquivalent(a: Pick<GeoLocation, 'lat' | 'lon'>, b: Pick<GeoLocation, 'lat' | 'lon'>): boolean {
+    return Math.abs(a.lat - b.lat) < 0.01 && Math.abs(a.lon - b.lon) < 0.01
+  }
+
+  async function chooseWeatherQuery(location: LocationData): Promise<{
+    query: string
+    now: Awaited<ReturnType<typeof fetchSeniverseNow>>
+  }> {
+    const primaryQuery = coordinateQuery(location)
+    const primaryNow = await fetchSeniverseNow(primaryQuery)
+    if (isSameCity(location.city, primaryNow.city)) {
+      console.log('[useWeatherVisitor] 首选经纬度与天气城市一致')
+      return { query: primaryQuery, now: primaryNow }
+    }
+
+    const cityQuery = [location.region.trim(), location.city.trim()].filter(Boolean).join(' ')
+    // ip.sb 通常返回英文地名，不能直接用字符串判断 Fuzhou 与福州是否相等。
+    // 用同一个天气 API 的城市查询结果作为动态标准名，再校验经纬度结果，避免维护不完整的城市映射表。
+    if (cityQuery && !containsCjk(location.city) && containsCjk(primaryNow.city)) {
+      console.log('[useWeatherVisitor] 使用城市查询校准英文定位名:', cityQuery)
+      const cityNow = await fetchSeniverseNow(cityQuery)
+      if (isSameCity(cityNow.city, primaryNow.city)) {
+        console.log('[useWeatherVisitor] 英文定位名校准成功，采用当前经纬度')
+        return { query: primaryQuery, now: primaryNow }
+      }
+      console.warn('[useWeatherVisitor] 经纬度城市与英文地名查询结果不一致，使用城市查询:', primaryNow.city, cityNow.city)
+      return { query: cityQuery, now: cityNow }
+    }
+
+    console.warn('[useWeatherVisitor] 首选经纬度城市不一致，使用 ip.sb 复核:', location.city, primaryNow.city)
+    try {
+      const secondary = await fetchSecondaryGeo()
+      if (!coordinatesAreEquivalent(location, secondary)) {
+        const secondaryQuery = coordinateQuery(secondary)
+        const secondaryNow = await fetchSeniverseNow(secondaryQuery)
+        if (isSameCity(location.city, secondaryNow.city)) {
+          console.log('[useWeatherVisitor] 使用 ip.sb 复核经纬度')
+          return { query: secondaryQuery, now: secondaryNow }
+        }
+        console.warn('[useWeatherVisitor] ip.sb 经纬度城市仍不一致:', location.city, secondaryNow.city)
+      } else {
+        console.warn('[useWeatherVisitor] 两个定位服务的经纬度基本一致，跳过重复天气请求')
+      }
+    } catch (error) {
+      console.warn('[useWeatherVisitor] ip.sb 复核失败，使用城市兜底:', error)
+    }
+
+    if (!cityQuery) return { query: primaryQuery, now: primaryNow }
+    console.log('[useWeatherVisitor] 使用省份 + 城市查询天气:', cityQuery)
+    return { query: cityQuery, now: await fetchSeniverseNow(cityQuery) }
+  }
+
   async function fetchWeather(location: LocationData): Promise<WeatherData> {
-    const city = location.city.trim()
-    const region = location.region.trim()
-    const query = city && city !== '未知城市'
-      ? [region, city].filter(Boolean).join(' ')
-      : `${location.lat}:${location.lon}`
-    const [now, daily] = await Promise.all([
-      fetchSeniverseNow(query),
-      fetchSeniverseDaily(query),
-    ])
+    const { query, now } = await chooseWeatherQuery(location)
+    const daily = await fetchSeniverseDaily(query)
 
     const code = parseInt(now.code, 10) || 0
     const tomorrowCode = parseInt(daily.code_day, 10) || 0
@@ -300,12 +378,6 @@ export function useWeatherVisitor() {
           w = await fetchWeather(loc)
           weatherData.value = w
           saveCachedWeather(w)
-          // 用 心知天气 返回的中文城市名更新位置缓存
-          if (w.city && w.city !== loc.city) {
-            loc.city = w.city
-            locationData.value = { ...loc }
-            saveCachedLocation(loc)
-          }
           console.log('[useWeatherVisitor] 天气结果:', w)
         } else {
           console.log('[useWeatherVisitor] 使用缓存天气:', w.desc, w.temp + '°C')

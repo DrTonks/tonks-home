@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // 从环境变量读取后端地址，避免 IP 硬编码进公开仓库
   const apiTarget = process.env.VITE_API_TARGET || env.VITE_API_TARGET || 'http://localhost:9010'
+  const geoipTarget = process.env.VITE_GEOIP_TARGET || env.VITE_GEOIP_TARGET || 'https://tonks.top'
 
   return {
     plugins: [vue()],
@@ -35,11 +36,12 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
-        // IP 定位代理（ip-api.com 免费版仅支持 HTTP，lang=zh-CN 返回中文城市名）
+        // 本地开发复用线上 /geoip，避免 Node/Vite 直连 ip-api 免费 HTTP 端点超时。
+        // 请求仍从开发者本机发出，线上 Apache 看到的是开发者公网出口地址。
+        // 生产构建不包含 dev proxy，部署后仍由本站 Apache 处理同一路径。
         '/geoip': {
-          target: 'http://ip-api.com',
+          target: geoipTarget,
           changeOrigin: true,
-          rewrite: (path) => '/json?lang=zh-CN&fields=city,regionName,country,lat,lon',
         },
         // 心知天气代理：避免浏览器直连 api.seniverse.com 导致 403
         '/seniverse': {
