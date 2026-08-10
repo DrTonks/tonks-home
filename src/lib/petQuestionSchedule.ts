@@ -1,5 +1,7 @@
 export type QuestionSchedule =
-  { mode: 'once'; limit?: never } | { mode: 'daily' | 'weekly'; limit: number }
+  | { mode: 'once'; limit?: never }
+  | { mode: 'daily' | 'weekly'; limit: number }
+  | { mode: 'interval'; intervalDays: number; limit: number }
 
 export interface QuestionActivityEntry {
   period: string
@@ -25,9 +27,20 @@ export function localWeekKey(date = new Date()): string {
   return `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`
 }
 
+function localIntervalKey(intervalDays: number, date = new Date()): string {
+  // 以本地日期 00:00 为基准，确保同日不同时刻属于同一周期
+  const localMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const epochDays = Math.floor(localMidnight.getTime() / 86_400_000)
+  const periodStart = Math.floor(epochDays / intervalDays) * intervalDays
+  const periodDate = new Date(periodStart * 86_400_000)
+  // UTC getter 避免时区偏移导致日期显示偏移
+  return `${periodDate.getUTCFullYear()}-${pad(periodDate.getUTCMonth() + 1)}-${pad(periodDate.getUTCDate())}`
+}
+
 export function periodKey(schedule: QuestionSchedule, date = new Date()): string {
   if (schedule.mode === 'daily') return `day:${localDayKey(date)}`
   if (schedule.mode === 'weekly') return `week:${localWeekKey(date)}`
+  if (schedule.mode === 'interval') return `interval:${schedule.intervalDays}d:${localIntervalKey(schedule.intervalDays, date)}`
   return 'once'
 }
 

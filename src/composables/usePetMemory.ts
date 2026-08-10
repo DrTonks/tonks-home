@@ -29,7 +29,7 @@ const LS_LOCATION = 'pet_location'
 const LS_QUESTION_ACTIVITY = 'pet_question_activity_v2'
 const LS_ACTION_OUTCOMES = 'pet_action_outcomes'
 
-export const PET_GLOBAL_QUESTION_COOLDOWN_MINUTES = 5
+export const PET_GLOBAL_QUESTION_COOLDOWN_MINUTES = 15
 
 export type PetActionOutcome = 'accepted' | 'rejected'
 export type PetActionOutcomes = Record<string, PetActionOutcome>

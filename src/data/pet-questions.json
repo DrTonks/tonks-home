@@ -81,7 +81,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "mood",
-    "schedule": { "mode": "daily", "limit": 2 },
+    "schedule": { "mode": "interval", "intervalDays": 2, "limit": 2 },
     "allowPermanentReject": false,
     "personas": {
       "static": "心情如何？",
@@ -99,7 +99,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "recent_music",
-    "schedule": { "mode": "daily", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 2, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "最近在听什么歌？",
@@ -118,7 +118,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "recent_game",
-    "schedule": { "mode": "daily", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 2, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "最近有在玩什么游戏吗？",
@@ -137,7 +137,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "recent_food",
-    "schedule": { "mode": "daily", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 2, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "有没有什么美食推荐？",
@@ -156,7 +156,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "recent_book",
-    "schedule": { "mode": "daily", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 3, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "最近有在读什么新书吗？",
@@ -175,7 +175,7 @@
     "kind": "recurring",
     "replyMode": "ai_with_fallback",
     "fallbackKey": "recent_anime",
-    "schedule": { "mode": "daily", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 3, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "最近有什么番剧推荐吗？我还没怎么看过。",
@@ -195,7 +195,7 @@
     "replyMode": "ai_with_fallback",
     "fallbackKey": "city_life",
     "condition": "has_city",
-    "schedule": { "mode": "weekly", "limit": 1 },
+    "schedule": { "mode": "interval", "intervalDays": 7, "limit": 1 },
     "allowPermanentReject": false,
     "personas": {
       "static": "最近在{{city}}的生活怎么样？",
@@ -215,8 +215,8 @@
     "replyMode": "action",
     "action": "toggle_theme",
     "condition": "theme_unmodified",
-    "schedule": { "mode": "once" },
-    "allowPermanentReject": false,
+    "schedule": { "mode": "interval", "intervalDays": 3, "limit": 1 },
+    "allowPermanentReject": true,
     "personas": {
       "static": "现在会不会有点{{theme_brightness}}，需要我替你调整吗？",
       "live2d": "老板，现在会不会有点{{theme_brightness}}呀？需要我帮忙换一下吗？"

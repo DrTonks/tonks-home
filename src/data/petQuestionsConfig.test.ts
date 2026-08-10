@@ -13,17 +13,18 @@ describe('pet question configuration', () => {
 
   it('uses natural-period limits requested by the product rules', () => {
     const byId = Object.fromEntries(questions.map((question) => [question.id, question]))
-    expect(byId.q_mood.schedule).toEqual({ mode: 'daily', limit: 2 })
-    for (const id of [
-      'q_recent_music',
-      'q_recent_game',
-      'q_recent_food',
-      'q_recent_book',
-      'q_recent_anime',
-    ]) {
-      expect(byId[id].schedule).toEqual({ mode: 'daily', limit: 1 })
+    // 心情：每 2 天最多 2 次
+    expect(byId.q_mood.schedule).toEqual({ mode: 'interval', intervalDays: 2, limit: 2 })
+    // 听歌 / 游戏 / 美食：每 2 天 1 次
+    for (const id of ['q_recent_music', 'q_recent_game', 'q_recent_food']) {
+      expect(byId[id].schedule).toEqual({ mode: 'interval', intervalDays: 2, limit: 1 })
     }
-    expect(byId.q_city_life.schedule).toEqual({ mode: 'weekly', limit: 1 })
+    // 读书 / 番剧：每 3 天 1 次
+    for (const id of ['q_recent_book', 'q_recent_anime']) {
+      expect(byId[id].schedule).toEqual({ mode: 'interval', intervalDays: 3, limit: 1 })
+    }
+    // 城市生活：每 7 天 1 次
+    expect(byId.q_city_life.schedule).toEqual({ mode: 'interval', intervalDays: 7, limit: 1 })
   })
 
   it('counts recurring rejections only for the current natural period', () => {
@@ -37,5 +38,8 @@ describe('pet question configuration', () => {
     const actions = questions.filter((question) => question.kind === 'action')
     expect(actions.map((question) => question.id)).toEqual(['q_theme_suggestion', 'q_play_music'])
     expect(actions.every((question) => question.replyMode === 'action')).toBe(true)
+    const theme = actions.find((q) => q.id === 'q_theme_suggestion')!
+    expect(theme.schedule).toEqual({ mode: 'interval', intervalDays: 3, limit: 1 })
+    expect(theme.allowPermanentReject).toBe(true)
   })
 })
