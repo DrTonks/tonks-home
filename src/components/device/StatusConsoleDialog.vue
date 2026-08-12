@@ -74,6 +74,7 @@ let timers: ReturnType<typeof setTimeout>[] = []
 let clockTimer: ReturnType<typeof setInterval> | null = null
 let waitAnimationTimer: ReturnType<typeof setTimeout> | null = null
 let bulletinTimer: ReturnType<typeof setTimeout> | null = null
+let feedbackTimer: ReturnType<typeof setTimeout> | null = null
 let transitionGeneration = 0
 let bulletinIndex = 0
 
@@ -404,6 +405,41 @@ function runCommand(commandText: string, animate = true) {
   delay(typeNext, 70)
 }
 
+function selectModule(module: ModuleName, commandText: string) {
+  const generation = ++transitionGeneration
+  clearTimers()
+
+  // 内容立即切换，命令输入仅作为同步的视觉回显，不再阻塞导航。
+  activeModule.value = module
+  phase.value = 'typing'
+  command.value = ''
+  if (module === 'inbox') void loadRecommendations()
+  if (module === 'status') void loadStatusHistory()
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    phase.value = 'ready'
+    void nextTick(() => inputRef.value?.focus())
+    return
+  }
+
+  let index = 0
+  const typeNext = () => {
+    if (generation !== transitionGeneration) return
+    command.value = commandText.slice(0, ++index)
+    if (index < commandText.length) {
+      delay(typeNext, 28)
+      return
+    }
+    delay(() => {
+      if (generation !== transitionGeneration) return
+      command.value = ''
+      phase.value = 'ready'
+      void nextTick(() => inputRef.value?.focus())
+    }, 100)
+  }
+  delay(typeNext, 30)
+}
+
 function startBoot() {
   ++transitionGeneration
   clearTimers()
@@ -451,6 +487,18 @@ function onInputKeydown(event: KeyboardEvent) {
   }
 }
 
+watch(commandFeedback, (feedback) => {
+  if (feedbackTimer) clearTimeout(feedbackTimer)
+  feedbackTimer = feedback
+    ? setTimeout(
+        () => {
+          commandFeedback.value = null
+        },
+        feedback.kind === 'success' ? 3600 : 5200,
+      )
+    : null
+})
+
 watch(
   () => props.visible,
   (visible) => {
@@ -464,6 +512,7 @@ watch(
       clearTimers()
       if (clockTimer) clearInterval(clockTimer)
       if (waitAnimationTimer) clearTimeout(waitAnimationTimer)
+      if (feedbackTimer) clearTimeout(feedbackTimer)
       stopBulletin()
       clockTimer = null
     }
@@ -474,6 +523,7 @@ onBeforeUnmount(() => {
   clearTimers()
   if (clockTimer) clearInterval(clockTimer)
   if (waitAnimationTimer) clearTimeout(waitAnimationTimer)
+  if (feedbackTimer) clearTimeout(feedbackTimer)
   stopBulletin()
 })
 </script>
@@ -511,7 +561,7 @@ onBeforeUnmount(() => {
               class="console-nav-item"
               :class="{ active: activeModule === item.id }"
               :aria-current="activeModule === item.id ? 'page' : undefined"
-              @click="runCommand(item.command)"
+              @click="selectModule(item.id, item.command)"
             >
               <component :is="item.icon" class="h-4 w-4 shrink-0" aria-hidden="true" />
               <span class="min-w-0 flex-1 text-left">

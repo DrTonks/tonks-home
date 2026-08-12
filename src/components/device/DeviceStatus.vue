@@ -21,49 +21,49 @@ const colorMap: Record<string, string> = {
 
 // 应用名 → 描述映射
 const appDescMap: Record<string, string> = {
-  'Electron应用开发': '在开发exe应用中...很可能是综设任务！',
-  '操作菜单': '在查看电脑菜单',
-  '系统设置': '在编辑系统配置？',
-  '记事本': '可能在修改什么配置文件...',
-  '打开方式': '在选择用什么软件打开文件',
+  Electron应用开发: '在开发exe应用中...很可能是综设任务！',
+  操作菜单: '在查看电脑菜单',
+  系统设置: '在编辑系统配置？',
+  记事本: '可能在修改什么配置文件...',
+  打开方式: '在选择用什么软件打开文件',
   'Microsoft Store': '在浏览应用商店',
-  '开始菜单': '在查找什么文件？',
-  'FileZilla': '正在管理服务器文件，可能是在更新网站。',
-  '睡眠状态': '电脑处于睡眠状态，人也可能处于睡眠状态',
-  '锁屏': '暂时离开',
+  开始菜单: '在查找什么文件？',
+  FileZilla: '正在管理服务器文件，可能是在更新网站。',
+  睡眠状态: '电脑处于睡眠状态，人也可能处于睡眠状态',
+  锁屏: '暂时离开',
   '电脑-手机助手': '正在看手机？',
-  '照片查看器': '浏览照片中...',
-  '关机中': '电脑关机了，也许是似了。',
-  "Terminal":"很有可能在Vibe coding",
-  '命令提示符': '命令行操作中！',
-  '视频': '在看视频~',
+  照片查看器: '浏览照片中...',
+  关机中: '电脑关机了，也许是似了。',
+  Terminal: '很有可能在Vibe coding',
+  命令提示符: '命令行操作中！',
+  视频: '在看视频~',
   'Word 文档': '正在编辑Word文档，可能在赶报告？',
-  'Excel表格': '正在成为数据分析师！',
-  'PPT演示文稿': '可能在看课件，也可能在学习制作PPT',
-  'OneNote': '笔记时间',
-  'Typora编辑器': '正在编辑Markdown文件，可能在整理笔记！',
-  'Edge浏览器': '查询资料中...大概率在逛b站？',
+  Excel表格: '正在成为数据分析师！',
+  PPT演示文稿: '可能在看课件，也可能在学习制作PPT',
+  OneNote: '笔记时间',
+  Typora编辑器: '正在编辑Markdown文件，可能在整理笔记！',
+  Edge浏览器: '查询资料中...大概率在逛b站？',
   'VSCode 编辑器': '正在写代码！也可能在看AI写代码。',
-  'Clash': '正在配置网络代理...',
-  '任务管理器': '在查看资源占用情况...',
-  'Steam': '正在查看Steam中...',
-  '微信': '与朋友畅聊中...',
-  'QQ': 'QQ在线中（也可能睡着了）',
-  '文件资源管理器': '在整理电脑文件...',
-  'XMind思维导图': '头脑风暴...',
-  'WPS办公': 'WPS办公，效率工具。',
+  Clash: '正在配置网络代理...',
+  任务管理器: '在查看资源占用情况...',
+  Steam: '正在查看Steam中...',
+  微信: '与朋友畅聊中...',
+  QQ: 'QQ在线中（也可能睡着了）',
+  文件资源管理器: '在整理电脑文件...',
+  XMind思维导图: '头脑风暴...',
+  WPS办公: 'WPS办公，效率工具。',
   'WPS PDF': '阅读或编辑PDF文档',
-  'WPS文字': '文字编辑',
-  'WPS演示': '演示文稿',
-  'WPS表格': '表格处理',
-  '百度网盘': '龟速下载文件中...',
-  'OneDrive': '龟速浏览共享文档中...',
-  'Postman': 'API测试中...',
+  WPS文字: '文字编辑',
+  WPS演示: '演示文稿',
+  WPS表格: '表格处理',
+  百度网盘: '龟速下载文件中...',
+  OneDrive: '龟速浏览共享文档中...',
+  Postman: 'API测试中...',
   'GitHub Desktop': '正在使用GitHub...',
   'OBS Studio': '录屏中...',
-  '似了': '睡似了或不在线，紧急请电话联系。',
-  'Obsidian': '正在编写知识库或整理学习笔记...',
-  'ChatGPT': '和GPT大人讨论问题中...',
+  似了: '睡似了或不在线，紧急请电话联系。',
+  Obsidian: '正在编写知识库或整理学习笔记...',
+  ChatGPT: '和GPT大人讨论问题中...',
 }
 
 interface DisplayState {
@@ -97,11 +97,7 @@ const currentState = computed<DisplayState>(() => {
   }
   const s = store.currentStatus
   // status=99 或 info 没有 desc 字段 → 未登记
-  if (
-    s.status === 99 ||
-    !s.info ||
-    typeof s.info === 'object' && !('desc' in s.info)
-  ) {
+  if (s.status === 99 || !s.info || (typeof s.info === 'object' && !('desc' in s.info))) {
     return {
       key: 'unknown',
       color: colorMap.unknown,
@@ -121,7 +117,7 @@ const currentState = computed<DisplayState>(() => {
       pulse: true,
     }
   }
-  const colorKey = info.name === '关机中' ? 'error' : (info.color || 'awake')
+  const colorKey = info.name === '关机中' ? 'error' : info.color || 'awake'
   const desc = appDescMap[info.name] || info.name + '：' + info.desc
   return {
     key: colorKey,
@@ -139,7 +135,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
 
 <template>
   <Card
-    class="w-[clamp(220px,18vw,280px)] p-5 relative group cursor-pointer status-card-trigger"
+    class="interactive-card-outline w-[clamp(220px,18vw,280px)] p-5 relative group cursor-pointer status-card-trigger"
     role="button"
     tabindex="0"
     aria-haspopup="dialog"
@@ -151,9 +147,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
   >
     <!-- 标题 + 刷新按钮 -->
     <div class="flex items-center justify-between mb-4">
-      <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
-        在干什么？
-      </h2>
+      <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">在干什么？</h2>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -178,19 +172,20 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
     </div>
 
     <!-- 描述 -->
-    <p class="text-[13px] leading-relaxed text-muted-foreground line-clamp-2 mb-4 min-h-[2.6em] text-center sm:text-left">
+    <p
+      class="text-[13px] leading-relaxed text-muted-foreground line-clamp-2 mb-4 min-h-[2.6em] text-center sm:text-left"
+    >
       {{ currentState.desc }}
     </p>
 
     <!-- 时间 -->
-    <div
-      class="text-[11px] text-muted-foreground/70 tabular-nums flex items-center gap-1.5"
-    >
+    <div class="text-[11px] text-muted-foreground/70 tabular-nums flex items-center gap-1.5">
       <span v-if="relativeTime">{{ relativeTime }} ·</span>
       <span>{{ absoluteTime }}</span>
     </div>
     <span class="status-action-hint" aria-hidden="true">
-      <Terminal class="h-3 w-3" />打开终端
+      <Terminal class="h-3 w-3" />
+      打开终端
     </span>
   </Card>
   <StatusConsoleDialog
@@ -209,21 +204,25 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid hsl(var(--color-sky-deep) / .22);
+  border: 1px solid hsl(var(--color-sky-deep) / 0.22);
   border-radius: 999px;
   padding: 3px 7px;
-  background: hsl(var(--background) / .78);
+  background: hsl(var(--background) / 0.78);
   color: hsl(var(--color-sky-deep));
   font-size: 9px;
   opacity: 0.5;
   transform: translateY(4px);
-  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-  box-shadow: 0 6px 18px rgb(0 0 0 / .12);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
 }
 .status-card-trigger:hover .status-action-hint,
 .status-card-trigger:focus-visible .status-action-hint {
   opacity: 1;
   transform: translateY(1px);
 }
-.status-card-trigger:hover { box-shadow: 0 10px 30px hsl(var(--color-sky-deep) / .11); }
+.status-card-trigger:hover {
+  box-shadow: 0 10px 30px hsl(var(--color-sky-deep) / 0.11);
+}
 </style>

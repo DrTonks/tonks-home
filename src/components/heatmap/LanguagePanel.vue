@@ -35,7 +35,11 @@ function openGitHub() {
 // 颜色工具：解析 hex → [r,g,b]；mix 提亮(>0向白)/压暗(<0)；rgba 带透明
 function parseHex(hex: string): [number, number, number] {
   let h = (hex || '#888888').replace('#', '')
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
   const n = parseInt(h, 16)
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
@@ -116,7 +120,7 @@ const option = computed(() => {
 
 <template>
   <Card
-    class="w-[clamp(200px,16vw,260px)] p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    class="interactive-card-outline w-[clamp(200px,16vw,260px)] p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     role="link"
     tabindex="0"
     aria-label="打开 DrTonks 的 GitHub 主页"
@@ -128,8 +132,14 @@ const option = computed(() => {
     </h2>
 
     <div v-if="loading" class="relative flex items-center justify-center h-[160px]">
-      <div class="w-20 h-20 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
-      <span class="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/70 tracking-wide whitespace-nowrap">拉取 GitHub 数据中</span>
+      <div
+        class="w-20 h-20 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin"
+      />
+      <span
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] text-muted-foreground/70 tracking-wide whitespace-nowrap"
+      >
+        拉取 GitHub 数据中
+      </span>
     </div>
 
     <template v-else-if="available">
@@ -144,16 +154,16 @@ const option = computed(() => {
           :key="lang.name"
           class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-foreground"
         >
-          <span
-            class="w-1.5 h-1.5 rounded-full"
-            :style="{ background: lang.color }"
-          />
+          <span class="w-1.5 h-1.5 rounded-full" :style="{ background: lang.color }" />
           {{ lang.name }}
         </span>
       </div>
     </template>
 
-    <div v-else class="flex items-center justify-center h-[160px] text-[11px] text-muted-foreground">
+    <div
+      v-else
+      class="flex items-center justify-center h-[160px] text-[11px] text-muted-foreground"
+    >
       GitHub 未配置
     </div>
   </Card>

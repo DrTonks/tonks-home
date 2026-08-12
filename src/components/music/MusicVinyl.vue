@@ -47,7 +47,7 @@ onBeforeUnmount(() => {
 
 <template>
   <Card
-    class="vinyl-card flex w-[clamp(156px,12vw,180px)] cursor-pointer flex-col items-center justify-center overflow-visible p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    class="interactive-card-outline vinyl-card flex w-[clamp(156px,12vw,180px)] cursor-pointer flex-col items-center justify-center overflow-visible p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     role="button"
     tabindex="0"
     aria-haspopup="dialog"
@@ -57,20 +57,32 @@ onBeforeUnmount(() => {
     @keydown.enter.prevent="showLibrary = true"
     @keydown.space.prevent="showLibrary = true"
   >
-    <div
-      class="vinyl-player relative h-[128px] w-[140px] cursor-pointer rounded-xl"
-    >
-      <VinylDisc class="absolute left-0 top-2" :size="112" :spinning="discSpinning" :cover-url="coverUrl" />
+    <div class="vinyl-player relative h-[128px] w-[140px] cursor-pointer rounded-xl">
+      <VinylDisc
+        class="absolute left-0 top-2"
+        :size="112"
+        :spinning="discSpinning"
+        :cover-url="coverUrl"
+      />
       <svg class="tonearm" viewBox="0 0 140 128" aria-hidden="true">
         <circle cx="132" cy="55" r="9" class="tonearm-base" />
         <circle cx="132" cy="55" r="4.5" class="tonearm-pivot" />
         <g :class="['tonearm-moving', { playing: store.isPlaying }]">
-          <path d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108" class="tonearm-shadow" />
-          <path d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108" class="tonearm-arm" />
+          <path
+            d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108"
+            class="tonearm-shadow"
+          />
+          <path
+            d="M 130 59 C 124 66, 116 74, 112 83 C 109 91, 108 99, 106 108"
+            class="tonearm-arm"
+          />
           <path d="M 102 104 L 111 106 L 109 119 L 99 117 Z" class="tonearm-head" />
         </g>
       </svg>
-      <span class="vinyl-action-hint" aria-hidden="true"><Library class="h-3 w-3" />打开曲库</span>
+      <span class="vinyl-action-hint" aria-hidden="true">
+        <Library class="h-3 w-3" />
+        打开曲库
+      </span>
     </div>
 
     <MusicLibraryDialog v-model:open="showLibrary" />
@@ -95,17 +107,19 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid hsl(var(--color-sky-deep) / .22);
+  border: 1px solid hsl(var(--color-sky-deep) / 0.22);
   border-radius: 999px;
   padding: 4px 7px;
-  background: hsl(var(--background) / .9);
+  background: hsl(var(--background) / 0.9);
   color: hsl(var(--color-sky-deep));
-  box-shadow: 0 6px 18px rgb(0 0 0 / .12);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
   font-size: 9px;
   white-space: nowrap;
   opacity: 0.5;
   transform: translateY(4px);
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .vinyl-card:hover .vinyl-action-hint,
@@ -172,7 +186,11 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tonearm-moving { transition: none; }
-  .vinyl-action-hint { transition: none; }
+  .tonearm-moving {
+    transition: none;
+  }
+  .vinyl-action-hint {
+    transition: none;
+  }
 }
 </style>

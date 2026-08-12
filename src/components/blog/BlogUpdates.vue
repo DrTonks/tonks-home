@@ -17,12 +17,6 @@ const loading = ref(true)
 const activeTab = ref('article')
 const theme = useThemeStore()
 
-function openBlog(event?: Event) {
-  const target = event?.target as HTMLElement | null
-  if (target?.closest('a, button, [role="tab"]')) return
-  window.open('https://blog.tonks.top/', '_blank', 'noopener,noreferrer')
-}
-
 // 滑块指示器：数学计算（3 个等宽 tab 各占 1/3），首帧即正确，
 // 不依赖 DOM 测量，避免首次加载字体/布局未稳导致的宽度覆盖不全。
 const TAB_ORDER = ['article', 'project', 'timeline'] as const
@@ -44,14 +38,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Card
-    class="w-[clamp(280px,24vw,360px)] p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-    role="link"
-    tabindex="0"
-    aria-label="打开 Tonks 的博客"
-    @click="openBlog"
-    @keydown.enter.self.prevent="openBlog"
-  >
+  <Card class="w-[clamp(280px,24vw,360px)] p-4">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
         我的最新动态！
@@ -82,7 +69,9 @@ onMounted(async () => {
                 aria-label="哔哩哔哩"
               >
                 <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-                  <path d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zm3.173 3.867c.373 0 .684.124.933.373.25.249.383.569.4.96v.573c-.017.391-.15.711-.4.96a1.294 1.294 0 0 1-.933.373 1.34 1.34 0 0 1-.947-.373c-.258-.249-.396-.569-.413-.96v-.573c.017-.391.155-.711.413-.96.26-.249.575-.373.947-.373zm6.987 0c.373 0 .684.124.933.373.25.249.383.569.4.96v.573c-.017.391-.15.711-.4.96a1.294 1.294 0 0 1-.933.373 1.34 1.34 0 0 1-.947-.373c-.258-.249-.396-.569-.413-.96v-.573c.017-.391.155-.711.413-.96.26-.249.575-.373.947-.373z"/>
+                  <path
+                    d="M17.813 4.653h.854c1.51.054 2.769.578 3.773 1.574 1.004.995 1.524 2.249 1.56 3.76v7.36c-.036 1.51-.556 2.769-1.56 3.773s-2.262 1.524-3.773 1.56H5.333c-1.51-.036-2.769-.556-3.773-1.56S.036 18.858 0 17.347v-7.36c.036-1.511.556-2.765 1.56-3.76 1.004-.996 2.262-1.52 3.773-1.574h.774l-1.174-1.12a1.234 1.234 0 0 1-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373L9.653 4.44c.071.071.134.142.187.213h4.267a.836.836 0 0 1 .16-.213l2.853-2.747c.267-.249.573-.373.92-.373.347 0 .662.151.929.4.267.249.391.551.391.907 0 .355-.124.657-.373.906zM5.333 7.24c-.746.018-1.373.276-1.88.773-.506.498-.769 1.13-.786 1.894v7.52c.017.764.28 1.395.786 1.893.507.498 1.134.756 1.88.773h13.334c.746-.017 1.373-.275 1.88-.773.506-.498.769-1.129.786-1.893v-7.52c-.017-.765-.28-1.396-.786-1.894-.507-.497-1.134-.755-1.88-.773zm3.173 3.867c.373 0 .684.124.933.373.25.249.383.569.4.96v.573c-.017.391-.15.711-.4.96a1.294 1.294 0 0 1-.933.373 1.34 1.34 0 0 1-.947-.373c-.258-.249-.396-.569-.413-.96v-.573c.017-.391.155-.711.413-.96.26-.249.575-.373.947-.373zm6.987 0c.373 0 .684.124.933.373.25.249.383.569.4.96v.573c-.017.391-.15.711-.4.96a1.294 1.294 0 0 1-.933.373 1.34 1.34 0 0 1-.947-.373c-.258-.249-.396-.569-.413-.96v-.573c.017-.391.155-.711.413-.96.26-.249.575-.373.947-.373z"
+                  />
                 </svg>
               </a>
             </TooltipTrigger>
@@ -109,16 +98,27 @@ onMounted(async () => {
     <Tabs v-model="activeTab">
       <!-- 带滑动指示器的导航栏 -->
       <div class="relative mb-3">
-        <TabsList class="grid grid-cols-3 w-full h-8 content-center bg-muted backdrop-blur-sm relative">
-          <TabsTrigger value="article" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+        <TabsList
+          class="grid grid-cols-3 w-full h-8 content-center bg-muted backdrop-blur-sm relative"
+        >
+          <TabsTrigger
+            value="article"
+            class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300"
+          >
             <FileText class="h-3 w-3" />
             文章
           </TabsTrigger>
-          <TabsTrigger value="project" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+          <TabsTrigger
+            value="project"
+            class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300"
+          >
             <FolderGit2 class="h-3 w-3" />
             项目
           </TabsTrigger>
-          <TabsTrigger value="timeline" class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300">
+          <TabsTrigger
+            value="timeline"
+            class="text-[11px] leading-none gap-1 data-[state=active]:text-primary data-[state=active]:font-semibold transition-colors duration-300"
+          >
             <History class="h-3 w-3" />
             时光机
           </TabsTrigger>
@@ -176,10 +176,14 @@ onMounted(async () => {
 }
 
 .blog-fade-enter-active {
-  transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.25s ease-out;
 }
 .blog-fade-leave-active {
-  transition: opacity 0.15s ease-in, transform 0.15s ease-in;
+  transition:
+    opacity 0.15s ease-in,
+    transform 0.15s ease-in;
 }
 .blog-fade-enter-from {
   opacity: 0;

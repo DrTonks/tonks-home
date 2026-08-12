@@ -137,12 +137,7 @@
     left: 12%;
     right: 12%;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.9) 50%,
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9) 50%, transparent);
     pointer-events: none;
   }
 
@@ -191,10 +186,10 @@
 /* Element Plus select 弹层 */
 .el-popper.is-light.time-popper {
   border-radius: 10px !important;
-  border: 1px solid rgba(255,255,255,0.3) !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
   backdrop-filter: blur(16px);
-  background: rgba(255,255,255,0.96) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
 }
 .el-popper.is-light.time-popper .el-select-dropdown__item {
   font-size: 11px;
@@ -207,15 +202,30 @@
 
 /* 桌宠 — 从天而降（全局，不受 scoped 重命名影响） */
 @keyframes pet-drop {
-  0%   { transform: translateY(-120vh); opacity: 0; }
-  15%  { opacity: 0.4; filter: blur(2px); }
-  50%  { opacity: 1; filter: blur(0); }
-  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+  0% {
+    transform: translateY(-120vh);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
 }
 .drop-enter {
-  animation: pet-drop 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
+  animation: pet-drop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
 }
-.drop-layer { position: relative; }
+.drop-layer {
+  position: relative;
+}
 /* 桌面宠折叠淡出（作用于 position:fixed 根元素，不会触发 CTB 位置跳变） */
 .pet-collapsing {
   opacity: 0 !important;
@@ -250,19 +260,14 @@ a:hover {
 
 /* 顶部高光线：白 0.9 在黑底上太亮，减弱 */
 .dark .top-highlight::before {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.22) 50%,
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22) 50%, transparent);
 }
 
 /* 玻璃渐变描边：暗色下顶缘高光减弱、下缘转为更深，避免描边发白刺眼 */
 .dark .glass-edge::after {
   background: linear-gradient(
     160deg,
-    rgba(255, 255, 255, 0.30),
+    rgba(255, 255, 255, 0.3),
     rgba(255, 255, 255, 0.08) 30%,
     rgba(255, 255, 255, 0) 58%,
     rgba(0, 0, 0, 0.22)
@@ -293,18 +298,24 @@ a:hover {
    这些类名（card-sheen/card-3d/sleep-z/time-select）足够独特，全局安全；
    用 html.dark 前缀提高优先级，压过各组件 scoped 的默认规则。 */
 html.dark .card-sheen {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, transparent 42%, transparent 66%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 42%,
+    transparent 66%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
 }
 html.dark .card-3d:hover {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-    0 1px 3px rgba(0, 0, 0, 0.40),
+    0 1px 3px rgba(0, 0, 0, 0.4),
     0 6px 16px rgba(0, 0, 0, 0.45),
-    0 16px 40px rgba(0, 0, 0, 0.50);
+    0 16px 40px rgba(0, 0, 0, 0.5);
 }
 html.dark .sleep-z {
   color: rgba(255, 255, 255, 0.75);
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.20);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
 }
 html.dark .time-select .el-input__wrapper {
   background: rgba(255, 255, 255, 0.06);
@@ -383,5 +394,85 @@ html.theme-art-fade-hold .theme-carousel-art-stage {
   .animate-avatar-glow {
     animation: none;
     box-shadow: 0 0 22px 2px hsl(var(--primary) / 0.5);
+  }
+}
+
+/* 可点击信息卡：进入时建立柔和辉光，保持到指针移出。 */
+.interactive-card-outline {
+  --outline-border-alpha: 0.72;
+  --outline-glow-near: 0.54;
+  --outline-glow-far: 0.3;
+  --outline-glow-inner: 0.18;
+  --outline-glow-rest-near: 0.42;
+  --outline-glow-rest-far: 0.22;
+  --outline-glow-rest-inner: 0.14;
+  position: relative;
+  isolation: isolate;
+}
+
+html.dark .interactive-card-outline {
+  --outline-border-alpha: 0.2;
+  --outline-glow-near: 0.3;
+  --outline-glow-far: 0.14;
+  --outline-glow-inner: 0.08;
+  --outline-glow-rest-near: 0.24;
+  --outline-glow-rest-far: 0.1;
+  --outline-glow-rest-inner: 0.06;
+}
+
+.interactive-card-outline::after {
+  position: absolute;
+  z-index: 10;
+  /* Card 基础组件默认 overflow-hidden，描边必须落在边界内才能稳定显示。 */
+  inset: 0;
+  border: 1.5px solid hsl(var(--color-sky-bright) / var(--outline-border-alpha));
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+  box-shadow: 0 0 0 0 hsl(var(--color-sky-bright) / 0);
+  filter: saturate(1.16) brightness(1.12);
+  will-change: opacity, box-shadow;
+}
+
+.interactive-card-outline:hover::after,
+.interactive-card-outline:focus-visible::after {
+  animation: interactive-card-outline 2s cubic-bezier(0.16, 1, 0.3, 1) 1 forwards;
+}
+
+@keyframes interactive-card-outline {
+  0% {
+    opacity: 0;
+    box-shadow: 0 0 0 0 hsl(var(--color-sky-bright) / 0);
+  }
+  12% {
+    opacity: 1;
+    box-shadow:
+      0 0 8px 1px hsl(var(--color-sky-bright) / var(--outline-glow-near)),
+      0 0 24px 5px hsl(var(--color-sky-bright) / var(--outline-glow-far)),
+      inset 0 0 11px hsl(var(--color-sky-bright) / var(--outline-glow-inner));
+  }
+  36% {
+    opacity: 0.82;
+    box-shadow:
+      0 0 8px 1px hsl(var(--color-sky-bright) / var(--outline-glow-near)),
+      0 0 22px 4px hsl(var(--color-sky-bright) / var(--outline-glow-far)),
+      inset 0 0 10px hsl(var(--color-sky-bright) / var(--outline-glow-inner));
+  }
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 7px 1px hsl(var(--color-sky-bright) / var(--outline-glow-rest-near)),
+      0 0 18px 3px hsl(var(--color-sky-bright) / var(--outline-glow-rest-far)),
+      inset 0 0 8px hsl(var(--color-sky-bright) / var(--outline-glow-rest-inner));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive-card-outline:hover::after,
+  .interactive-card-outline:focus-visible::after {
+    border-color: hsl(var(--color-sky-bright) / var(--outline-border-alpha));
+    opacity: 0.7;
+    animation: none;
   }
 }
