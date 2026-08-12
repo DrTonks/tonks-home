@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { RefreshCw, Terminal } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useDevicePoll } from '@/composables/useDevicePoll'
 import { formatTimestamp, timeAgo, cn } from '@/lib/utils'
 import StatusDot from './StatusDot.vue'
+import StatusConsoleDialog from './StatusConsoleDialog.vue'
 
 const { isRefreshing, refresh, store } = useDevicePoll()
+const consoleVisible = ref(false)
 
 // 状态色映射
 const colorMap: Record<string, string> = {
@@ -136,7 +138,17 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
 </script>
 
 <template>
-  <Card class="w-[clamp(220px,18vw,280px)] p-5 relative group">
+  <Card
+    class="w-[clamp(220px,18vw,280px)] p-5 relative group cursor-pointer status-card-trigger"
+    role="button"
+    tabindex="0"
+    aria-haspopup="dialog"
+    :aria-expanded="consoleVisible"
+    aria-label="打开个人状态控制台"
+    @click="consoleVisible = true"
+    @keydown.enter.prevent="consoleVisible = true"
+    @keydown.space.prevent="consoleVisible = true"
+  >
     <!-- 标题 + 刷新按钮 -->
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
@@ -148,7 +160,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
         :disabled="isRefreshing"
         class="opacity-50 group-hover:opacity-100 transition-opacity h-7 w-7"
         aria-label="刷新状态"
-        @click="refresh"
+        @click.stop="refresh"
       >
         <RefreshCw :class="cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')" />
       </Button>
@@ -177,5 +189,41 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
       <span v-if="relativeTime">{{ relativeTime }} ·</span>
       <span>{{ absoluteTime }}</span>
     </div>
+    <span class="status-action-hint" aria-hidden="true">
+      <Terminal class="h-3 w-3" />打开终端
+    </span>
   </Card>
+  <StatusConsoleDialog
+    :visible="consoleVisible"
+    :status="currentState"
+    :timestamp="timestamp"
+    @close="consoleVisible = false"
+  />
 </template>
+
+<style scoped>
+.status-action-hint {
+  position: absolute;
+  right: 2rem;
+  top: 0px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid hsl(var(--color-sky-deep) / .22);
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: hsl(var(--background) / .78);
+  color: hsl(var(--color-sky-deep));
+  font-size: 9px;
+  opacity: 0.5;
+  transform: translateY(4px);
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  box-shadow: 0 6px 18px rgb(0 0 0 / .12);
+}
+.status-card-trigger:hover .status-action-hint,
+.status-card-trigger:focus-visible .status-action-hint {
+  opacity: 1;
+  transform: translateY(1px);
+}
+.status-card-trigger:hover { box-shadow: 0 10px 30px hsl(var(--color-sky-deep) / .11); }
+</style>

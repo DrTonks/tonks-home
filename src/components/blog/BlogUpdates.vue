@@ -17,6 +17,12 @@ const loading = ref(true)
 const activeTab = ref('article')
 const theme = useThemeStore()
 
+function openBlog(event?: Event) {
+  const target = event?.target as HTMLElement | null
+  if (target?.closest('a, button, [role="tab"]')) return
+  window.open('https://blog.tonks.top/', '_blank', 'noopener,noreferrer')
+}
+
 // 滑块指示器：数学计算（3 个等宽 tab 各占 1/3），首帧即正确，
 // 不依赖 DOM 测量，避免首次加载字体/布局未稳导致的宽度覆盖不全。
 const TAB_ORDER = ['article', 'project', 'timeline'] as const
@@ -38,7 +44,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Card class="w-[clamp(280px,24vw,360px)] p-4">
+  <Card
+    class="w-[clamp(280px,24vw,360px)] p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    role="link"
+    tabindex="0"
+    aria-label="打开 Tonks 的博客"
+    @click="openBlog"
+    @keydown.enter.self.prevent="openBlog"
+  >
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep">
         我的最新动态！

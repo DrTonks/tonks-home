@@ -89,6 +89,27 @@
   --cloud-fill: #ffffff;
   --cloud-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
 
+  /* === Personal telemetry console / Arctic Glass === */
+  --console-shell: rgba(244, 248, 250, 0.97);
+  --console-titlebar: rgba(232, 241, 245, 0.94);
+  --console-sidebar: rgba(221, 233, 237, 0.72);
+  --console-pane: #edf3f5;
+  --console-surface: rgba(255, 255, 255, 0.62);
+  --console-input: rgba(245, 250, 251, 0.96);
+  --console-text: #172832;
+  --console-muted: #60737d;
+  --console-faint: #8a9ba3;
+  --console-prompt: #257ba8;
+  --console-success: #438a6c;
+  --console-error: #b94f5a;
+  --console-border: rgba(86, 119, 132, 0.24);
+  --console-hover: rgba(60, 127, 154, 0.07);
+  --console-selected: rgba(43, 126, 165, 0.10);
+  --console-grid: rgba(55, 96, 111, 0.035);
+  --console-glow: rgba(52, 145, 184, 0.15);
+  --console-scan: rgba(109, 196, 220, 0.18);
+  --console-scanline: rgba(21, 49, 59, 0.055);
+
   /* === Motion === */
   --duration-fast: 150ms;
   --duration-normal: 300ms;
@@ -194,6 +215,27 @@
   /* === 云朵气泡（暗色） === */
   --cloud-fill: hsl(216 32% 18% / 0.94);
   --cloud-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+
+  /* === Personal telemetry console / Deep Space Amber === */
+  --console-shell: rgba(10, 16, 27, 0.985);
+  --console-titlebar: rgba(14, 22, 36, 0.98);
+  --console-sidebar: rgba(15, 24, 39, 0.96);
+  --console-pane: #080e18;
+  --console-surface: rgba(18, 29, 46, 0.76);
+  --console-input: rgba(12, 20, 33, 0.98);
+  --console-text: #dce7ed;
+  --console-muted: #84939f;
+  --console-faint: #536270;
+  --console-prompt: #f0bd58;
+  --console-success: #6ac98c;
+  --console-error: #ed7882;
+  --console-border: rgba(190, 215, 229, 0.14);
+  --console-hover: rgba(255, 255, 255, 0.045);
+  --console-selected: rgba(240, 189, 88, 0.09);
+  --console-grid: rgba(145, 181, 201, 0.027);
+  --console-glow: rgba(240, 189, 88, 0.13);
+  --console-scan: rgba(240, 189, 88, 0.15);
+  --console-scanline: rgba(240, 210, 150, 0.035);
 }
 
 @media (prefers-reduced-motion: reduce) {

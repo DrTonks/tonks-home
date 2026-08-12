@@ -28,6 +28,10 @@ onMounted(async () => {
 
 const theme = useThemeStore()
 
+function openGitHub() {
+  window.open('https://github.com/DrTonks', '_blank', 'noopener,noreferrer')
+}
+
 // 颜色工具：解析 hex → [r,g,b]；mix 提亮(>0向白)/压暗(<0)；rgba 带透明
 function parseHex(hex: string): [number, number, number] {
   let h = (hex || '#888888').replace('#', '')
@@ -111,7 +115,14 @@ const option = computed(() => {
 </script>
 
 <template>
-  <Card class="w-[clamp(200px,16vw,260px)] p-4">
+  <Card
+    class="w-[clamp(200px,16vw,260px)] p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    role="link"
+    tabindex="0"
+    aria-label="打开 DrTonks 的 GitHub 主页"
+    @click="openGitHub"
+    @keydown.enter.prevent="openGitHub"
+  >
     <h2 class="font-kai text-base font-medium tracking-wider text-brand-sky-deep mb-2">
       最近在鼓捣什么
     </h2>
@@ -122,7 +133,7 @@ const option = computed(() => {
     </div>
 
     <template v-else-if="available">
-      <div class="relative w-full h-[160px]">
+      <div class="language-chart relative w-full h-[160px]">
         <VChart :option="option" autoresize style="height: 160px; width: 100%" />
       </div>
 
@@ -147,3 +158,11 @@ const option = computed(() => {
     </div>
   </Card>
 </template>
+
+<style scoped>
+/* ECharts 会给内部 canvas 写入自己的 cursor；显式覆盖后整张卡片保持一致的点击反馈。 */
+.language-chart,
+.language-chart :deep(canvas) {
+  cursor: pointer !important;
+}
+</style>

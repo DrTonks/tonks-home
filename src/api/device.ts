@@ -20,9 +20,26 @@ export interface OnlineCountResponse {
   mobile_count: number
 }
 
+export interface StatusHistoryItem {
+  status: number
+  app_name: string
+  timestamp: number
+  info: StatusInfo | { status: number; name: string }
+}
+
+export interface StatusHistoryResponse {
+  success: boolean
+  history: StatusHistoryItem[]
+}
+
 /** 获取当前 PC 状态 */
 export function getQuery() {
   return api.get<QueryResponse>('/query').then((r) => r.data)
+}
+
+/** 获取最近五次不同的 PC 状态 */
+export function getStatusHistory() {
+  return api.get<StatusHistoryResponse>('/status-history').then((r) => r.data)
 }
 
 /** 获取全部状态定义 */

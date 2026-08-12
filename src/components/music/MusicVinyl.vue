@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Library } from 'lucide-vue-next'
 import { useMusicStore } from '@/stores/music'
 import { Card } from '@/components/ui/card'
 import VinylDisc from './VinylDisc.vue'
@@ -45,14 +46,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Card class="flex w-[clamp(156px,12vw,180px)] flex-col items-center justify-center overflow-visible p-2">
-    <button
-      type="button"
-      class="vinyl-player relative h-[128px] w-[140px] cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label="打开唱片曲库"
-      @click="showLibrary = true"
+  <Card
+    class="vinyl-card flex w-[clamp(156px,12vw,180px)] cursor-pointer flex-col items-center justify-center overflow-visible p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    role="button"
+    tabindex="0"
+    aria-haspopup="dialog"
+    :aria-expanded="showLibrary"
+    aria-label="打开曲库"
+    @click="showLibrary = true"
+    @keydown.enter.prevent="showLibrary = true"
+    @keydown.space.prevent="showLibrary = true"
+  >
+    <div
+      class="vinyl-player relative h-[128px] w-[140px] cursor-pointer rounded-xl"
     >
-      <VinylDisc class="absolute left-0 top-1" :size="112" :spinning="discSpinning" :cover-url="coverUrl" />
+      <VinylDisc class="absolute left-0 top-2" :size="112" :spinning="discSpinning" :cover-url="coverUrl" />
       <svg class="tonearm" viewBox="0 0 140 128" aria-hidden="true">
         <circle cx="132" cy="55" r="9" class="tonearm-base" />
         <circle cx="132" cy="55" r="4.5" class="tonearm-pivot" />
@@ -62,7 +70,8 @@ onBeforeUnmount(() => {
           <path d="M 102 104 L 111 106 L 109 119 L 99 117 Z" class="tonearm-head" />
         </g>
       </svg>
-    </button>
+      <span class="vinyl-action-hint" aria-hidden="true"><Library class="h-3 w-3" />打开曲库</span>
+    </div>
 
     <MusicLibraryDialog v-model:open="showLibrary" />
   </Card>
@@ -73,11 +82,43 @@ onBeforeUnmount(() => {
   isolation: isolate;
 }
 
+.vinyl-card,
+.vinyl-card * {
+  cursor: pointer;
+}
+
+.vinyl-action-hint {
+  position: absolute;
+  z-index: 4;
+  right: -5px;
+  top: 0px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid hsl(var(--color-sky-deep) / .22);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: hsl(var(--background) / .9);
+  color: hsl(var(--color-sky-deep));
+  box-shadow: 0 6px 18px rgb(0 0 0 / .12);
+  font-size: 9px;
+  white-space: nowrap;
+  opacity: 0.5;
+  transform: translateY(4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.vinyl-card:hover .vinyl-action-hint,
+.vinyl-card:focus-visible .vinyl-action-hint {
+  opacity: 1;
+  transform: translateY(1px);
+}
+
 .tonearm {
   position: absolute;
   z-index: 2;
   left: -3px;
-  top: 6px;
+  top: 3px;
   width: 140px;
   height: 128px;
   overflow: visible;
@@ -100,12 +141,12 @@ onBeforeUnmount(() => {
 .tonearm-moving {
   transform-box: view-box;
   transform-origin: 132px 55px;
-  transform: rotate(-8deg);
+  transform: rotate(-4deg);
   transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tonearm-moving.playing {
-  transform: rotate(22deg);
+  transform: rotate(25deg);
 }
 
 .tonearm-shadow,
@@ -132,5 +173,6 @@ onBeforeUnmount(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .tonearm-moving { transition: none; }
+  .vinyl-action-hint { transition: none; }
 }
 </style>

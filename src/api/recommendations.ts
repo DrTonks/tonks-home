@@ -47,7 +47,11 @@ export async function submitRecommendation(input: {
   const { data } = await api.post('/pet/recommendations', input, {
     headers: { 'X-Client-ID': getPetAIClientId() },
   })
-  if (!data?.success || !data.recommendation) throw new Error(data?.code || 'save_failed')
+  if (!data?.success || !data.recommendation) {
+    const error = new Error(data?.message || data?.code || 'save_failed') as Error & { code?: string }
+    error.code = data?.code || 'save_failed'
+    throw error
+  }
   return data.recommendation as Recommendation
 }
 
