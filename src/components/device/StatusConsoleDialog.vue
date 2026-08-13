@@ -56,6 +56,7 @@ const open = computed({
 const activeModule = ref<ModuleName>('empty')
 const phase = ref<'boot' | 'typing' | 'ready'>('boot')
 const command = ref('')
+const commandPlaceholder = ref('输入 /help 查看命令')
 const bootLines = ref<string[]>([])
 const inputRef = ref<HTMLInputElement | null>(null)
 const waitAnimationActive = ref(true)
@@ -80,6 +81,16 @@ let bulletinIndex = 0
 
 const WAIT_ANIMATION_MS = 1680
 const DAILY_BOOT_KEY = 'tonks-console-last-boot-date'
+
+const commandPlaceholders = [
+  '输入 /help 查看命令',
+  '输入 /recommend-books [book-name] 以推荐书籍（每日一次）',
+  '输入 /theme toggle 切换网站主题',
+  '输入 /system 查看网站系统信息',
+  '输入 /inbox 查看推荐收信箱',
+  '输入 /clear 清空终端内容',
+  '输入 /status 查看作者电脑当前状态',
+]
 
 const moduleItems = [
   { id: 'status' as const, label: '我在干什么？', command: '/status', icon: Activity },
@@ -292,7 +303,14 @@ function moduleFromCommand(value: string): ModuleName | null {
   return aliases[normalized] ?? null
 }
 
+function rotateCommandPlaceholder() {
+  if (commandPlaceholders.length < 2) return
+  const candidates = commandPlaceholders.filter((item) => item !== commandPlaceholder.value)
+  commandPlaceholder.value = candidates[Math.floor(Math.random() * candidates.length)]
+}
+
 function executeCommand() {
+  rotateCommandPlaceholder()
   const raw = command.value.trim()
   const module = moduleFromCommand(raw)
   if (module) activateModule(module)
@@ -408,6 +426,7 @@ function runCommand(commandText: string, animate = true) {
 function selectModule(module: ModuleName, commandText: string) {
   const generation = ++transitionGeneration
   clearTimers()
+  rotateCommandPlaceholder()
 
   // 内容立即切换，命令输入仅作为同步的视觉回显，不再阻塞导航。
   activeModule.value = module
@@ -853,7 +872,7 @@ onBeforeUnmount(() => {
               v-model="command"
               autocomplete="off"
               spellcheck="false"
-              placeholder="输入 /help 查看命令"
+              :placeholder="commandPlaceholder"
               :readonly="phase !== 'ready'"
               :disabled="commandPending"
               @keydown="onInputKeydown"
