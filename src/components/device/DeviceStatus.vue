@@ -14,7 +14,7 @@ const consoleVisible = ref(false)
 // 状态色映射
 const colorMap: Record<string, string> = {
   awake: 'hsl(var(--primary))',
-  sleeping: 'hsl(var(--color-silver))',
+  sleeping: 'hsl(var(--color-status-sleeping))',
   unknown: 'hsl(var(--color-amber))',
   error: 'hsl(var(--color-red))',
 }
@@ -33,7 +33,7 @@ const appDescMap: Record<string, string> = {
   锁屏: '暂时离开',
   '电脑-手机助手': '正在看手机？',
   照片查看器: '浏览照片中...',
-  关机中: '电脑关机了，也许是似了。',
+  关机中: '电脑已关机，暂时无法获取使用状态。',
   Terminal: '很有可能在Vibe coding',
   命令提示符: '命令行操作中！',
   视频: '在看视频~',
@@ -61,7 +61,7 @@ const appDescMap: Record<string, string> = {
   Postman: 'API测试中...',
   'GitHub Desktop': '正在使用GitHub...',
   'OBS Studio': '录屏中...',
-  似了: '睡似了或不在线，紧急请电话联系。',
+  似了: '电脑处于锁屏或休眠状态，紧急情况请用电话联系。',
   Obsidian: '正在编写知识库或整理学习笔记...',
   ChatGPT: '和GPT大人讨论问题中...',
 }
@@ -118,11 +118,12 @@ const currentState = computed<DisplayState>(() => {
     }
   }
   const colorKey = info.name === '关机中' ? 'error' : info.color || 'awake'
-  const desc = appDescMap[info.name] || info.name + '：' + info.desc
+  // 展示文案由前端统一维护；服务端 desc 仅作为未配置项的兜底。
+  const desc = appDescMap[info.name] || info.desc
   return {
     key: colorKey,
     color: colorMap[colorKey] || colorMap.awake,
-    appName: info.name,
+    appName: info.name === '似了' ? '暂时离开' : info.name,
     desc,
     pulse: colorKey !== 'sleeping',
   }

@@ -25,6 +25,8 @@ import { formatTimestamp, timeAgo } from '@/lib/utils'
 import { getStatusHistory, type StatusHistoryItem } from '@/api/device'
 import { useThemeStore } from '@/stores/theme'
 import { useAdminStore } from '@/stores/admin'
+import { usePetMemory } from '@/composables/usePetMemory'
+import { useWeatherVisitor } from '@/composables/useWeatherVisitor'
 
 interface StatusDisplay {
   key: string
@@ -42,6 +44,8 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 const theme = useThemeStore()
 const admin = useAdminStore()
+const memory = usePetMemory()
+const weatherVisitor = useWeatherVisitor()
 
 type ModuleName = 'status' | 'inbox' | 'system' | 'help' | 'empty'
 type CategoryFilter = RecommendationCategory | 'all'
@@ -57,6 +61,7 @@ const activeModule = ref<ModuleName>('empty')
 const phase = ref<'boot' | 'typing' | 'ready'>('boot')
 const command = ref('')
 const commandPlaceholder = ref('输入 /help 查看命令')
+const userName = computed(() => memory.getValue('user_name')?.trim() || '')
 const bootLines = ref<string[]>([])
 const inputRef = ref<HTMLInputElement | null>(null)
 const waitAnimationActive = ref(true)
@@ -125,8 +130,21 @@ const helpCommands = [
     description: item.label,
   })),
   { command: '/clear', fill: '/clear', description: '清空当前输出，返回待机画面' },
-  { command: '/theme [mode]', fill: '/theme ', description: '切换 light、dark 或 toggle 主题，如/theme light' },
-  { command: '/recommend-songs', fill: '/recommend-songs ', description: '推荐歌曲，如/recommend-songs 《晴天》' },
+  {
+    command: '/theme [mode]',
+    fill: '/theme ',
+    description: '切换 light、dark 或 toggle 主题，如/theme light',
+  },
+  {
+    command: '/name [user_name]',
+    fill: '/name ',
+    description: '可以主动设置或修改在网站中的个人称呼',
+  },
+  {
+    command: '/recommend-songs',
+    fill: '/recommend-songs ',
+    description: '推荐歌曲，如/recommend-songs 《晴天》',
+  },
   { command: '/recommend-books', fill: '/recommend-books ', description: '推荐书籍' },
   { command: '/recommend-games', fill: '/recommend-games ', description: '推荐游戏' },
   { command: '/recommend-anime', fill: '/recommend-anime ', description: '推荐番剧' },
@@ -315,6 +333,7 @@ function executeCommand() {
   const module = moduleFromCommand(raw)
   if (module) activateModule(module)
   else if (/^\/theme(?:\s|$)/i.test(raw)) void executeThemeCommand(raw)
+  else if (/^\/name(?:\s|$)/i.test(raw)) executeNameCommand(raw)
   else if (/^\/recommend-(songs|books|games|anime)(?:\s|$)/i.test(raw)) {
     void executeRecommendationCommand(raw)
   } else {
@@ -322,6 +341,32 @@ function executeCommand() {
     activeModule.value = 'help'
     phase.value = 'ready'
   }
+}
+
+function executeNameCommand(raw: string) {
+  const nextName = raw
+    .replace(/^\/name(?:\s+|$)/i, '')
+    .trim()
+    .replace(/^("|')(.+)\1$/, '$2')
+    .trim()
+
+  if (!nextName) {
+    commandFeedback.value = { kind: 'error', message: '请输入称呼，例如 /name 小明。' }
+    activeModule.value = 'help'
+    phase.value = 'ready'
+    return
+  }
+  if (nextName.length > 15) {
+    commandFeedback.value = { kind: 'error', message: '称呼最多 15 个字符。' }
+    phase.value = 'ready'
+    return
+  }
+
+  memory.setValue('user_name', nextName, 'q_name')
+  memory.unrejectQuestion('q_name')
+  commandFeedback.value = { kind: 'success', message: `你好，${nextName}。称呼已写入记忆。` }
+  phase.value = 'ready'
+  command.value = ''
 }
 
 function parseOptions(input: string): { content: string; city?: string; source?: string } {
@@ -359,11 +404,20 @@ async function executeRecommendationCommand(raw: string) {
   commandPending.value = true
   commandFeedback.value = null
   try {
+    const cachedCity = weatherVisitor.getLocationData()?.city?.trim()
     await submitRecommendation({
       category: categoryMap[match[1].toLowerCase()],
       content: parsed.content,
-      ...(admin.isLoggedIn && parsed.source ? { user_name: parsed.source } : {}),
-      ...(admin.isLoggedIn && parsed.city ? { city: parsed.city } : {}),
+      ...(admin.isLoggedIn && parsed.source
+        ? { user_name: parsed.source }
+        : userName.value
+          ? { user_name: userName.value }
+          : {}),
+      ...(admin.isLoggedIn && parsed.city
+        ? { city: parsed.city }
+        : cachedCity
+          ? { city: cachedCity }
+          : {}),
     })
     commandFeedback.value = { kind: 'success', message: `推荐已送达：${parsed.content}` }
     category.value = categoryMap[match[1].toLowerCase()]
@@ -561,6 +615,7 @@ onBeforeUnmount(() => {
         <div
           class="mr-10 flex items-center gap-3 text-[10px] tracking-[0.1em] text-[var(--console-muted)]"
         >
+          <span v-if="userName" class="console-greeting">Hello, {{ userName }}</span>
           <span class="console-online">
             <i />
             ONLINE
@@ -632,6 +687,9 @@ onBeforeUnmount(() => {
           <div class="terminal-viewport">
             <Transition name="console-content" mode="out-in">
               <div v-if="phase === 'boot'" key="boot" class="boot-screen">
+                <p v-if="userName" class="boot-greeting" aria-hidden="true">
+                  Hello, {{ userName }}
+                </p>
                 <div class="boot-log font-mono">
                   <p class="boot-brand">
                     PERSONAL TELEMETRY INTERFACE
@@ -803,7 +861,7 @@ onBeforeUnmount(() => {
                   </article>
                   <article>
                     <span>ASSET LINK</span>
-                    <strong>Local</strong>
+                    <strong>ALi OSS</strong>
                     <small>terminal sequence</small>
                   </article>
                 </div>
@@ -850,12 +908,15 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
                 <p v-if="admin.isLoggedIn" class="admin-command-note">
-                  ADMIN OPTIONS: -city 福州 -source 自定义访客
+                  ADMIN OPTIONS: -city [city_name] -source [user_name]
                 </p>
               </div>
 
               <div v-else key="empty" class="idle-screen">
-                <div>
+                <p v-if="userName" class="boot-greeting" aria-hidden="true">
+                  Hello, {{ userName }}
+                </p>
+                <div class="idle-panel">
                   <p>NO MODULE MOUNTED</p>
                   <span>输入 /help 或从左侧选择一个模块</span>
                 </div>
@@ -919,6 +980,18 @@ onBeforeUnmount(() => {
   padding: 0 14px 0 17px;
   background: var(--console-titlebar);
   font-size: 11px;
+}
+.console-greeting {
+  overflow: hidden;
+  max-width: 160px;
+  color: var(--console-prompt);
+  font-family:
+    'Geist Mono', 'Cascadia Mono', 'Cascadia Code', Consolas, 'Microsoft YaHei UI', sans-serif;
+  font-size: inherit;
+  letter-spacing: inherit;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .console-online {
   display: inline-flex;
@@ -1455,13 +1528,38 @@ onBeforeUnmount(() => {
   font-family: var(--font-sans, sans-serif);
 }
 .boot-screen {
+  position: relative;
   display: grid;
   min-height: 100%;
   place-items: center;
   align-content: end;
   padding-bottom: 9%;
 }
+.boot-greeting {
+  position: absolute;
+  top: clamp(38px, 28%, 148px);
+  left: 50%;
+  width: min(92%, 680px);
+  margin: 0;
+  overflow: hidden;
+  color: var(--console-prompt);
+  font-family:
+    'Geist Mono', 'Cascadia Mono', 'Cascadia Code', Consolas, 'Microsoft YaHei UI', sans-serif;
+  font-size: clamp(44px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1;
+  opacity: 0.2;
+  pointer-events: none;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 28px var(--console-glow);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
 .boot-log {
+  position: relative;
+  z-index: 1;
   width: min(440px, 88%);
   border: 1px solid var(--console-border);
   border-radius: 8px;
@@ -1502,25 +1600,27 @@ onBeforeUnmount(() => {
   animation: spinner 1s linear infinite;
 }
 .idle-screen {
+  position: relative;
   display: grid;
   min-height: 100%;
   place-items: center;
   align-content: center;
   text-align: center;
 }
-.idle-screen div {
+.idle-panel {
+  transform: translateY(58px);
   padding: 18px 22px;
   border: 1px solid var(--console-border);
   border-radius: 10px;
   background: var(--console-surface);
 }
-.idle-screen p {
+.idle-panel p {
   margin: 0 0 8px;
   color: var(--console-muted);
   font-size: 10px;
   letter-spacing: 0.17em;
 }
-.idle-screen span {
+.idle-panel span {
   color: var(--console-faint);
   font-family: var(--font-sans, sans-serif);
   font-size: 10px;

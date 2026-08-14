@@ -17,6 +17,7 @@
   --color-amber-soft: 40 50% 70%;   /* #E4C37A 浅琥珀 */
 
   --color-silver: 210 14% 86%;      /* #CDD8E0 银灰 */
+  --color-status-sleeping: 210 16% 42%; /* #5A6B7C 休眠/离开状态，可读文本 */
   --color-paper: 207 30% 97%;       /* #F6F9FC 冷白底 */
 
   /* 文字色 — 深墨蓝 */
@@ -151,6 +152,7 @@
   --color-amber-soft: 40 55% 50%;
 
   --color-silver: 210 12% 42%;
+  --color-status-sleeping: 210 18% 70%; /* #A6B3C0 暗色背景休眠/离开状态 */
   --color-paper: 222 45% 6%;        /* 深空底（兜底，实际被 Galaxy 覆盖）*/
 
   /* === 文字色 —— 反转为浅色分层 === */
