@@ -22,6 +22,7 @@ import {
   type RecommendationCategory,
 } from '@/api/recommendations'
 import { formatTimestamp, timeAgo } from '@/lib/utils'
+import { getApplicationCategory } from '@/lib/applicationCategory'
 import { getStatusHistory, type StatusHistoryItem } from '@/api/device'
 import { useThemeStore } from '@/stores/theme'
 import { useAdminStore } from '@/stores/admin'
@@ -191,9 +192,7 @@ function historyTime(timestamp: number): string {
 
 function historyKind(item: StatusHistoryItem): string {
   const color = 'color' in item.info ? item.info.color : ''
-  if (color === 'sleeping') return 'SLEEP'
-  if (item.app_name === '关机中') return 'OFFLINE'
-  return item.status === 0 ? 'ACTIVE' : 'STATUS'
+  return getApplicationCategory(item.app_name, color)
 }
 
 async function loadStatusHistory() {
