@@ -9,6 +9,8 @@ export interface ContributionDay {
 export interface TopLanguage {
   name: string
   color: string
+  repoCount?: number
+  /** @deprecated Compatibility field from the old API. */
   stars: number
 }
 

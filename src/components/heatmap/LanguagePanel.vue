@@ -61,7 +61,7 @@ const option = computed(() => {
     const c = parseHex(l.color)
     return {
       name: l.name,
-      value: l.stars,
+      value: l.repoCount ?? l.stars,
       itemStyle: {
         color: {
           type: 'radial',
@@ -83,7 +83,7 @@ const option = computed(() => {
   })
   return {
     tooltip: {
-      formatter: '{b}: {c} stars ({d}%)',
+      formatter: '{b}（{d}%）',
       backgroundColor: dark ? 'rgba(10,16,26,0.9)' : 'rgba(28, 40, 51, 0.7)',
       borderWidth: 0,
       padding: [8, 12],

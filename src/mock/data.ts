@@ -140,11 +140,11 @@ export const mockData = {
     totalContributions: 1287,
     days: generateGithubDays(),
     topLanguages: [
-      { name: 'Vue', color: '#41b883', stars: 12 },
-      { name: 'TypeScript', color: '#3178c6', stars: 9 },
-      { name: 'Python', color: '#3572A5', stars: 7 },
-      { name: 'JavaScript', color: '#f1e05a', stars: 5 },
-      { name: 'CSS', color: '#563d7c', stars: 3 },
+      { name: 'Vue', color: '#41b883', repoCount: 12, stars: 12 },
+      { name: 'TypeScript', color: '#3178c6', repoCount: 9, stars: 9 },
+      { name: 'Python', color: '#3572A5', repoCount: 7, stars: 7 },
+      { name: 'JavaScript', color: '#f1e05a', repoCount: 5, stars: 5 },
+      { name: 'CSS', color: '#563d7c', repoCount: 3, stars: 3 },
     ],
   },
 }
