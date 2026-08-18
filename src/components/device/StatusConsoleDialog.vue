@@ -23,6 +23,10 @@ import {
 } from '@/api/recommendations'
 import { formatTimestamp, timeAgo } from '@/lib/utils'
 import { getApplicationCategory } from '@/lib/applicationCategory'
+import {
+  parseTerminalRecommendationOptions,
+  type TerminalRecommendationOptions,
+} from '@/lib/terminalRecommendationOptions'
 import { getStatusHistory, type StatusHistoryItem } from '@/api/device'
 import { useThemeStore } from '@/stores/theme'
 import { useAdminStore } from '@/stores/admin'
@@ -368,17 +372,6 @@ function executeNameCommand(raw: string) {
   command.value = ''
 }
 
-function parseOptions(input: string): { content: string; city?: string; source?: string } {
-  const optionPattern = /\s+-(city|source)\s+("[^"]+"|'[^']+'|\S+)/gi
-  const options: { city?: string; source?: string } = {}
-  let match: RegExpExecArray | null
-  while ((match = optionPattern.exec(input))) {
-    const value = match[2].replace(/^["']|["']$/g, '')
-    options[match[1].toLowerCase() as 'city' | 'source'] = value
-  }
-  return { content: input.replace(optionPattern, '').trim(), ...options }
-}
-
 async function executeRecommendationCommand(raw: string) {
   const match = raw.match(/^\/recommend-(songs|books|games|anime)\s+(.+)$/i)
   if (!match) {
@@ -393,7 +386,18 @@ async function executeRecommendationCommand(raw: string) {
     games: 'game',
     anime: 'anime',
   }
-  const parsed = parseOptions(match[2])
+  const parsed: TerminalRecommendationOptions = admin.isLoggedIn
+    ? parseTerminalRecommendationOptions(match[2])
+    : { content: match[2].trim() }
+  if (parsed.invalidOption) {
+    commandFeedback.value = {
+      kind: 'error',
+      message: `参数 -${parsed.invalidOption} 缺少值。`,
+    }
+    activeModule.value = 'help'
+    phase.value = 'ready'
+    return
+  }
   if (!parsed.content) {
     commandFeedback.value = { kind: 'error', message: '推荐内容不能为空。' }
     activeModule.value = 'help'
@@ -907,7 +911,7 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
                 <p v-if="admin.isLoggedIn" class="admin-command-note">
-                  ADMIN OPTIONS: -city [city_name] -source [user_name]
+                  ADMIN OPTIONS: -city [city name] -source [user name]
                 </p>
               </div>
 
