@@ -68,8 +68,7 @@ export const useThemeStore = defineStore('theme', () => {
    * （比 WAAPI 的 pseudoElement animate 兼容性更好）。
    * 浏览器不支持或 reduced-motion 时降级为瞬切。
    */
-  function toggle(x?: number, y?: number, fadeCarouselArt = false) {
-    const next: ThemeMode = isDark.value ? 'light' : 'dark'
+  function transitionTo(next: ThemeMode, x?: number, y?: number, fadeCarouselArt = false) {
     const el = document.documentElement
     const fadeGeneration = ++artFadeGeneration
     resetArtFadeClasses(el)
@@ -103,7 +102,7 @@ export const useThemeStore = defineStore('theme', () => {
     const py = (y / window.innerHeight) * 100
     // circle() 百分比半径参照 √(w²+h²) / √2，
     // 因此 pr = endRadius × √2 / hypot(w,h) × 100
-    const pr = (endRadius * Math.SQRT2) / Math.hypot(window.innerWidth, window.innerHeight) * 100
+    const pr = ((endRadius * Math.SQRT2) / Math.hypot(window.innerWidth, window.innerHeight)) * 100
     el.style.setProperty('--vt-x', `${px}%`)
     el.style.setProperty('--vt-y', `${py}%`)
     el.style.setProperty('--vt-r', `${pr}%`)
@@ -133,6 +132,18 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
+  function toggle(x?: number, y?: number, fadeCarouselArt = false) {
+    const next: ThemeMode = isDark.value ? 'light' : 'dark'
+    transitionTo(next, x, y, fadeCarouselArt)
+  }
+
+  function cycle(x?: number, y?: number, fadeCarouselArt = false) {
+    const modes: ThemeMode[] = ['light', 'dark', 'system']
+    const currentIndex = modes.indexOf(mode.value)
+    const next = modes[(currentIndex + 1) % modes.length]
+    transitionTo(next, x, y, fadeCarouselArt)
+  }
+
   // 跟随系统偏好变化（仅当 mode=system 时生效）
   mql.addEventListener('change', (e) => {
     systemDark.value = e.matches
@@ -142,5 +153,5 @@ export const useThemeStore = defineStore('theme', () => {
   // 初始应用（与 index.html 内联脚本一致，避免首屏闪烁）
   applyClass()
 
-  return { mode, isDark, setMode, toggle }
+  return { mode, isDark, setMode, toggle, cycle }
 })
