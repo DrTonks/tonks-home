@@ -184,7 +184,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
       <span v-if="relativeTime">{{ relativeTime }} ·</span>
       <span>{{ absoluteTime }}</span>
     </div>
-    <span class="status-action-hint" aria-hidden="true">
+    <span class="card-action-hint card-action-hint--floating status-action-hint" aria-hidden="true">
       <Terminal class="h-3 w-3" />
       打开终端
     </span>
@@ -199,29 +199,7 @@ const absoluteTime = computed(() => (timestamp.value ? formatTimestamp(timestamp
 
 <style scoped>
 .status-action-hint {
-  position: absolute;
   right: 2rem;
-  top: 0px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid hsl(var(--color-sky-deep) / 0.22);
-  border-radius: 999px;
-  padding: 3px 7px;
-  background: hsl(var(--background) / 0.78);
-  color: hsl(var(--color-sky-deep));
-  font-size: 9px;
-  opacity: 0.5;
-  transform: translateY(4px);
-  transition:
-    opacity var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
-}
-.status-card-trigger:hover .status-action-hint,
-.status-card-trigger:focus-visible .status-action-hint {
-  opacity: 1;
-  transform: translateY(1px);
 }
 .status-card-trigger:hover {
   box-shadow: 0 10px 30px hsl(var(--color-sky-deep) / 0.11);

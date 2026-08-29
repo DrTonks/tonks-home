@@ -12,43 +12,12 @@ import {
   DialogClose,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import AdminLoginDialog from './AdminLoginDialog.vue'
 
 const admin = useAdminStore()
 
 const showLogin = ref(false)
 const showLogoutConfirm = ref(false)
-const secret = ref('')
-const error = ref('')
-const submitting = ref(false)
-
-function openLogin() {
-  secret.value = ''
-  error.value = ''
-  showLogin.value = true
-}
-
-async function submitLogin() {
-  const s = secret.value.trim()
-  if (!s) {
-    error.value = '请输入密钥'
-    return
-  }
-  submitting.value = true
-  error.value = ''
-  try {
-    const ok = await admin.login(s)
-    if (ok) {
-      showLogin.value = false
-      secret.value = ''
-    } else {
-      error.value = '密钥不正确，请重试'
-    }
-  } catch {
-    error.value = '验证失败，请检查网络后重试'
-  } finally {
-    submitting.value = false
-  }
-}
 
 function confirmLogout() {
   admin.logout()
@@ -65,7 +34,7 @@ function confirmLogout() {
       size="icon"
       class="h-9 w-9 rounded-full bg-card backdrop-blur-sm border border-border hover:bg-card hover:border-primary/40 transition-all"
       aria-label="管理员登录"
-      @click="openLogin"
+      @click="showLogin = true"
     >
       <Lock class="h-4 w-4 text-muted-foreground" />
     </Button>
@@ -81,45 +50,14 @@ function confirmLogout() {
     </Button>
   </div>
 
-  <!-- 登录 Dialog -->
-  <Dialog v-model:open="showLogin">
-    <DialogContent class="max-w-sm">
-      <DialogHeader>
-        <DialogTitle>管理员登录</DialogTitle>
-        <DialogDescription>
-          输入密钥以启用管理功能。
-        </DialogDescription>
-      </DialogHeader>
-      <div class="space-y-2 py-2">
-        <input
-          v-model="secret"
-          type="password"
-          :disabled="submitting"
-          class="w-full px-3 py-2 text-sm bg-background/60 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-60"
-          placeholder="管理员密钥"
-          @keyup.enter="submitLogin"
-        />
-        <p v-if="error" class="text-[11px] text-destructive">{{ error }}</p>
-      </div>
-      <DialogFooter>
-        <DialogClose as-child>
-          <Button variant="ghost" :disabled="submitting">取消</Button>
-        </DialogClose>
-        <Button :disabled="submitting" @click="submitLogin">
-          {{ submitting ? '验证中…' : '登录' }}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+  <AdminLoginDialog v-model:open="showLogin" />
 
   <!-- 退出确认 Dialog -->
   <Dialog v-model:open="showLogoutConfirm">
     <DialogContent class="max-w-sm">
       <DialogHeader>
         <DialogTitle>退出管理模式</DialogTitle>
-        <DialogDescription>
-          退出后将无法使用上传/删除等功能，需要重新输入密钥。
-        </DialogDescription>
+        <DialogDescription>退出后将无法使用上传/删除等功能，需要重新输入密钥。</DialogDescription>
       </DialogHeader>
       <DialogFooter>
         <DialogClose as-child>

@@ -79,7 +79,10 @@ onBeforeUnmount(() => {
           <path d="M 102 104 L 111 106 L 109 119 L 99 117 Z" class="tonearm-head" />
         </g>
       </svg>
-      <span class="vinyl-action-hint" aria-hidden="true">
+      <span
+        class="card-action-hint card-action-hint--floating vinyl-action-hint"
+        aria-hidden="true"
+      >
         <Library class="h-3 w-3" />
         打开曲库
       </span>
@@ -100,32 +103,7 @@ onBeforeUnmount(() => {
 }
 
 .vinyl-action-hint {
-  position: absolute;
-  z-index: 4;
   right: -5px;
-  top: 0px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid hsl(var(--color-sky-deep) / 0.22);
-  border-radius: 999px;
-  padding: 4px 7px;
-  background: hsl(var(--background) / 0.9);
-  color: hsl(var(--color-sky-deep));
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
-  font-size: 9px;
-  white-space: nowrap;
-  opacity: 0.5;
-  transform: translateY(4px);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-
-.vinyl-card:hover .vinyl-action-hint,
-.vinyl-card:focus-visible .vinyl-action-hint {
-  opacity: 1;
-  transform: translateY(1px);
 }
 
 .tonearm {
@@ -187,9 +165,6 @@ onBeforeUnmount(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .tonearm-moving {
-    transition: none;
-  }
-  .vinyl-action-hint {
     transition: none;
   }
 }

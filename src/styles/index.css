@@ -440,6 +440,42 @@ html.dark .interactive-card-outline {
   animation: interactive-card-outline 2s cubic-bezier(0.16, 1, 0.3, 1) 1 forwards;
 }
 
+/* 可点击卡片的紧凑操作提示：终端、曲库与评论入口共用同一视觉节奏。 */
+.card-action-hint {
+  z-index: 11;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid hsl(var(--color-sky-deep) / 0.22);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: hsl(var(--background) / 0.9);
+  color: hsl(var(--color-sky-deep));
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.5;
+  transform: translateY(4px);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.card-action-hint--floating {
+  position: absolute;
+  top: 0;
+}
+
+.interactive-card-outline:hover .card-action-hint,
+.interactive-card-outline:focus-visible .card-action-hint,
+.card-action-hint:hover,
+.card-action-hint:focus-visible {
+  opacity: 1;
+  transform: translateY(1px);
+}
+
 @keyframes interactive-card-outline {
   0% {
     opacity: 0;
@@ -474,5 +510,9 @@ html.dark .interactive-card-outline {
     border-color: hsl(var(--color-sky-bright) / var(--outline-border-alpha));
     opacity: 0.7;
     animation: none;
+  }
+
+  .card-action-hint {
+    transition: none;
   }
 }

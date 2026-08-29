@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import LoadingScreen from '@/components/layout/LoadingScreen.vue'
+import AppFooter from '@/components/layout/AppFooter.vue'
 
 const route = useRoute()
 const loading = ref(route.name !== 'not-found')
@@ -15,6 +16,7 @@ const loading = ref(route.name !== 'not-found')
         <component :is="Component" />
       </transition>
     </RouterView>
+    <AppFooter />
   </template>
 </template>
 
