@@ -54,7 +54,7 @@ onMounted(async () => {
 
 <template>
   <Card
-    class="interactive-card-outline group w-[clamp(280px,24vw,360px)] cursor-pointer p-4"
+    class="interactive-card-outline w-[clamp(280px,24vw,360px)] cursor-pointer p-4"
     @click="handleCardClick"
   >
     <div class="flex items-center justify-between mb-3">
