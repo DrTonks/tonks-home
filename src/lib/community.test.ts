@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { CommunityComment, FriendApplication } from '@/api/community'
-import { buildCommentThreads, friendApplicationJson } from './community'
+import {
+  buildCommunityMembers,
+  friendApplicationJson,
+  indexCommunityMessages,
+  latestCommunityMessage,
+  sortCommunityMessages,
+} from './community'
 
 function comment(id: number, parentId: number | null, rootId: number): CommunityComment {
   return {
@@ -13,21 +19,40 @@ function comment(id: number, parentId: number | null, rootId: number): Community
     content: `comment-${id}`,
     status: 'published',
     is_admin: false,
+    author_key: `author-${id}`,
     created_at: '2026-08-29T00:00:00+00:00',
     reply_to_name: '',
   }
 }
 
-describe('buildCommentThreads', () => {
-  it('sorts roots newest first and replies oldest first', () => {
-    const threads = buildCommentThreads([
-      comment(1, null, 1),
-      comment(3, 1, 1),
-      comment(2, 1, 1),
-      comment(4, null, 4),
-    ])
-    expect(threads.map((thread) => thread.root.id)).toEqual([4, 1])
-    expect(threads[1]?.replies.map((reply) => reply.id)).toEqual([2, 3])
+describe('community chat helpers', () => {
+  it('sorts messages chronologically and indexes reply targets', () => {
+    const late = { ...comment(2, 1, 1), created_at: '2026-08-29T02:00:00+00:00' }
+    const early = { ...comment(1, null, 1), created_at: '2026-08-29T01:00:00+00:00' }
+    const messages = sortCommunityMessages([late, early])
+    expect(messages.map((message) => message.id)).toEqual([1, 2])
+    expect(indexCommunityMessages(messages).get(1)?.content).toBe('comment-1')
+    expect(latestCommunityMessage(messages)?.id).toBe(2)
+  })
+
+  it('groups members by stable author key and keeps the latest profile', () => {
+    const first = { ...comment(1, null, 1), author_key: 'same-author' }
+    const second = {
+      ...comment(2, null, 2),
+      author_key: 'same-author',
+      nickname: 'new-name',
+      is_admin: true,
+    }
+    const visitor = { ...comment(3, null, 3), author_key: 'visitor' }
+    const members = buildCommunityMembers([first, visitor, second])
+    expect(members).toHaveLength(2)
+    expect(members[0]).toMatchObject({
+      authorKey: 'same-author',
+      nickname: 'new-name',
+      messageCount: 2,
+      isAdmin: true,
+      avatarCommentId: 2,
+    })
   })
 })
 

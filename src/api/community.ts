@@ -15,9 +15,24 @@ export interface CommunityComment {
   content: string
   status: CommentStatus
   is_admin: boolean
+  author_key: string
   created_at: string
   reply_to_name: string
   moderation_reason?: string
+}
+
+export interface CommunityCommentSubmission {
+  nickname: string
+  email: string
+  website?: string
+  content: string
+  parent_id?: number | null
+}
+
+export interface CommunityCommentSubmissionResult {
+  status: Extract<CommentStatus, 'published' | 'pending'>
+  message: string
+  comment: CommunityComment | null
 }
 
 export interface FriendApplication {
@@ -38,6 +53,13 @@ interface CommentsResponse {
   comments: CommunityComment[]
 }
 
+interface CommentSubmissionResponse {
+  success: boolean
+  status: Extract<CommentStatus, 'published' | 'pending'>
+  message: string
+  comment: CommunityComment | null
+}
+
 interface FriendApplicationsResponse {
   success: boolean
   applications: FriendApplication[]
@@ -51,6 +73,18 @@ const communityApi = axios.create({
 
 function adminHeaders(secret: string) {
   return { 'X-Admin-Secret': secret }
+}
+
+function communityClientId(): string {
+  const storageKey = 'tonks_community_client_id'
+  const existing = localStorage.getItem(storageKey)
+  if (existing) return existing
+  const generated =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  localStorage.setItem(storageKey, generated)
+  return generated
 }
 
 function ensureSuccess(data: { success?: boolean; message?: string; code?: string }) {
@@ -67,6 +101,35 @@ export async function getCommunityComments(
   )
   ensureSuccess(data)
   return Array.isArray(data.comments) ? data.comments : []
+}
+
+export async function submitCommunityComment(
+  page: CommentPage,
+  submission: CommunityCommentSubmission,
+  secret = '',
+): Promise<CommunityCommentSubmissionResult> {
+  const { data } = await communityApi.post<CommentSubmissionResponse>(
+    `/blog/community/comments/${page}`,
+    {
+      nickname: submission.nickname.trim(),
+      email: submission.email.trim(),
+      website: submission.website?.trim() || '',
+      content: submission.content.trim(),
+      parent_id: submission.parent_id ?? null,
+    },
+    {
+      headers: {
+        'X-Client-ID': communityClientId(),
+        ...(secret ? adminHeaders(secret) : {}),
+      },
+    },
+  )
+  ensureSuccess(data)
+  return {
+    status: data.status,
+    message: data.message,
+    comment: data.comment,
+  }
 }
 
 export async function moderateCommunityComment(
