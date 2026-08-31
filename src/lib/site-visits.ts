@@ -42,3 +42,17 @@ export async function recordSiteVisit(): Promise<number> {
   }
   return result.visits
 }
+
+export async function getSiteVisitCount(): Promise<number> {
+  const response = await fetch('/api/blog/site-visits', {
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) {
+    throw new Error(`site visit total returned HTTP ${response.status}`)
+  }
+  const result = (await response.json()) as SiteVisitResponse
+  if (!result.success || !Number.isFinite(result.visits)) {
+    throw new Error('site visit total returned an invalid response')
+  }
+  return result.visits
+}

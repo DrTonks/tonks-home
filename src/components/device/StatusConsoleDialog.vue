@@ -22,6 +22,7 @@ import {
   type RecommendationCategory,
 } from '@/api/recommendations'
 import { formatTimestamp, timeAgo } from '@/lib/utils'
+import { getSiteVisitCount } from '@/lib/site-visits'
 import { getApplicationCategory } from '@/lib/applicationCategory'
 import {
   parseTerminalRecommendationOptions,
@@ -80,6 +81,8 @@ const commandPending = ref(false)
 const statusHistory = ref<StatusHistoryItem[]>([])
 const historyLoading = ref(false)
 const category = ref<CategoryFilter>('all')
+const siteVisitCount = ref<number | null>(null)
+const siteVisitLoading = ref(false)
 const now = ref(new Date())
 let timers: ReturnType<typeof setTimeout>[] = []
 let clockTimer: ReturnType<typeof setInterval> | null = null
@@ -298,12 +301,25 @@ async function loadRecommendations(filter: CategoryFilter = category.value) {
   }
 }
 
+async function loadSiteVisits() {
+  if (siteVisitLoading.value) return
+  siteVisitLoading.value = true
+  try {
+    siteVisitCount.value = await getSiteVisitCount()
+  } catch (error) {
+    console.warn('[status-console] site visit total unavailable', error)
+  } finally {
+    siteVisitLoading.value = false
+  }
+}
+
 function activateModule(module: ModuleName) {
   activeModule.value = module
   phase.value = 'ready'
   command.value = ''
   if (module === 'inbox') void loadRecommendations()
   if (module === 'status') void loadStatusHistory()
+  if (module === 'system') void loadSiteVisits()
   void nextTick(() => inputRef.value?.focus())
 }
 
@@ -866,6 +882,11 @@ onBeforeUnmount(() => {
                     <span>ASSET LINK</span>
                     <strong>ALi OSS</strong>
                     <small>terminal sequence</small>
+                  </article>
+                  <article>
+                    <span>浏览量</span>
+                    <strong>{{ siteVisitCount ?? '—' }}</strong>
+                    <small>blog + home</small>
                   </article>
                 </div>
                 <div class="manifest-block font-mono">
