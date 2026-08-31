@@ -507,6 +507,7 @@ function selectModule(module: ModuleName, commandText: string) {
   command.value = ''
   if (module === 'inbox') void loadRecommendations()
   if (module === 'status') void loadStatusHistory()
+  if (module === 'system') void loadSiteVisits()
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     phase.value = 'ready'
@@ -884,7 +885,7 @@ onBeforeUnmount(() => {
                     <small>terminal sequence</small>
                   </article>
                   <article>
-                    <span>浏览量</span>
+                    <span>VISITS</span>
                     <strong>{{ siteVisitCount ?? '—' }}</strong>
                     <small>blog + home</small>
                   </article>
