@@ -48,6 +48,22 @@ export interface FriendApplication {
   updated_at: string
 }
 
+export interface FriendApplicationSubmission {
+  name: string
+  website: string
+  avatar?: string
+  description: string
+  email: string
+}
+
+export type TrackedFriendApplication = Omit<FriendApplication, 'email'>
+
+export interface FriendApplicationSubmissionResult {
+  application: TrackedFriendApplication
+  trackingToken: string
+  message: string
+}
+
 interface CommentsResponse {
   success: boolean
   comments: CommunityComment[]
@@ -63,6 +79,18 @@ interface CommentSubmissionResponse {
 interface FriendApplicationsResponse {
   success: boolean
   applications: FriendApplication[]
+}
+
+interface FriendApplicationSubmissionResponse {
+  success: boolean
+  application: TrackedFriendApplication
+  tracking_token: string
+  message: string
+}
+
+interface TrackedFriendApplicationsResponse {
+  success: boolean
+  applications: TrackedFriendApplication[]
 }
 
 interface CommunityAvatarPreviewResponse {
@@ -186,6 +214,40 @@ export async function updateFriendApplication(
     { headers: adminHeaders(secret) },
   )
   ensureSuccess(data)
+}
+
+export async function submitFriendApplication(
+  submission: FriendApplicationSubmission,
+): Promise<FriendApplicationSubmissionResult> {
+  const { data } = await communityApi.post<FriendApplicationSubmissionResponse>(
+    '/blog/community/friend-applications',
+    {
+      name: submission.name.trim(),
+      website: submission.website.trim(),
+      avatar: submission.avatar?.trim() || '',
+      description: submission.description.trim(),
+      email: submission.email.trim(),
+    },
+    { headers: { 'X-Client-ID': communityClientId() } },
+  )
+  ensureSuccess(data)
+  return {
+    application: data.application,
+    trackingToken: data.tracking_token,
+    message: data.message,
+  }
+}
+
+export async function getTrackedFriendApplications(
+  tokens: string[],
+): Promise<TrackedFriendApplication[]> {
+  if (!tokens.length) return []
+  const { data } = await communityApi.post<TrackedFriendApplicationsResponse>(
+    '/blog/community/friend-applications/status',
+    { tokens },
+  )
+  ensureSuccess(data)
+  return Array.isArray(data.applications) ? data.applications : []
 }
 
 export function getCommunityAvatarUrl(commentId: number): string {

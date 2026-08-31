@@ -5,7 +5,6 @@ import {
   Check,
   ExternalLink,
   Inbox,
-  Info,
   Link2,
   LoaderCircle,
   LockKeyhole,
@@ -46,6 +45,7 @@ import {
 import { useAdminStore } from '@/stores/admin'
 import { Button } from '@/components/ui/button'
 import CommunityIdentityDialog from './CommunityIdentityDialog.vue'
+import CommunityFriendApplyDialog from './CommunityFriendApplyDialog.vue'
 import CommunityMessageBubble from './CommunityMessageBubble.vue'
 
 const props = defineProps<{
@@ -83,18 +83,40 @@ const messagesViewport = ref<HTMLElement | null>(null)
 const composerInput = ref<HTMLTextAreaElement | null>(null)
 const identity = ref<VisitorIdentity>({ nickname: '', email: '', website: '' })
 const emojiOpen = ref(false)
+const friendApplyOpen = ref(false)
 const profileAvatarUrl = ref('https://blog.tonks.top/assets/home/home.png')
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const VISITOR_STORAGE_KEY = 'tonks_community_identity'
 const DEFAULT_PROFILE_AVATAR = 'https://blog.tonks.top/assets/home/home.png'
 const COMMUNITY_EMOJIS = [
-  '😀', '😄', '😊', '🥰', '🤔', '😭', '😳', '👍', '👏', '🎉', '❤️', '✨',
-  '🌙', '🍀', '🐾', '☕', '📚', '💻', '🚀', '👀',
+  '😀',
+  '😄',
+  '😊',
+  '🥰',
+  '🤔',
+  '😭',
+  '😳',
+  '👍',
+  '👏',
+  '🎉',
+  '❤️',
+  '✨',
+  '🌙',
+  '🍀',
+  '🐾',
+  '☕',
+  '📚',
+  '💻',
+  '🚀',
+  '👀',
 ] as const
 
 const activeRoom = computed(
   () => COMMUNITY_ROOMS.find((room) => room.page === activePage.value) ?? COMMUNITY_ROOMS[0],
+)
+const activeBlogUrl = computed(
+  () => `https://blog.tonks.top/${activePage.value === 'about' ? 'about' : 'friends'}/`,
 )
 const visibleRooms = computed(() => {
   const query = roomQuery.value.trim().toLowerCase()
@@ -149,8 +171,33 @@ function roomLatest(page: CommentPage): CommunityComment | null {
   )
 }
 
-function roomIcon(page: CommentPage) {
-  return page === 'about' ? Info : UsersRound
+function roomAvatar(page: CommentPage): string {
+  return `/assets/group/${page}.jpg`
+}
+
+function roomLatestTime(page: CommentPage): string {
+  const latest = roomLatest(page)
+  if (!latest) return ''
+  const date = new Date(latest.created_at)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDifference = Math.round((today.getTime() - target.getTime()) / 86_400_000)
+
+  if (dayDifference === 0) {
+    return new Intl.DateTimeFormat('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date)
+  }
+  if (dayDifference === 1) return '昨天'
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${date.getMonth() + 1}/${date.getDate()}`
+  }
+  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
 }
 
 function readIdentity() {
@@ -466,8 +513,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="qq-chat-shell relative grid min-h-0 flex-1 lg:grid-cols-[244px_minmax(0,1fr)_248px]">
-    <aside class="qq-session-pane hidden min-h-0 border-r border-border lg:flex lg:flex-col">
+  <div
+    class="qq-chat-shell relative grid min-h-0 flex-1 lg:grid-cols-[244px_minmax(0,1fr)_248px] lg:grid-rows-[4rem_minmax(0,1fr)]"
+  >
+    <aside
+      class="qq-session-pane hidden min-h-0 border-r border-border lg:row-span-2 lg:flex lg:flex-col"
+    >
       <div class="qq-profile-bar">
         <img
           class="qq-profile-avatar"
@@ -504,23 +555,28 @@ onBeforeUnmount(() => {
           :class="['room-entry', activePage === room.page && 'is-active']"
           @click="selectRoom(room.page)"
         >
-          <span class="room-icon qq-room-avatar">
-            <component :is="roomIcon(room.page)" class="h-4 w-4" aria-hidden="true" />
-          </span>
-          <span class="min-w-0 flex-1">
-            <span class="flex items-center justify-between gap-2">
+          <img
+            class="qq-room-avatar"
+            :src="roomAvatar(room.page)"
+            :alt="`${room.name} 群头像`"
+            draggable="false"
+          />
+          <span class="room-entry-copy">
+            <span class="room-title-row">
               <strong>{{ room.name }}</strong>
-              <small>{{ roomPublicCount(room.page) }}</small>
+              <time v-if="roomLatestTime(room.page)">{{ roomLatestTime(room.page) }}</time>
             </span>
-            <span class="room-preview">
-              <template v-if="roomLatest(room.page)">
-                {{ roomLatest(room.page)?.nickname }}：{{ roomLatest(room.page)?.content }}
-              </template>
-              <template v-else>还没有人说话</template>
+            <span class="room-preview-row">
+              <span class="room-preview">
+                <template v-if="roomLatest(room.page)">
+                  {{ roomLatest(room.page)?.nickname }}：{{ roomLatest(room.page)?.content }}
+                </template>
+                <template v-else>还没有人说话</template>
+              </span>
+              <span v-if="roomPendingCount(room.page)" class="room-pending">
+                {{ roomPendingCount(room.page) }}
+              </span>
             </span>
-          </span>
-          <span v-if="roomPendingCount(room.page)" class="room-pending">
-            {{ roomPendingCount(room.page) }}
           </span>
         </button>
         <p v-if="!visibleRooms.length" class="px-4 py-10 text-center text-xs text-muted-foreground">
@@ -540,67 +596,82 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <section class="qq-conversation-pane grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
-      <header class="qq-conversation-header">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <div class="min-w-0">
-                <h3 class="truncate text-[15px] font-semibold">
-                  {{ activeRoom.name }} 交流群
-                  <span class="ml-1 text-xs font-normal text-muted-foreground">
-                    ({{ activeMembers.length }})
-                  </span>
-                </h3>
-              </div>
-            </div>
-          </div>
-          <div class="mr-7 flex items-center gap-1 sm:mr-8">
-            <Button
-              size="sm"
-              variant="ghost"
-              class="qq-header-action h-8 w-8 p-0"
-              :disabled="loading || refreshing"
-              aria-label="刷新留言"
-              @click="loadComments({ quiet: true })"
-            >
-              <RefreshCw :class="['h-4 w-4', refreshing && 'animate-spin']" aria-hidden="true" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              class="qq-header-action h-8 w-8 p-0 lg:hidden"
-              aria-label="查看发言成员"
-              @click="showMembers"
-            >
-              <PanelRight class="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
+    <header class="qq-shared-header lg:col-[2/4] lg:row-start-1">
+      <div class="flex min-w-0 items-center gap-2">
+        <h3 class="truncate text-[15px] font-semibold">
+          {{ activeRoom.name }} 交流群
+          <span class="ml-1 text-xs font-normal text-muted-foreground">
+            ({{ activeMembers.length }})
+          </span>
+        </h3>
+      </div>
+      <div class="qq-shared-actions">
+        <a
+          :href="activeBlogUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="qq-header-action"
+          title="打开对应博客页面"
+          aria-label="打开对应博客页面"
+        >
+          <ExternalLink class="h-4 w-4" aria-hidden="true" />
+        </a>
+        <button
+          type="button"
+          class="qq-header-action"
+          title="申请友链或查看申请状态"
+          aria-label="申请友链或查看申请状态"
+          @click="friendApplyOpen = true"
+        >
+          <Link2 class="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="qq-header-action"
+          :disabled="loading || refreshing"
+          title="刷新留言"
+          aria-label="刷新留言"
+          @click="loadComments({ quiet: true })"
+        >
+          <RefreshCw :class="['h-4 w-4', refreshing && 'animate-spin']" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="qq-header-action lg:hidden"
+          title="查看群公告与成员"
+          aria-label="查看群公告与成员"
+          @click="showMembers"
+        >
+          <PanelRight class="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
 
-        <div class="mt-2 flex gap-1 lg:hidden">
-          <button
-            v-for="room in COMMUNITY_ROOMS"
-            :key="room.page"
-            type="button"
-            :class="['mobile-room-tab', activePage === room.page && 'is-active']"
-            @click="selectRoom(room.page)"
-          >
-            {{ room.name }}
-            <span>{{ roomPublicCount(room.page) }}</span>
-          </button>
-          <button
-            v-if="admin.isLoggedIn"
-            type="button"
-            class="mobile-room-tab"
-            @click="emit('openApplications')"
-          >
-            申请
-            <span v-if="applicationCount">{{ applicationCount }}</span>
-          </button>
-        </div>
-      </header>
+      <div class="qq-mobile-rooms lg:hidden">
+        <button
+          v-for="room in COMMUNITY_ROOMS"
+          :key="room.page"
+          type="button"
+          :class="['mobile-room-tab', activePage === room.page && 'is-active']"
+          @click="selectRoom(room.page)"
+        >
+          {{ room.name }}
+          <span>{{ roomPublicCount(room.page) }}</span>
+        </button>
+        <button
+          v-if="admin.isLoggedIn"
+          type="button"
+          class="mobile-room-tab"
+          @click="emit('openApplications')"
+        >
+          审核
+          <span v-if="applicationCount">{{ applicationCount }}</span>
+        </button>
+      </div>
+    </header>
 
+    <section
+      class="qq-conversation-pane grid min-h-0 grid-rows-[minmax(0,1fr)_auto] lg:col-start-2 lg:row-start-2"
+    >
       <div
         ref="messagesViewport"
         class="community-message-scroll min-h-0 overflow-y-auto px-3 py-4 sm:px-6 sm:py-5"
@@ -633,7 +704,9 @@ onBeforeUnmount(() => {
         </div>
         <div v-else class="grid gap-1">
           <template v-for="group in messageGroups" :key="group.key">
-            <div class="qq-time-divider"><span>{{ group.label }}</span></div>
+            <div class="qq-time-divider">
+              <span>{{ group.label }}</span>
+            </div>
             <CommunityMessageBubble
               v-for="message in group.messages"
               :key="message.id"
@@ -689,7 +762,9 @@ onBeforeUnmount(() => {
                 type="button"
                 role="option"
                 @click="insertEmoji(emoji)"
-              >{{ emoji }}</button>
+              >
+                {{ emoji }}
+              </button>
             </div>
           </div>
           <button
@@ -749,7 +824,7 @@ onBeforeUnmount(() => {
       :class="[
         'qq-info-pane min-h-0 flex-col overflow-y-auto border-l border-border',
         mobilePanel ? 'absolute inset-0 z-20 flex bg-popover/98 backdrop-blur-xl' : 'hidden',
-        'lg:static lg:flex lg:backdrop-blur-none',
+        'lg:static lg:col-start-3 lg:row-start-2 lg:flex lg:backdrop-blur-none',
       ]"
     >
       <Button
@@ -934,6 +1009,7 @@ onBeforeUnmount(() => {
   </div>
 
   <CommunityIdentityDialog v-model:open="identityOpen" :identity="identity" @save="saveIdentity" />
+  <CommunityFriendApplyDialog v-model:open="friendApplyOpen" />
 </template>
 
 <style scoped>
@@ -1036,7 +1112,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 0.15rem 0.45rem;
+  padding: 0.15rem 0.3rem;
 }
 
 .room-entry {
@@ -1044,10 +1120,11 @@ onBeforeUnmount(() => {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 0.6rem;
+  min-height: 3.8rem;
+  gap: 0.68rem;
   border: 0;
-  border-radius: 0.3rem;
-  padding: 0.55rem 0.6rem;
+  border-radius: 0.22rem;
+  padding: 0.48rem 0.58rem;
   color: hsl(var(--foreground) / 0.82);
   transition:
     color 140ms ease,
@@ -1059,7 +1136,7 @@ onBeforeUnmount(() => {
 }
 
 .room-entry.is-active {
-  background: hsl(var(--primary) / 0.13);
+  background: hsl(var(--foreground) / 0.085);
   color: hsl(var(--foreground));
 }
 
@@ -1075,33 +1152,58 @@ onBeforeUnmount(() => {
 }
 
 .qq-room-avatar {
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.2), hsl(var(--card) / 0.88));
-  color: hsl(var(--primary));
+  display: block;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  object-fit: cover;
+  user-select: none;
 }
 
-.room-entry.is-active .room-icon {
-  background: hsl(var(--primary) / 0.14);
-  color: hsl(var(--primary));
+.room-entry-copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.room-title-row,
+.room-preview-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
 }
 
 .room-entry strong {
   display: block;
-  font-size: 0.75rem;
-  line-height: 1rem;
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.room-entry small {
+.room-title-row time {
+  flex: 0 0 auto;
   color: hsl(var(--muted-foreground));
-  font-size: 0.6rem;
+  font-size: 0.54rem;
   font-variant-numeric: tabular-nums;
 }
 
 .room-preview {
   display: block;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
-  margin-top: 0.18rem;
+  margin-top: 0.2rem;
   color: hsl(var(--muted-foreground));
-  font-size: 0.58rem;
+  font-size: 0.61rem;
+  line-height: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1110,15 +1212,58 @@ onBeforeUnmount(() => {
   background: hsl(var(--background));
 }
 
-.qq-conversation-header {
+.qq-shared-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
   min-height: 4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--card) / 0.32);
-  padding: 1.25rem 1rem 0.75rem;
+  padding: 0.75rem 3.2rem 0.75rem 1.2rem;
 }
 
 .qq-header-action {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 0.3rem;
   color: hsl(var(--muted-foreground));
+  transition:
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.qq-header-action:hover:not(:disabled) {
+  background: hsl(var(--foreground) / 0.07);
+  color: hsl(var(--foreground));
+}
+
+.qq-header-action:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+.qq-shared-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.qq-mobile-rooms {
+  display: flex;
+  width: 100%;
+  gap: 0.3rem;
+}
+
+@media (min-width: 1024px) {
+  .qq-mobile-rooms {
+    display: none;
+  }
 }
 
 .qq-time-divider {
@@ -1200,7 +1345,9 @@ onBeforeUnmount(() => {
   place-items: center;
   border-radius: 0.35rem;
   font-size: 1.05rem;
-  transition: background-color 120ms ease, transform 120ms ease;
+  transition:
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 
 .qq-emoji-picker button:hover,
@@ -1367,8 +1514,13 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1023px) {
-  .qq-conversation-header {
-    padding-top: 1.15rem;
+  .qq-chat-shell {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .qq-shared-header {
+    flex-wrap: wrap;
+    padding: 1rem 3.15rem 0.7rem 1rem;
   }
 
   .qq-composer-panel {
