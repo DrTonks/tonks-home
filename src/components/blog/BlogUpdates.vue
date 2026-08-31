@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { FolderGit2, History, FileText, NotebookPen, Github, MessageCircle } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -12,16 +12,34 @@ import TimelineCard from './TimelineCard.vue'
 import ArticleList from './ArticleList.vue'
 import BlogCommunityDialog from './BlogCommunityDialog.vue'
 
-const props = withDefaults(defineProps<{ articleCount?: number }>(), { articleCount: 3 })
+const props = withDefaults(
+  defineProps<{ articleCount?: number; autoOpenCommunity?: boolean }>(),
+  { articleCount: 3, autoOpenCommunity: false },
+)
 const data = ref<BlogPostsResponse | null>(null)
 const loading = ref(true)
 const activeTab = ref('article')
 const communityOpen = ref(false)
 const theme = useThemeStore()
+let autoOpenTimer: ReturnType<typeof setTimeout> | null = null
 
 function openCommunity() {
   communityOpen.value = true
 }
+
+watch(
+  () => props.autoOpenCommunity,
+  (enabled) => {
+    if (!enabled || communityOpen.value) return
+    if (autoOpenTimer) clearTimeout(autoOpenTimer)
+    autoOpenTimer = setTimeout(openCommunity, 1250)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (autoOpenTimer) clearTimeout(autoOpenTimer)
+})
 
 function handleCardClick(event: MouseEvent) {
   const target = event.target

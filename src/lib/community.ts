@@ -23,6 +23,12 @@ export interface VisitorIdentity {
   website: string
 }
 
+export interface CommunityMessageGroup {
+  key: string
+  label: string
+  messages: CommunityComment[]
+}
+
 export const COMMUNITY_ROOMS: readonly CommunityRoom[] = [
   {
     page: 'about',
@@ -43,6 +49,41 @@ export function sortCommunityMessages(comments: CommunityComment[]): CommunityCo
     const timeDifference = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     return timeDifference || a.id - b.id
   })
+}
+
+function localDateKey(value: Date): string {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function communityDateLabel(value: Date, now: Date): string {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(value.getFullYear(), value.getMonth(), value.getDate())
+  const dayDifference = Math.round((today.getTime() - target.getTime()) / 86_400_000)
+  if (dayDifference === 0) return '今天'
+  if (dayDifference === 1) return '昨天'
+  if (value.getFullYear() === now.getFullYear()) {
+    return `${value.getMonth() + 1}月${value.getDate()}日`
+  }
+  return `${value.getFullYear()}年${value.getMonth() + 1}月${value.getDate()}日`
+}
+
+export function groupCommunityMessagesByLocalDate(
+  comments: CommunityComment[],
+  now = new Date(),
+): CommunityMessageGroup[] {
+  const groups = new Map<string, CommunityMessageGroup>()
+  for (const comment of sortCommunityMessages(comments)) {
+    const createdAt = new Date(comment.created_at)
+    const safeDate = Number.isNaN(createdAt.getTime()) ? now : createdAt
+    const key = localDateKey(safeDate)
+    const existing = groups.get(key)
+    if (existing) existing.messages.push(comment)
+    else groups.set(key, { key, label: communityDateLabel(safeDate, now), messages: [comment] })
+  }
+  return [...groups.values()]
 }
 
 export function indexCommunityMessages(

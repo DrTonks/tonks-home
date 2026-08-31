@@ -6,7 +6,6 @@ import {
   ExternalLink,
   Inbox,
   Info,
-  Image as ImageIcon,
   Link2,
   LoaderCircle,
   LockKeyhole,
@@ -28,6 +27,7 @@ import {
 import {
   deleteCommunityComment,
   getCommunityAvatarUrl,
+  getCommunityAvatarPreview,
   getCommunityComments,
   moderateCommunityComment,
   submitCommunityComment,
@@ -37,6 +37,7 @@ import {
 import {
   buildCommunityMembers,
   COMMUNITY_ROOMS,
+  groupCommunityMessagesByLocalDate,
   indexCommunityMessages,
   latestCommunityMessage,
   sortCommunityMessages,
@@ -79,10 +80,18 @@ const failedMemberAvatars = ref(new Set<number>())
 const mobilePanel = ref<'members' | 'review' | null>(null)
 const roomQuery = ref('')
 const messagesViewport = ref<HTMLElement | null>(null)
+const composerInput = ref<HTMLTextAreaElement | null>(null)
 const identity = ref<VisitorIdentity>({ nickname: '', email: '', website: '' })
+const emojiOpen = ref(false)
+const profileAvatarUrl = ref('https://blog.tonks.top/assets/home/home.png')
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const VISITOR_STORAGE_KEY = 'tonks_community_identity'
+const DEFAULT_PROFILE_AVATAR = 'https://blog.tonks.top/assets/home/home.png'
+const COMMUNITY_EMOJIS = [
+  '😀', '😄', '😊', '🥰', '🤔', '😭', '😳', '👍', '👏', '🎉', '❤️', '✨',
+  '🌙', '🍀', '🐾', '☕', '📚', '💻', '🚀', '👀',
+] as const
 
 const activeRoom = computed(
   () => COMMUNITY_ROOMS.find((room) => room.page === activePage.value) ?? COMMUNITY_ROOMS[0],
@@ -116,6 +125,7 @@ const visibleMessages = computed(() => {
     }),
   )
 })
+const messageGroups = computed(() => groupCommunityMessagesByLocalDate(visibleMessages.value))
 const selectedComment = computed(
   () => comments.value.find((comment) => comment.id === selectedCommentId.value) ?? null,
 )
@@ -153,8 +163,22 @@ function readIdentity() {
       email: typeof saved.email === 'string' ? saved.email : '',
       website: typeof saved.website === 'string' ? saved.website : '',
     }
+    void syncProfileAvatar()
   } catch {
     localStorage.removeItem(VISITOR_STORAGE_KEY)
+  }
+}
+
+async function syncProfileAvatar() {
+  const email = identity.value.email.trim()
+  if (!email) {
+    profileAvatarUrl.value = DEFAULT_PROFILE_AVATAR
+    return
+  }
+  try {
+    profileAvatarUrl.value = await getCommunityAvatarPreview(email)
+  } catch {
+    profileAvatarUrl.value = DEFAULT_PROFILE_AVATAR
   }
 }
 
@@ -162,10 +186,26 @@ function saveIdentity(nextIdentity: VisitorIdentity, remember: boolean) {
   identity.value = nextIdentity
   if (remember) localStorage.setItem(VISITOR_STORAGE_KEY, JSON.stringify(nextIdentity))
   else localStorage.removeItem(VISITOR_STORAGE_KEY)
+  void syncProfileAvatar()
   if (pendingSendAfterIdentity.value) {
     pendingSendAfterIdentity.value = false
     void nextTick(() => sendMessage())
   }
+}
+
+function insertEmoji(emoji: string) {
+  const input = composerInput.value
+  const start = input?.selectionStart ?? composer.value.length
+  const end = input?.selectionEnd ?? start
+  const next = `${composer.value.slice(0, start)}${emoji}${composer.value.slice(end)}`
+  if (next.length > 800) return
+  composer.value = next
+  emojiOpen.value = false
+  void nextTick(() => {
+    input?.focus()
+    const caret = start + emoji.length
+    input?.setSelectionRange(caret, caret)
+  })
 }
 
 function hasIdentity(): boolean {
@@ -429,7 +469,14 @@ onBeforeUnmount(() => {
   <div class="qq-chat-shell relative grid min-h-0 flex-1 lg:grid-cols-[244px_minmax(0,1fr)_248px]">
     <aside class="qq-session-pane hidden min-h-0 border-r border-border lg:flex lg:flex-col">
       <div class="qq-profile-bar">
-        <span class="qq-profile-avatar">T</span>
+        <img
+          class="qq-profile-avatar"
+          :src="profileAvatarUrl"
+          alt=""
+          draggable="false"
+          referrerpolicy="no-referrer"
+          @error="profileAvatarUrl = DEFAULT_PROFILE_AVATAR"
+        />
         <div class="min-w-0 flex-1">
           <strong>Tonks' Chat</strong>
           <span>{{ admin.isLoggedIn ? '管理模式' : '访客模式' }}</span>
@@ -585,18 +632,20 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div v-else class="grid gap-1">
-          <div class="qq-time-divider"><span>今天</span></div>
-          <CommunityMessageBubble
-            v-for="message in visibleMessages"
-            :key="message.id"
-            :comment="message"
-            :parent="message.parent_id ? messageIndex.get(message.parent_id) : undefined"
-            :admin-mode="admin.isLoggedIn"
-            :selected="selectedCommentId === message.id"
-            :local-pending="message.id < 0"
-            @reply="replyTo"
-            @inspect="inspectComment"
-          />
+          <template v-for="group in messageGroups" :key="group.key">
+            <div class="qq-time-divider"><span>{{ group.label }}</span></div>
+            <CommunityMessageBubble
+              v-for="message in group.messages"
+              :key="message.id"
+              :comment="message"
+              :parent="message.parent_id ? messageIndex.get(message.parent_id) : undefined"
+              :admin-mode="admin.isLoggedIn"
+              :selected="selectedCommentId === message.id"
+              :local-pending="message.id < 0"
+              @reply="replyTo"
+              @inspect="inspectComment"
+            />
+          </template>
         </div>
       </div>
 
@@ -623,12 +672,25 @@ onBeforeUnmount(() => {
 
         <div class="qq-composer-toolbar">
           <div class="flex items-center gap-0.5">
-            <button type="button" class="qq-tool-button" title="表情暂未开放" disabled>
+            <button
+              type="button"
+              class="qq-tool-button"
+              title="选择表情"
+              aria-label="选择表情"
+              :aria-expanded="emojiOpen"
+              @click="emojiOpen = !emojiOpen"
+            >
               <Smile class="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-            <button type="button" class="qq-tool-button" title="图片暂未开放" disabled>
-              <ImageIcon class="h-[18px] w-[18px]" aria-hidden="true" />
-            </button>
+            <div v-if="emojiOpen" class="qq-emoji-picker" role="listbox" aria-label="表情">
+              <button
+                v-for="emoji in COMMUNITY_EMOJIS"
+                :key="emoji"
+                type="button"
+                role="option"
+                @click="insertEmoji(emoji)"
+              >{{ emoji }}</button>
+            </div>
           </div>
           <button
             type="button"
@@ -645,6 +707,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="community-composer">
           <textarea
+            ref="composerInput"
             id="community-composer"
             v-model="composer"
             rows="3"
@@ -891,16 +954,14 @@ onBeforeUnmount(() => {
 }
 
 .qq-profile-avatar {
-  display: grid;
+  display: block;
   width: 2.25rem;
   height: 2.25rem;
   flex: 0 0 auto;
-  place-items: center;
+  object-fit: cover;
   border-radius: 50%;
-  background: linear-gradient(145deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.45));
-  color: hsl(var(--primary-foreground));
-  font-size: 0.75rem;
-  font-weight: 700;
+  background: hsl(var(--muted));
+  user-select: none;
 }
 
 .qq-profile-bar strong,
@@ -1112,8 +1173,40 @@ onBeforeUnmount(() => {
 }
 
 .qq-composer-panel {
+  position: relative;
   min-height: 9.5rem;
   background: hsl(var(--card) / 0.46);
+}
+
+.qq-emoji-picker {
+  position: absolute;
+  bottom: calc(100% - 2.5rem);
+  left: 0.75rem;
+  z-index: 30;
+  display: grid;
+  width: min(17rem, calc(100% - 1.5rem));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.2rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.6rem;
+  background: hsl(var(--popover));
+  padding: 0.55rem;
+  box-shadow: 0 0.8rem 2rem hsl(var(--foreground) / 0.13);
+}
+
+.qq-emoji-picker button {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 0.35rem;
+  font-size: 1.05rem;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.qq-emoji-picker button:hover,
+.qq-emoji-picker button:focus-visible {
+  background: hsl(var(--primary) / 0.12);
+  transform: scale(1.08);
 }
 
 .qq-composer-toolbar {

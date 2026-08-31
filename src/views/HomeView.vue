@@ -43,6 +43,7 @@ const musicStore = useMusicStore()
 const theme = useThemeStore()
 const petEnv = usePetEnvStore()
 const showCRT = ref(false)
+const communityDeepLink = ref(false)
 
 function onPetRage() {
   showCRT.value = true
@@ -228,8 +229,19 @@ onMounted(() => {
     preloadDeferredBackgrounds()
     scheduleBackgroundAdvance()
   }
-  // 记住展开状态：上次展开 → 自动展开
-  if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
+  const url = new URL(window.location.href)
+  const shouldOpenCommunity = url.searchParams.get('open') === 'community'
+  if (shouldOpenCommunity) {
+    communityDeepLink.value = true
+    url.searchParams.delete('open')
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+  // 留言深链优先强制展开；普通访问继续记住上一次的展开状态。
+  if (shouldOpenCommunity && !isMobile.value) {
+    setTimeout(() => {
+      if (!isExpanded.value) toggle(true)
+    }, 320)
+  } else if (localStorage.getItem('home_expanded') === '1' && !isMobile.value) {
     setTimeout(() => toggle(true), 1500)
   }
 })
@@ -243,10 +255,6 @@ onBeforeUnmount(() => {
   clearRageEffects()
 })
 
-const componentListMobile = [
-  DeviceStatus,
-  BlogUpdates,
-] as const
 </script>
 
 <template>
@@ -358,7 +366,10 @@ const componentListMobile = [
           :aria-hidden="!isExpanded || isCollapsing || rageShutdown"
           style="--shutdown-delay: 300ms"
         >
-          <BlogUpdates :article-count="isCompact ? 2 : 3" />
+          <BlogUpdates
+            :article-count="isCompact ? 2 : 3"
+            :auto-open-community="communityDeepLink"
+          />
         </div>
       </div>
 
@@ -399,7 +410,8 @@ const componentListMobile = [
       <template v-if="!rageShutdown">
         <AvatarCore :size="80" />
         <div class="w-[calc(100%-2rem)] flex flex-col gap-4 mt-2 [&>*]:!w-full">
-          <component v-for="(C, i) in componentListMobile" :key="i" :is="C" />
+          <DeviceStatus />
+          <BlogUpdates :auto-open-community="communityDeepLink" />
         </div>
       </template>
     </div>

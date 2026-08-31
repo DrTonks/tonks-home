@@ -65,6 +65,11 @@ interface FriendApplicationsResponse {
   applications: FriendApplication[]
 }
 
+interface CommunityAvatarPreviewResponse {
+  success: boolean
+  avatar_url: string
+}
+
 const communityApi = axios.create({
   baseURL: '/api',
   timeout: 10_000,
@@ -185,4 +190,13 @@ export async function updateFriendApplication(
 
 export function getCommunityAvatarUrl(commentId: number): string {
   return `/api/blog/community/avatar/${commentId}`
+}
+
+export async function getCommunityAvatarPreview(email: string): Promise<string> {
+  const { data } = await communityApi.post<CommunityAvatarPreviewResponse>(
+    '/blog/community/avatar-preview',
+    { email: email.trim() },
+  )
+  ensureSuccess(data)
+  return data.avatar_url
 }

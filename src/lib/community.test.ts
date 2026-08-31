@@ -3,6 +3,7 @@ import type { CommunityComment, FriendApplication } from '@/api/community'
 import {
   buildCommunityMembers,
   friendApplicationJson,
+  groupCommunityMessagesByLocalDate,
   indexCommunityMessages,
   latestCommunityMessage,
   sortCommunityMessages,
@@ -53,6 +54,18 @@ describe('community chat helpers', () => {
       isAdmin: true,
       avatarCommentId: 2,
     })
+  })
+
+  it('groups messages by local calendar date instead of labeling everything today', () => {
+    const now = new Date(2026, 7, 31, 12)
+    const old = { ...comment(1, null, 1), created_at: new Date(2026, 7, 28, 19, 16).toISOString() }
+    const yesterday = {
+      ...comment(2, null, 2),
+      created_at: new Date(2026, 7, 30, 8).toISOString(),
+    }
+    const today = { ...comment(3, null, 3), created_at: new Date(2026, 7, 31, 9).toISOString() }
+    expect(groupCommunityMessagesByLocalDate([today, old, yesterday], now).map((group) => group.label))
+      .toEqual(['8月28日', '昨天', '今天'])
   })
 })
 
