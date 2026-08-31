@@ -149,6 +149,15 @@ function showSection(next: Section) {
   if (next === 'applications') void loadApplications()
 }
 
+function focusDialogSurface(event: Event) {
+  event.preventDefault()
+  requestAnimationFrame(() => {
+    document
+      .querySelector<HTMLElement>('.qq-community-window[data-state="open"]')
+      ?.focus({ preventScroll: true })
+  })
+}
+
 watch(open, (visible) => {
   if (!visible) return
   section.value = 'comments'
@@ -173,7 +182,9 @@ watch(
 <template>
   <Dialog v-model:open="open">
     <DialogContent
-      class="qq-community-window grid h-[min(92dvh,900px)] w-[calc(100vw-0.75rem)] max-w-[1280px] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden border-border/70 p-0 sm:w-[calc(100vw-1.5rem)]"
+      tabindex="-1"
+      class="qq-community-window grid h-[min(92dvh,900px)] w-[calc(100vw-0.75rem)] max-w-[1280px] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden border-border/70 p-0 focus:outline-none sm:w-[calc(100vw-1.5rem)]"
+      @open-auto-focus="focusDialogSurface"
     >
       <DialogHeader v-if="section === 'comments'" class="sr-only">
         <DialogTitle>留言群聊</DialogTitle>

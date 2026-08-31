@@ -1,30 +1,15 @@
 /**
  * useWeatherVisitor — 访客位置 + 天气数据层。
  *
- * 数据流：
- *   同源 /geoip（ip-api）→ 获取客户端公网 IP 的位置（不缓存 IP）
- *   → 经纬度查询心知天气
- *   → 城市不一致时用 ip.sb 经纬度复核
- *   → 仍不一致时用首选位置的“省份 + 城市”兜底
+ * 数据流：同源 /api/weather → sleepy 从可信代理链取得访客公网 IP
+ * → 服务端以显式 IP 请求心知天气 → 返回统一的城市、实时天气和明日预报。
+ * API 私钥与访客 IP 均不会进入浏览器响应。
  *
- * 生产环境的 /geoip 由 sleepy 读取可信代理传来的访客地址并查询 ip-api；
- * 浏览器和服务端都不保存或返回访客 IP。ip.sb 只作为独立复核源。
- *
- * 心知天气免费版：
- *   - 私钥 SEFuPYYOQzfvLE_DK，作为 key 参数直传
- *   - 400 次/天，足够个人站使用
- *   - 支持坐标 lat:lon 格式，天气码 0-38
- *   - 返回中文城市名（如 "闽侯"）；英文定位名通过城市查询动态校准，无需维护静态映射表
- *
- * 缓存策略：位置 12h，天气 1h。
+ * 缓存策略：位置 12h，天气正常使用 1h；请求失败时最多保留 6h 的旧天气兜底。
  */
 
 import { ref, type Ref } from 'vue'
 import { usePetMemory } from './usePetMemory'
-
-// ===== 心知天气 API Key（免费版，400次/天） =====
-// 浏览器 Network 面板可见，免费 key 靠每日限额保护
-const SENIVERSE_KEY = import.meta.env.VITE_SENIVERSE_KEY || 'SEFuPYYOQzfvLE_DK'
 
 // ===== 类型 =====
 
@@ -32,17 +17,11 @@ export interface LocationData {
   city: string
   region: string
   country: string
-  lat: number
-  lon: number
   updated_at: string
-}
-
-interface GeoLocation {
-  lat: number
-  lon: number
-  city: string
-  region: string
-  country: string
+  source: 'seniverse-ip'
+  /** 兼容迁移前的本地缓存；新接口不再向浏览器返回经纬度。 */
+  lat?: number
+  lon?: number
 }
 
 export interface WeatherData {
@@ -107,13 +86,33 @@ let _initialized = false
 let _initPromise: Promise<void> | null = null
 
 class WeatherHttpError extends Error {
-  constructor(
-    readonly status: number,
-    endpoint: 'now' | 'daily',
-  ) {
-    super(`Seniverse ${endpoint} returned ${status}`)
+  constructor(readonly status: number) {
+    super(`Weather API returned ${status}`)
     this.name = 'WeatherHttpError'
   }
+}
+
+interface WeatherApiResponse {
+  success: boolean
+  location: {
+    city: string
+    region: string
+    country: string
+  }
+  now: {
+    text: string
+    code: number
+    temperature: number
+  }
+  tomorrow: {
+    date: string
+    text: string
+    code: number
+    low: number
+    high: number
+  }
+  cached_at: string
+  stale?: boolean
 }
 
 export function useWeatherVisitor() {
@@ -128,8 +127,8 @@ export function useWeatherVisitor() {
       const raw = localStorage.getItem(LS_LOCATION)
       if (!raw) return null
       const data = JSON.parse(raw) as LocationData
-      // 旧版位置缓存没有省份，无法组成稳定的“省份 + 城市”天气查询；自动失效一次。
-      if (!data.region?.trim()) {
+      // 旧链路使用 ip-api/ip.sb，迁移后强制刷新一次以免继续展示错误城市。
+      if (data.source !== 'seniverse-ip' || !data.city?.trim()) {
         localStorage.removeItem(LS_LOCATION)
         localStorage.removeItem(LS_WEATHER)
         return null
@@ -149,253 +148,120 @@ export function useWeatherVisitor() {
       const raw = localStorage.getItem(LS_WEATHER)
       if (!raw) return null
       const data = JSON.parse(raw)
-      if (Date.now() - data._cachedAt > 60 * 60 * 1000) return null
+      // 最多保留 6 小时旧数据；超过 1 小时时仍会请求刷新，失败才继续显示旧值。
+      if (Date.now() - data._cachedAt > 6 * 60 * 60 * 1000) return null
       return data as WeatherData
     } catch { return null }
   }
 
-  function saveCachedWeather(data: WeatherData) {
+  function hasFreshWeatherCache(): boolean {
     try {
-      localStorage.setItem(LS_WEATHER, JSON.stringify({ ...data, _cachedAt: Date.now() }))
+      const raw = localStorage.getItem(LS_WEATHER)
+      if (!raw) return false
+      const data = JSON.parse(raw)
+      return Number.isFinite(data._cachedAt)
+        && Date.now() - data._cachedAt <= 60 * 60 * 1000
+    } catch { return false }
+  }
+
+  function saveCachedWeather(data: WeatherData, cachedAt: string) {
+    try {
+      const timestamp = new Date(cachedAt).getTime()
+      localStorage.setItem(LS_WEATHER, JSON.stringify({
+        ...data,
+        _cachedAt: Number.isFinite(timestamp) ? timestamp : Date.now(),
+      }))
     } catch { /* ignore */ }
   }
 
   // ===== API 调用 =====
 
-  /**
-   * 获取客户端公网 IP 对应的 lat/lon + 城市。
-   *
-   * 首选同源 ip-api 代理，失败时使用浏览器直连的 ip.sb。
-   * 两个来源都只返回粗略位置，均不写入或缓存访客 IP。
-   */
-  function parseGeoLocation(json: Record<string, unknown>): GeoLocation {
-    const lat = Number(json.lat ?? json.latitude)
-    const lon = Number(json.lon ?? json.longitude)
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || (lat === 0 && lon === 0)) {
-      throw new Error('定位服务返回了无效经纬度')
-    }
-    return {
-      lat,
-      lon,
-      city: String(json.city || ''),
-      region: String(json.region || json.regionName || ''),
-      country: String(json.country_code || json.countryCode || json.country || ''),
+  function assertWeatherResponse(value: unknown): asserts value is WeatherApiResponse {
+    const data = value as Partial<WeatherApiResponse> | null
+    if (
+      !data?.success
+      || !data.location?.city
+      || !data.now?.text
+      || !Number.isFinite(data.now?.code)
+      || !Number.isFinite(data.now?.temperature)
+      || !data.tomorrow?.date
+      || !data.tomorrow?.text
+      || !Number.isFinite(data.tomorrow?.code)
+      || !Number.isFinite(data.tomorrow?.low)
+      || !Number.isFinite(data.tomorrow?.high)
+      || !data.cached_at
+    ) {
+      throw new Error('天气接口返回了无效数据')
     }
   }
 
-  async function fetchPrimaryGeo(): Promise<GeoLocation> {
-    const resp = await fetch('/geoip', { signal: AbortSignal.timeout(7000) })
-    if (!resp.ok) throw new Error(`/geoip ${resp.status}`)
-    const json = await resp.json()
-    console.log('[useWeatherVisitor] ip-api:', json)
-    return parseGeoLocation(json)
-  }
-
-  async function fetchSecondaryGeo(): Promise<GeoLocation> {
-    const resp = await fetch('https://api.ip.sb/geoip', { signal: AbortSignal.timeout(7000) })
-    if (!resp.ok) throw new Error(`ip.sb ${resp.status}`)
-    const json = await resp.json()
-    console.log('[useWeatherVisitor] ip.sb:', json)
-    return parseGeoLocation(json)
-  }
-
-  async function fetchLatLon(): Promise<GeoLocation> {
-    const sources: Array<() => Promise<GeoLocation>> = [
-      fetchPrimaryGeo,
-      fetchSecondaryGeo,
-    ]
-
-    for (const fn of sources) {
-      try {
-        return await fn()
-      } catch (e) {
-        console.warn('[useWeatherVisitor] IP 定位源失败，尝试下一个:', e)
-      }
-    }
-
-    throw new Error('所有 IP 定位源均失败')
-  }
-
-  /** 心知天气实时天气（走代理路径，避免浏览器直连 403） */
-  async function fetchSeniverseNow(location: string): Promise<{
-    city: string; path: string
-    text: string; code: string; temp: string
+  async function fetchWeatherBundle(): Promise<{
+    location: LocationData
+    weather: WeatherData
+    cachedAt: string
   }> {
-    const url = `/seniverse/v3/weather/now.json?key=${SENIVERSE_KEY}&location=${encodeURIComponent(location)}&language=zh-Hans&unit=c`
-    const resp = await fetch(url)
-    if (!resp.ok) throw new WeatherHttpError(resp.status, 'now')
-    const json = await resp.json()
-    console.log('[useWeatherVisitor] 心知天气 now:', json)
-    if (!json.results?.length) throw new Error('Seniverse now: empty results')
-    const r = json.results[0]
-    return { city: r.location.name, path: r.location.path, text: r.now.text, code: r.now.code, temp: r.now.temperature }
-  }
+    const resp = await fetch('/api/weather', {
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!resp.ok) throw new WeatherHttpError(resp.status)
+    const data: unknown = await resp.json()
+    assertWeatherResponse(data)
 
-  /** 心知天气每日预报（含明天，走代理路径） */
-  async function fetchSeniverseDaily(location: string): Promise<{
-    date: string; text_day: string; code_day: string; high: string; low: string
-  }> {
-    const url = `/seniverse/v3/weather/daily.json?key=${SENIVERSE_KEY}&location=${encodeURIComponent(location)}&language=zh-Hans&unit=c&start=0&days=2`
-    const resp = await fetch(url)
-    if (!resp.ok) throw new WeatherHttpError(resp.status, 'daily')
-    const json = await resp.json()
-    console.log('[useWeatherVisitor] 心知天气 daily:', json)
-    if (!json.results?.length || !json.results[0].daily?.length) throw new Error('Seniverse daily: empty results')
-    const d = json.results[0].daily[1] // index 1 = 明天
-    return { date: d.date, text_day: d.text_day, code_day: d.code_day, high: d.high, low: d.low }
-  }
-
-  async function fetchLocation(): Promise<LocationData> {
-    const geo = await fetchLatLon()
+    const code = data.now.code
+    const tomorrowCode = data.tomorrow.code
     return {
-      city: geo.city || '未知城市',
-      region: geo.region,
-      country: geo.country || 'CN',
-      lat: geo.lat,
-      lon: geo.lon,
-      updated_at: new Date().toISOString(),
-    }
-  }
-
-  function normalizeCity(value: string): string {
-    return value
-      .trim()
-      .toLocaleLowerCase()
-      .replace(/[\s·・]/g, '')
-      .replace(/(特别行政区|自治州|地区|盟|市)$/u, '')
-  }
-
-  function isSameCity(expected: string, actual: string): boolean {
-    const left = normalizeCity(expected)
-    const right = normalizeCity(actual)
-    return Boolean(left && right && left === right)
-  }
-
-  function containsCjk(value: string): boolean {
-    return /[\u3400-\u9fff]/u.test(value)
-  }
-
-  function coordinateQuery(location: Pick<GeoLocation, 'lat' | 'lon'>): string {
-    return `${location.lat}:${location.lon}`
-  }
-
-  function coordinatesAreEquivalent(a: Pick<GeoLocation, 'lat' | 'lon'>, b: Pick<GeoLocation, 'lat' | 'lon'>): boolean {
-    return Math.abs(a.lat - b.lat) < 0.01 && Math.abs(a.lon - b.lon) < 0.01
-  }
-
-  async function chooseWeatherQuery(location: LocationData): Promise<{
-    query: string
-    now: Awaited<ReturnType<typeof fetchSeniverseNow>>
-  }> {
-    const primaryQuery = coordinateQuery(location)
-    const primaryNow = await fetchSeniverseNow(primaryQuery)
-    if (isSameCity(location.city, primaryNow.city)) {
-      console.log('[useWeatherVisitor] 首选经纬度与天气城市一致')
-      return { query: primaryQuery, now: primaryNow }
-    }
-
-    const cityQuery = [location.region.trim(), location.city.trim()].filter(Boolean).join(' ')
-    // ip.sb 通常返回英文地名，不能直接用字符串判断 Fuzhou 与福州是否相等。
-    // 用同一个天气 API 的城市查询结果作为动态标准名，再校验经纬度结果，避免维护不完整的城市映射表。
-    if (cityQuery && !containsCjk(location.city) && containsCjk(primaryNow.city)) {
-      console.log('[useWeatherVisitor] 使用城市查询校准英文定位名:', cityQuery)
-      const cityNow = await fetchSeniverseNow(cityQuery)
-      if (isSameCity(cityNow.city, primaryNow.city)) {
-        console.log('[useWeatherVisitor] 英文定位名校准成功，采用当前经纬度')
-        return { query: primaryQuery, now: primaryNow }
-      }
-      console.warn('[useWeatherVisitor] 经纬度城市与英文地名查询结果不一致，使用城市查询:', primaryNow.city, cityNow.city)
-      return { query: cityQuery, now: cityNow }
-    }
-
-    console.warn('[useWeatherVisitor] 首选经纬度城市不一致，使用 ip.sb 复核:', location.city, primaryNow.city)
-    try {
-      const secondary = await fetchSecondaryGeo()
-      if (!coordinatesAreEquivalent(location, secondary)) {
-        const secondaryQuery = coordinateQuery(secondary)
-        const secondaryNow = await fetchSeniverseNow(secondaryQuery)
-        if (isSameCity(location.city, secondaryNow.city)) {
-          console.log('[useWeatherVisitor] 使用 ip.sb 复核经纬度')
-          return { query: secondaryQuery, now: secondaryNow }
-        }
-        console.warn('[useWeatherVisitor] ip.sb 经纬度城市仍不一致:', location.city, secondaryNow.city)
-      } else {
-        console.warn('[useWeatherVisitor] 两个定位服务的经纬度基本一致，跳过重复天气请求')
-      }
-    } catch (error) {
-      console.warn('[useWeatherVisitor] ip.sb 复核失败，使用城市兜底:', error)
-    }
-
-    if (!cityQuery) return { query: primaryQuery, now: primaryNow }
-    console.log('[useWeatherVisitor] 使用省份 + 城市查询天气:', cityQuery)
-    return { query: cityQuery, now: await fetchSeniverseNow(cityQuery) }
-  }
-
-  async function fetchWeather(location: LocationData): Promise<WeatherData> {
-    const { query, now } = await chooseWeatherQuery(location)
-    const daily = await fetchSeniverseDaily(query)
-
-    const code = parseInt(now.code, 10) || 0
-    const tomorrowCode = parseInt(daily.code_day, 10) || 0
-
-    return {
-      icon: seniverseCodeToIcon(code),
-      temp: parseInt(now.temp, 10) || 0,
-      desc: now.text,
-      city: now.city,
-      weatherCode: code,
-      tomorrow: {
-        icon: seniverseCodeToIcon(tomorrowCode),
-        tempMin: parseInt(daily.low, 10) || 0,
-        tempMax: parseInt(daily.high, 10) || 0,
-        desc: daily.text_day,
-        weatherCode: tomorrowCode,
+      location: {
+        city: data.location.city,
+        region: data.location.region || '',
+        country: data.location.country || '',
+        updated_at: data.cached_at,
+        source: 'seniverse-ip',
       },
+      weather: {
+        icon: seniverseCodeToIcon(code),
+        temp: data.now.temperature,
+        desc: data.now.text,
+        city: data.location.city,
+        weatherCode: code,
+        tomorrow: {
+          icon: seniverseCodeToIcon(tomorrowCode),
+          tempMin: data.tomorrow.low,
+          tempMax: data.tomorrow.high,
+          desc: data.tomorrow.text,
+          weatherCode: tomorrowCode,
+        },
+      },
+      cachedAt: data.cached_at,
     }
   }
 
   // ===== 初始化 =====
   async function ensureLoaded(): Promise<void> {
+    // 本次页面会话已经拿到可用天气（包括故障时保留的陈旧值）后不重复打接口。
     if (_initialized && weatherData.value) return
     if (_initPromise) return _initPromise
 
     _initPromise = (async () => {
       try {
-        let loc = locationData.value
-        if (!loc) {
-          console.log('[useWeatherVisitor] 位置无缓存，请求中…')
-          loc = await fetchLocation()
-          locationData.value = loc
-          saveCachedLocation(loc)
-          console.log('[useWeatherVisitor] 位置结果:', loc)
-        } else {
-          console.log('[useWeatherVisitor] 使用缓存位置:', loc.city)
+        if (locationData.value && weatherData.value && hasFreshWeatherCache()) {
+          console.log('[useWeatherVisitor] 使用缓存天气:', weatherData.value.desc, weatherData.value.temp + '°C')
+          return
         }
 
-        let w = weatherData.value
-        if (!w) {
-          console.log('[useWeatherVisitor] 天气无缓存，请求中…')
-          w = await fetchWeather(loc)
-          weatherData.value = w
-          saveCachedWeather(w)
-          console.log('[useWeatherVisitor] 天气结果:', w)
-        } else {
-          console.log('[useWeatherVisitor] 使用缓存天气:', w.desc, w.temp + '°C')
-        }
+        console.log('[useWeatherVisitor] 请求安全天气聚合接口…')
+        const bundle = await fetchWeatherBundle()
+        locationData.value = bundle.location
+        weatherData.value = bundle.weather
+        saveCachedLocation(bundle.location)
+        saveCachedWeather(bundle.weather, bundle.cachedAt)
+        console.log('[useWeatherVisitor] 位置结果:', bundle.location.city)
+        console.log('[useWeatherVisitor] 天气结果:', bundle.weather)
       } catch (e) {
-        if (e instanceof WeatherHttpError && e.status === 403) {
-          locationData.value = null
-          try {
-            localStorage.removeItem(LS_LOCATION)
-          } catch {
-            /* ignore */
-          }
-          console.warn('[useWeatherVisitor] 天气返回 403，已清除位置缓存')
-        }
+        // 保留最多 6 小时的旧天气。后端也会在心知短暂故障时返回陈旧缓存。
         console.warn('[useWeatherVisitor] 获取失败:', e)
-        _initPromise = null
       } finally {
         _initialized = true
+        _initPromise = null
       }
     })()
 

@@ -165,6 +165,12 @@ const iconClass = computed(() => {
         <div class="weather-tomorrow">
           明天：{{ weatherData.tomorrow.desc }} {{ weatherData.tomorrow.tempMin }}~{{ weatherData.tomorrow.tempMax }}°C
         </div>
+        <a
+          class="weather-source"
+          href="https://www.seniverse.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >天气数据：心知天气</a>
         <!-- 关怀语 -->
         <div v-if="displayedCareText" class="weather-care">
           {{ displayedCareText }}<span v-if="isTyping" class="care-cursor">|</span>
@@ -472,6 +478,19 @@ const iconClass = computed(() => {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
   opacity: 0.85;
+}
+
+.weather-source {
+  align-self: flex-start;
+  font-size: 9px;
+  line-height: 1.2;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.65;
+  text-decoration: none;
+}
+.weather-source:hover {
+  opacity: 0.9;
+  text-decoration: underline;
 }
 
 .weather-care {

@@ -39,8 +39,9 @@ export interface StoredLocation {
   city: string
   region: string
   country: string
-  lat: number
-  lon: number
+  source?: 'seniverse-ip'
+  lat?: number
+  lon?: number
   updated_at: string
 }
 
