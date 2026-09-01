@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CommunityComment, FriendApplication } from '@/api/community'
 import {
+  COMMUNITY_ROOMS,
   buildCommunityMembers,
   friendApplicationJson,
   groupCommunityMessagesByLocalDate,
@@ -28,6 +29,14 @@ function comment(id: number, parentId: number | null, rootId: number): Community
 }
 
 describe('community chat helpers', () => {
+  it('keeps the feedback group in the shared room registry', () => {
+    expect(COMMUNITY_ROOMS.map((room) => room.page)).toEqual(['about', 'friends', 'feedback'])
+    expect(COMMUNITY_ROOMS.at(-1)).toMatchObject({
+      name: 'Feedback',
+      avatar: '/assets/group/feedback.jpg',
+    })
+  })
+
   it('sorts messages chronologically and indexes reply targets', () => {
     const late = { ...comment(2, 1, 1), created_at: '2026-08-29T02:00:00+00:00' }
     const early = { ...comment(1, null, 1), created_at: '2026-08-29T01:00:00+00:00' }
@@ -38,10 +47,15 @@ describe('community chat helpers', () => {
   })
 
   it('groups members by stable author key and keeps the latest profile', () => {
-    const first = { ...comment(1, null, 1), author_key: 'same-author' }
+    const first = {
+      ...comment(1, null, 1),
+      author_key: 'old-admin-key',
+      nickname: 'old-name',
+      is_admin: true,
+    }
     const second = {
       ...comment(2, null, 2),
-      author_key: 'same-author',
+      author_key: 'new-admin-key',
       nickname: 'new-name',
       is_admin: true,
     }
@@ -49,7 +63,7 @@ describe('community chat helpers', () => {
     const members = buildCommunityMembers([first, visitor, second])
     expect(members).toHaveLength(2)
     expect(members[0]).toMatchObject({
-      authorKey: 'same-author',
+      authorKey: 'station-owner',
       nickname: 'new-name',
       messageCount: 2,
       isAdmin: true,

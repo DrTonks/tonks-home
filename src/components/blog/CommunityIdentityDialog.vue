@@ -62,7 +62,8 @@ function saveIdentity() {
             加入留言群聊
           </DialogTitle>
           <DialogDescription class="leading-5">
-            这是一张保存在当前设备上的访客身份卡。邮箱不会公开，目前只验证格式，不代表邮箱所有权已经认证。
+            这是一张保存在当前设备上的访客身份卡；选择记住后，会在 tonks.top 与 blog.tonks.top
+            之间共享。邮箱不会公开，目前只验证格式，不代表邮箱所有权已经认证。
           </DialogDescription>
         </DialogHeader>
       </div>

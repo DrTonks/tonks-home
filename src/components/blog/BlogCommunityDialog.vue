@@ -183,12 +183,12 @@ watch(
   <Dialog v-model:open="open">
     <DialogContent
       tabindex="-1"
-      class="qq-community-window grid h-[min(92dvh,900px)] w-[calc(100vw-0.75rem)] max-w-[1280px] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden border-border/70 p-0 focus:outline-none sm:w-[calc(100vw-1.5rem)]"
+      :class="`qq-community-window grid h-[min(92dvh,900px)] w-[calc(100vw-0.75rem)] max-w-[1280px] grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden border-border/70 p-0 focus:outline-none sm:w-[calc(100vw-1.5rem)] ${section === 'comments' ? 'qq-community-window--chat' : ''}`"
       @open-auto-focus="focusDialogSurface"
     >
       <DialogHeader v-if="section === 'comments'" class="sr-only">
         <DialogTitle>留言群聊</DialogTitle>
-        <DialogDescription>About 与 Friends 留言房间</DialogDescription>
+        <DialogDescription>About、Friends 与 Feedback 群聊</DialogDescription>
       </DialogHeader>
 
       <DialogHeader
@@ -238,6 +238,7 @@ watch(
         :application-count="pendingApplicationCount"
         @login="loginOpen = true"
         @open-applications="showSection('applications')"
+        @close="open = false"
       />
 
       <div v-else class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
@@ -451,6 +452,10 @@ watch(
   box-shadow:
     0 28px 80px hsl(var(--foreground) / 0.22),
     0 2px 12px hsl(var(--foreground) / 0.08);
+}
+
+:global(.qq-community-window--chat > .dialog-default-close) {
+  display: none;
 }
 
 .filter-chip {

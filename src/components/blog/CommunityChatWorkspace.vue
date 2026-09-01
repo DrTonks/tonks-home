@@ -28,24 +28,36 @@ import {
   getCommunityAvatarUrl,
   getCommunityAvatarPreview,
   getCommunityComments,
+  getFeedbackTopics,
   moderateCommunityComment,
   submitCommunityComment,
   type CommentPage,
   type CommunityComment,
+  type FeedbackRoomMessage,
+  type FeedbackTopic,
 } from '@/api/community'
 import {
   buildCommunityMembers,
+  communityAuthorKey,
   COMMUNITY_ROOMS,
   groupCommunityMessagesByLocalDate,
   indexCommunityMessages,
   latestCommunityMessage,
   sortCommunityMessages,
   type VisitorIdentity,
+  type CommunityRoomKey,
 } from '@/lib/community'
+import {
+  clearCommunityProfile,
+  getCommunityProfile,
+  saveCommunityProfile,
+} from '@/lib/community-identity'
 import { useAdminStore } from '@/stores/admin'
 import { Button } from '@/components/ui/button'
 import CommunityIdentityDialog from './CommunityIdentityDialog.vue'
 import CommunityFriendApplyDialog from './CommunityFriendApplyDialog.vue'
+import CommunityFeedbackChatRoom from './CommunityFeedbackChatRoom.vue'
+import CommunityFeedbackConvertDialog from './CommunityFeedbackConvertDialog.vue'
 import CommunityMessageBubble from './CommunityMessageBubble.vue'
 
 const props = defineProps<{
@@ -55,12 +67,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   login: []
   openApplications: []
+  close: []
 }>()
 
 const admin = useAdminStore()
 const comments = ref<CommunityComment[]>([])
+const feedbackTopics = ref<FeedbackTopic[]>([])
+const feedbackRoomMessages = ref<FeedbackRoomMessage[]>([])
 const localPending = ref<CommunityComment[]>([])
-const activePage = ref<CommentPage>('about')
+const activePage = ref<CommunityRoomKey>('about')
 const loading = ref(false)
 const refreshing = ref(false)
 const loadError = ref('')
@@ -84,10 +99,11 @@ const composerInput = ref<HTMLTextAreaElement | null>(null)
 const identity = ref<VisitorIdentity>({ nickname: '', email: '', website: '' })
 const emojiOpen = ref(false)
 const friendApplyOpen = ref(false)
+const feedbackConvertOpen = ref(false)
+const feedbackConvertRootId = ref<number | null>(null)
 const profileAvatarUrl = ref('https://blog.tonks.top/assets/home/home.png')
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-const VISITOR_STORAGE_KEY = 'tonks_community_identity'
 const DEFAULT_PROFILE_AVATAR = 'https://blog.tonks.top/assets/home/home.png'
 const COMMUNITY_EMOJIS = [
   '😀',
@@ -115,8 +131,15 @@ const COMMUNITY_EMOJIS = [
 const activeRoom = computed(
   () => COMMUNITY_ROOMS.find((room) => room.page === activePage.value) ?? COMMUNITY_ROOMS[0],
 )
-const activeBlogUrl = computed(
-  () => `https://blog.tonks.top/${activePage.value === 'about' ? 'about' : 'friends'}/`,
+const activeBlogUrl = computed(() =>
+  activePage.value === 'about'
+    ? 'https://blog.tonks.top/about/'
+    : activePage.value === 'friends'
+      ? 'https://blog.tonks.top/friends/'
+      : '',
+)
+const activeBlogLabel = computed(() =>
+  activePage.value === 'about' ? '前往“关于本站”' : '前往“友链墙”',
 )
 const visibleRooms = computed(() => {
   const query = roomQuery.value.trim().toLowerCase()
@@ -126,10 +149,14 @@ const visibleRooms = computed(() => {
   )
 })
 const activeServerMessages = computed(() =>
-  sortCommunityMessages(comments.value.filter((comment) => comment.page === activePage.value)),
+  activePage.value === 'feedback'
+    ? []
+    : sortCommunityMessages(comments.value.filter((comment) => comment.page === activePage.value)),
 )
 const activePendingMessages = computed(() =>
-  localPending.value.filter((comment) => comment.page === activePage.value),
+  activePage.value === 'feedback'
+    ? []
+    : localPending.value.filter((comment) => comment.page === activePage.value),
 )
 const messageIndex = computed(() => indexCommunityMessages(comments.value))
 const activeMembers = computed(() =>
@@ -142,8 +169,7 @@ const visibleMessages = computed(() => {
   if (!selectedAuthorKey.value) return sortCommunityMessages(messages)
   return sortCommunityMessages(
     messages.filter((comment) => {
-      const key = comment.author_key || `legacy:${comment.nickname}:${comment.website}`
-      return key === selectedAuthorKey.value
+      return communityAuthorKey(comment) === selectedAuthorKey.value
     }),
   )
 })
@@ -151,34 +177,91 @@ const messageGroups = computed(() => groupCommunityMessagesByLocalDate(visibleMe
 const selectedComment = computed(
   () => comments.value.find((comment) => comment.id === selectedCommentId.value) ?? null,
 )
+const activeMemberCount = computed(() => {
+  if (activePage.value !== 'feedback') return activeMembers.value.length
+  const members = new Set<string>()
+  for (const topic of feedbackTopics.value) {
+    for (const item of topic.messages)
+      members.add(item.is_admin ? 'station-owner' : item.author_key)
+  }
+  for (const item of feedbackRoomMessages.value) {
+    members.add(item.is_admin ? 'station-owner' : item.author_key)
+  }
+  return members.size
+})
 
 function roomComments(page: CommentPage): CommunityComment[] {
   return comments.value.filter((comment) => comment.page === page)
 }
 
-function roomPublicCount(page: CommentPage): number {
+function roomPublicCount(page: CommunityRoomKey): number {
+  if (page === 'feedback') {
+    return (
+      feedbackTopics.value.filter((topic) => topic.status !== 'merged').length +
+      feedbackRoomMessages.value.filter((message) => message.status === 'published').length
+    )
+  }
   return roomComments(page).filter((comment) => comment.status === 'published').length
 }
 
-function roomPendingCount(page: CommentPage): number {
+function roomPendingCount(page: CommunityRoomKey): number {
+  if (page === 'feedback') return 0
   if (!admin.isLoggedIn) return 0
   return roomComments(page).filter((comment) => comment.status === 'pending').length
 }
 
-function roomLatest(page: CommentPage): CommunityComment | null {
+function roomLatest(page: CommunityRoomKey): CommunityComment | null {
+  if (page === 'feedback') return null
   return latestCommunityMessage(
     roomComments(page).filter((comment) => comment.status === 'published'),
   )
 }
 
-function roomAvatar(page: CommentPage): string {
-  return `/assets/group/${page}.jpg`
+function roomAvatar(page: CommunityRoomKey): string {
+  return COMMUNITY_ROOMS.find((room) => room.page === page)?.avatar ?? ''
 }
 
-function roomLatestTime(page: CommentPage): string {
+function latestFeedbackEntry():
+  | { type: 'topic'; createdAt: string; nickname: string; text: string }
+  | { type: 'message'; createdAt: string; nickname: string; text: string }
+  | null {
+  const entries = [
+    ...feedbackTopics.value
+      .filter((topic) => topic.status !== 'merged')
+      .map((topic) => ({
+        type: 'topic' as const,
+        createdAt: topic.created_at,
+        nickname: topic.nickname,
+        text: `[反馈] ${topic.title}`,
+      })),
+    ...feedbackRoomMessages.value
+      .filter((message) => message.status === 'published')
+      .map((message) => ({
+        type: 'message' as const,
+        createdAt: message.created_at,
+        nickname: message.nickname,
+        text: message.content,
+      })),
+  ]
+  return (
+    entries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] ??
+    null
+  )
+}
+
+function roomLatestTime(page: CommunityRoomKey): string {
+  if (page === 'feedback') {
+    const latest = latestFeedbackEntry()
+    if (!latest) return ''
+    return compactRoomTime(latest.createdAt)
+  }
   const latest = roomLatest(page)
   if (!latest) return ''
-  const date = new Date(latest.created_at)
+  return compactRoomTime(latest.created_at)
+}
+
+function compactRoomTime(value: string): string {
+  const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
 
   const now = new Date()
@@ -200,20 +283,18 @@ function roomLatestTime(page: CommentPage): string {
   return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
 }
 
-function readIdentity() {
-  try {
-    const raw = localStorage.getItem(VISITOR_STORAGE_KEY)
-    if (!raw) return
-    const saved = JSON.parse(raw) as Partial<VisitorIdentity>
-    identity.value = {
-      nickname: typeof saved.nickname === 'string' ? saved.nickname : '',
-      email: typeof saved.email === 'string' ? saved.email : '',
-      website: typeof saved.website === 'string' ? saved.website : '',
-    }
-    void syncProfileAvatar()
-  } catch {
-    localStorage.removeItem(VISITOR_STORAGE_KEY)
+function roomPreview(page: CommunityRoomKey): string {
+  if (page === 'feedback') {
+    const latest = latestFeedbackEntry()
+    return latest ? `${latest.nickname}：${latest.text}` : '还没有人说话'
   }
+  const latest = roomLatest(page)
+  return latest ? `${latest.nickname}：${latest.content}` : '还没有人说话'
+}
+
+function readIdentity() {
+  identity.value = getCommunityProfile()
+  void syncProfileAvatar()
 }
 
 async function syncProfileAvatar() {
@@ -231,8 +312,8 @@ async function syncProfileAvatar() {
 
 function saveIdentity(nextIdentity: VisitorIdentity, remember: boolean) {
   identity.value = nextIdentity
-  if (remember) localStorage.setItem(VISITOR_STORAGE_KEY, JSON.stringify(nextIdentity))
-  else localStorage.removeItem(VISITOR_STORAGE_KEY)
+  if (remember) saveCommunityProfile(nextIdentity)
+  else clearCommunityProfile()
   void syncProfileAvatar()
   if (pendingSendAfterIdentity.value) {
     pendingSendAfterIdentity.value = false
@@ -296,11 +377,14 @@ async function loadComments(options: { quiet?: boolean; scroll?: boolean } = {})
   loadError.value = ''
   try {
     const secret = admin.isLoggedIn ? admin.secret : ''
-    const [about, friends] = await Promise.all([
+    const [about, friends, feedback] = await Promise.all([
       getCommunityComments('about', secret),
       getCommunityComments('friends', secret),
+      getFeedbackTopics(secret),
     ])
     comments.value = [...about, ...friends]
+    feedbackTopics.value = feedback.topics
+    feedbackRoomMessages.value = feedback.messages
     if (
       selectedCommentId.value !== null &&
       !comments.value.some((comment) => comment.id === selectedCommentId.value)
@@ -336,7 +420,7 @@ function handleVisibilityChange() {
   if (props.active && document.visibilityState === 'visible') void loadComments({ quiet: true })
 }
 
-function selectRoom(page: CommentPage) {
+function selectRoom(page: CommunityRoomKey) {
   activePage.value = page
   selectedAuthorKey.value = ''
   selectedCommentId.value = null
@@ -344,6 +428,12 @@ function selectRoom(page: CommentPage) {
   composerStatus.value = ''
   mobilePanel.value = null
   void scrollMessagesToBottom()
+}
+
+function convertToFeedback(comment: CommunityComment) {
+  if (!admin.isLoggedIn || comment.id < 1) return
+  feedbackConvertRootId.value = comment.root_id || comment.id
+  feedbackConvertOpen.value = true
 }
 
 function selectMember(authorKey: string) {
@@ -390,6 +480,8 @@ function handleComposerKeydown(event: KeyboardEvent) {
 }
 
 async function sendMessage() {
+  if (activePage.value === 'feedback') return
+  const page = activePage.value
   const content = composer.value.trim()
   if (!content || sending.value || !hasIdentity()) return
   sending.value = true
@@ -398,7 +490,7 @@ async function sendMessage() {
   const target = replyTarget.value
   try {
     const result = await submitCommunityComment(
-      activePage.value,
+      page,
       {
         ...identity.value,
         content,
@@ -413,7 +505,7 @@ async function sendMessage() {
         ...localPending.value,
         {
           id: -Date.now(),
-          page: activePage.value,
+          page,
           parent_id: target?.id ?? null,
           root_id: target?.root_id ?? -Date.now(),
           nickname: identity.value.nickname,
@@ -568,12 +660,7 @@ onBeforeUnmount(() => {
               <time v-if="roomLatestTime(room.page)">{{ roomLatestTime(room.page) }}</time>
             </span>
             <span class="room-preview-row">
-              <span class="room-preview">
-                <template v-if="roomLatest(room.page)">
-                  {{ roomLatest(room.page)?.nickname }}：{{ roomLatest(room.page)?.content }}
-                </template>
-                <template v-else>还没有人说话</template>
-              </span>
+              <span class="room-preview">{{ roomPreview(room.page) }}</span>
               <span v-if="roomPendingCount(room.page)" class="room-pending">
                 {{ roomPendingCount(room.page) }}
               </span>
@@ -602,22 +689,25 @@ onBeforeUnmount(() => {
         <h3 class="truncate text-[15px] font-semibold">
           {{ activeRoom.name }} 交流群
           <span class="ml-1 text-xs font-normal text-muted-foreground">
-            ({{ activeMembers.length }})
+            ({{ activeMemberCount }})
           </span>
         </h3>
       </div>
       <div class="qq-shared-actions">
         <a
+          v-if="activeBlogUrl"
           :href="activeBlogUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="qq-header-action"
-          title="打开对应博客页面"
-          aria-label="打开对应博客页面"
+          class="qq-header-action qq-header-action--labelled"
+          :title="activeBlogLabel"
+          :aria-label="activeBlogLabel"
         >
           <ExternalLink class="h-4 w-4" aria-hidden="true" />
+          <span>{{ activeBlogLabel }}</span>
         </a>
         <button
+          v-if="activePage === 'friends'"
           type="button"
           class="qq-header-action"
           title="申请友链或查看申请状态"
@@ -630,8 +720,8 @@ onBeforeUnmount(() => {
           type="button"
           class="qq-header-action"
           :disabled="loading || refreshing"
-          title="刷新留言"
-          aria-label="刷新留言"
+          title="刷新当前房间"
+          aria-label="刷新当前房间"
           @click="loadComments({ quiet: true })"
         >
           <RefreshCw :class="['h-4 w-4', refreshing && 'animate-spin']" aria-hidden="true" />
@@ -644,6 +734,15 @@ onBeforeUnmount(() => {
           @click="showMembers"
         >
           <PanelRight class="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="qq-header-action"
+          title="关闭留言群聊"
+          aria-label="关闭留言群聊"
+          @click="emit('close')"
+        >
+          <X class="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
@@ -670,7 +769,20 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
+    <CommunityFeedbackChatRoom
+      v-if="activePage === 'feedback'"
+      :topics="feedbackTopics"
+      :messages="feedbackRoomMessages"
+      :loading="loading"
+      :identity="identity"
+      :admin-mode="admin.isLoggedIn"
+      :admin-secret="admin.secret"
+      @reload="loadComments({ quiet: true })"
+      @request-identity="identityOpen = true"
+    />
+
     <section
+      v-if="activePage !== 'feedback'"
       class="qq-conversation-pane grid min-h-0 grid-rows-[minmax(0,1fr)_auto] lg:col-start-2 lg:row-start-2"
     >
       <div
@@ -718,6 +830,7 @@ onBeforeUnmount(() => {
               :local-pending="message.id < 0"
               @reply="replyTo"
               @inspect="inspectComment"
+              @feedback="convertToFeedback"
             />
           </template>
         </div>
@@ -822,6 +935,7 @@ onBeforeUnmount(() => {
     </section>
 
     <aside
+      v-if="activePage !== 'feedback'"
       :class="[
         'qq-info-pane min-h-0 flex-col overflow-y-auto border-l border-border',
         mobilePanel ? 'absolute inset-0 z-20 flex bg-popover/98 backdrop-blur-xl' : 'hidden',
@@ -1011,6 +1125,13 @@ onBeforeUnmount(() => {
 
   <CommunityIdentityDialog v-model:open="identityOpen" :identity="identity" @save="saveIdentity" />
   <CommunityFriendApplyDialog v-model:open="friendApplyOpen" />
+  <CommunityFeedbackConvertDialog
+    v-model:open="feedbackConvertOpen"
+    :root-comment-id="feedbackConvertRootId"
+    :topics="feedbackTopics"
+    :admin-secret="admin.secret"
+    @converted="loadComments({ quiet: true })"
+  />
 </template>
 
 <style scoped>
@@ -1223,7 +1344,7 @@ onBeforeUnmount(() => {
   gap: 1rem;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--card) / 0.32);
-  padding: 0.75rem 3.2rem 0.75rem 1.2rem;
+  padding: 0.75rem 1.2rem;
 }
 
 .qq-header-action {
@@ -1236,6 +1357,14 @@ onBeforeUnmount(() => {
   transition:
     color 140ms ease,
     background-color 140ms ease;
+}
+
+.qq-header-action--labelled {
+  display: inline-flex;
+  width: auto;
+  gap: 0.35rem;
+  padding: 0 0.55rem;
+  font-size: 0.6rem;
 }
 
 .qq-header-action:hover:not(:disabled) {
@@ -1521,7 +1650,7 @@ onBeforeUnmount(() => {
 
   .qq-shared-header {
     flex-wrap: wrap;
-    padding: 1rem 3.15rem 0.7rem 1rem;
+    padding: 1rem 0.75rem 0.7rem 1rem;
   }
 
   .qq-composer-panel {
@@ -1530,6 +1659,17 @@ onBeforeUnmount(() => {
 
   .qq-composer-input {
     min-height: 3.2rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .qq-header-action--labelled {
+    width: 2rem;
+    padding: 0;
+  }
+
+  .qq-header-action--labelled span {
+    display: none;
   }
 }
 

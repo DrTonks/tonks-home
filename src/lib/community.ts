@@ -1,11 +1,14 @@
 import type { CommentPage, CommunityComment, FriendApplication } from '@/api/community'
 
 export interface CommunityRoom {
-  page: CommentPage
+  page: CommunityRoomKey
   name: string
   label: string
   description: string
+  avatar: string
 }
+
+export type CommunityRoomKey = CommentPage | 'feedback'
 
 export interface CommunityMember {
   authorKey: string
@@ -35,12 +38,21 @@ export const COMMUNITY_ROOMS: readonly CommunityRoom[] = [
     name: 'About',
     label: '关于本站',
     description: '聊聊这个小站，以及藏在页面背后的故事。',
+    avatar: '/assets/group/about.jpg',
   },
   {
     page: 'friends',
     name: 'Friends',
     label: '友链',
     description: '认识新朋友，也欢迎分享你在网络上的居所。',
+    avatar: '/assets/group/friends.jpg',
+  },
+  {
+    page: 'feedback',
+    name: 'Feedback',
+    label: '反馈',
+    description: '欢迎反馈网站浏览相关的问题！',
+    avatar: '/assets/group/feedback.jpg',
   },
 ]
 
@@ -92,10 +104,15 @@ export function indexCommunityMessages(
   return new Map(comments.map((comment) => [comment.id, comment]))
 }
 
+export function communityAuthorKey(comment: CommunityComment): string {
+  if (comment.is_admin) return 'station-owner'
+  return comment.author_key || `legacy:${comment.nickname}:${comment.website}`
+}
+
 export function buildCommunityMembers(comments: CommunityComment[]): CommunityMember[] {
   const members = new Map<string, CommunityMember>()
   for (const comment of sortCommunityMessages(comments)) {
-    const authorKey = comment.author_key || `legacy:${comment.nickname}:${comment.website}`
+    const authorKey = communityAuthorKey(comment)
     const existing = members.get(authorKey)
     members.set(authorKey, {
       authorKey,

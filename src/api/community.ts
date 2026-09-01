@@ -4,6 +4,8 @@ import { getCommunityIdentityToken } from '@/lib/community-identity'
 export type CommentPage = 'about' | 'friends'
 export type CommentStatus = 'published' | 'pending' | 'rejected'
 export type FriendApplicationStatus = 'pending' | 'approved' | 'rejected'
+export type FeedbackKind = 'bug' | 'suggestion' | 'content' | 'other'
+export type FeedbackStatus = 'open' | 'in_progress' | 'resolved' | 'merged'
 
 export interface CommunityComment {
   id: number
@@ -66,6 +68,94 @@ export interface FriendApplicationSubmissionResult {
   message: string
 }
 
+export interface FeedbackMessage {
+  id: number
+  topic_id: number
+  nickname: string
+  email?: string
+  website: string
+  content: string
+  status: CommentStatus
+  is_admin: boolean
+  owned: boolean
+  author_key: string
+  created_at: string
+  moderation_reason?: string
+}
+
+export interface FeedbackRoomMessage {
+  id: number
+  nickname: string
+  email?: string
+  website: string
+  content: string
+  status: CommentStatus
+  is_admin: boolean
+  owned: boolean
+  author_key: string
+  created_at: string
+  moderation_reason?: string
+}
+
+export interface FeedbackSourceComment {
+  id: number
+  parent_id: number | null
+  root_id: number
+  nickname: string
+  website: string
+  content: string
+  is_admin: boolean
+  author_key: string
+  created_at: string
+}
+
+export interface FeedbackSource {
+  id: number
+  page: CommentPage
+  root_comment_id: number
+  comments: FeedbackSourceComment[]
+  created_at: string
+}
+
+export interface FeedbackEvent {
+  id: number
+  type: string
+  detail: string
+  created_at: string
+}
+
+export interface FeedbackTopic {
+  id: number
+  title: string
+  kind: FeedbackKind
+  status: FeedbackStatus
+  nickname: string
+  email?: string
+  website: string
+  is_admin: boolean
+  owned: boolean
+  author_key: string
+  resolution_note: string
+  merged_into_id: number | null
+  created_at: string
+  updated_at: string
+  messages: FeedbackMessage[]
+  sources: FeedbackSource[]
+  events: FeedbackEvent[]
+}
+
+export interface FeedbackMessageSubmission {
+  nickname: string
+  email: string
+  website?: string
+  content: string
+}
+
+export interface FeedbackTopicSubmission extends FeedbackMessageSubmission {
+  title: string
+  kind: FeedbackKind
+}
+
 interface CommentsResponse {
   success: boolean
   comments: CommunityComment[]
@@ -98,6 +188,17 @@ interface TrackedFriendApplicationsResponse {
 interface CommunityAvatarPreviewResponse {
   success: boolean
   avatar_url: string
+}
+
+interface FeedbackTopicsResponse {
+  success: boolean
+  topics: FeedbackTopic[]
+  room_messages: FeedbackRoomMessage[]
+}
+
+export interface FeedbackRoomState {
+  topics: FeedbackTopic[]
+  messages: FeedbackRoomMessage[]
 }
 
 const communityApi = axios.create({
@@ -269,4 +370,138 @@ export async function getCommunityAvatarPreview(email: string): Promise<string> 
   )
   ensureSuccess(data)
   return data.avatar_url
+}
+
+export async function getFeedbackTopics(secret = ''): Promise<FeedbackRoomState> {
+  const { data } = await communityApi.get<FeedbackTopicsResponse>('/blog/community/feedback', {
+    headers: commentHeaders(secret),
+  })
+  ensureSuccess(data)
+  return {
+    topics: Array.isArray(data.topics) ? data.topics : [],
+    messages: Array.isArray(data.room_messages) ? data.room_messages : [],
+  }
+}
+
+export async function addFeedbackRoomMessage(
+  submission: FeedbackMessageSubmission,
+  secret = '',
+): Promise<{ status: Extract<CommentStatus, 'published' | 'pending'>; message: string }> {
+  const { data } = await communityApi.post(
+    '/blog/community/feedback/messages',
+    {
+      ...submission,
+      content: submission.content.trim(),
+      nickname: submission.nickname.trim(),
+      email: submission.email.trim(),
+      website: submission.website?.trim() || '',
+    },
+    { headers: commentHeaders(secret) },
+  )
+  ensureSuccess(data)
+  return { status: data.status, message: data.message }
+}
+
+export async function createFeedbackTopic(
+  submission: FeedbackTopicSubmission,
+  secret = '',
+): Promise<{ status: Extract<CommentStatus, 'published' | 'pending'>; message: string }> {
+  const { data } = await communityApi.post(
+    '/blog/community/feedback',
+    {
+      ...submission,
+      title: submission.title.trim(),
+      content: submission.content.trim(),
+      nickname: submission.nickname.trim(),
+      email: submission.email.trim(),
+      website: submission.website?.trim() || '',
+    },
+    { headers: commentHeaders(secret) },
+  )
+  ensureSuccess(data)
+  return { status: data.status, message: data.message }
+}
+
+export async function addFeedbackMessage(
+  topicId: number,
+  submission: FeedbackMessageSubmission,
+  secret = '',
+): Promise<{ status: Extract<CommentStatus, 'published' | 'pending'>; message: string }> {
+  const { data } = await communityApi.post(
+    `/blog/community/feedback/${topicId}/messages`,
+    {
+      ...submission,
+      content: submission.content.trim(),
+      nickname: submission.nickname.trim(),
+      email: submission.email.trim(),
+      website: submission.website?.trim() || '',
+    },
+    { headers: commentHeaders(secret) },
+  )
+  ensureSuccess(data)
+  return { status: data.status, message: data.message }
+}
+
+export async function updateFeedbackTopic(
+  topicId: number,
+  update: Partial<Pick<FeedbackTopic, 'title' | 'kind' | 'status' | 'resolution_note'>>,
+  secret: string,
+): Promise<void> {
+  const { data } = await communityApi.patch(`/blog/community/feedback/${topicId}`, update, {
+    headers: adminHeaders(secret),
+  })
+  ensureSuccess(data)
+}
+
+export async function deleteFeedbackTopic(topicId: number, secret: string): Promise<number[]> {
+  const { data } = await communityApi.delete(`/blog/community/feedback/${topicId}`, {
+    headers: adminHeaders(secret),
+  })
+  ensureSuccess(data)
+  return Array.isArray(data.deleted) ? data.deleted.map(Number) : []
+}
+
+export async function convertCommentTreeToFeedback(
+  rootCommentId: number,
+  options: { topicId?: number; title?: string; kind?: FeedbackKind },
+  secret: string,
+): Promise<number> {
+  const { data } = await communityApi.post(
+    '/blog/community/feedback/from-comment',
+    {
+      root_comment_id: rootCommentId,
+      topic_id: options.topicId,
+      title: options.title,
+      kind: options.kind,
+    },
+    { headers: adminHeaders(secret) },
+  )
+  ensureSuccess(data)
+  return Number(data.topic_id)
+}
+
+export async function mergeFeedbackTopics(
+  targetTopicId: number,
+  sourceTopicIds: number[],
+  title: string,
+  secret: string,
+): Promise<void> {
+  const { data } = await communityApi.post(
+    '/blog/community/feedback/merge',
+    {
+      target_topic_id: targetTopicId,
+      source_topic_ids: sourceTopicIds,
+      ...(title.trim() ? { title: title.trim() } : {}),
+    },
+    { headers: adminHeaders(secret) },
+  )
+  ensureSuccess(data)
+}
+
+export function getFeedbackAvatarUrl(messageId: number): string {
+  return `/api/blog/community/feedback/avatar/${messageId}`
+}
+
+export function getFeedbackRoomAvatarUrl(messageId: number): string {
+  return `/api/blog/community/feedback/room-avatar/${messageId}`
 }

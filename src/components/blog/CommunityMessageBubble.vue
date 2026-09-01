@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AtSign, ExternalLink, MessageSquareReply, ShieldCheck } from 'lucide-vue-next'
+import {
+  AtSign,
+  ExternalLink,
+  GitPullRequest,
+  MessageSquareReply,
+  ShieldCheck,
+} from 'lucide-vue-next'
 import { getCommunityAvatarUrl, type CommunityComment } from '@/api/community'
 
 const props = defineProps<{
@@ -13,11 +19,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   reply: [comment: CommunityComment]
   inspect: [comment: CommunityComment]
+  feedback: [comment: CommunityComment]
 }>()
 const avatarFailed = ref(false)
-// QQ-style direction is viewer-relative: only this browser's own messages go right.
-// Admin identity changes the visual treatment, never the direction by itself.
-const alignedRight = computed(() => props.comment.owned)
+// QQ-style direction is viewer-relative. Visitors only see their own messages on the
+// right; in management mode the single station-owner identity is also treated as self.
+const alignedRight = computed(
+  () => props.comment.owned || (props.adminMode && props.comment.is_admin),
+)
 
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || '访客'
@@ -120,6 +129,16 @@ function statusLabel(status: CommunityComment['status']): string {
           @click="emit('inspect', comment)"
         >
           审核
+        </button>
+        <button
+          v-if="adminMode && !localPending && comment.status === 'published'"
+          type="button"
+          class="message-action"
+          title="把整棵评论树转为反馈"
+          @click="emit('feedback', comment)"
+        >
+          <GitPullRequest class="h-3 w-3" aria-hidden="true" />
+          转为反馈
         </button>
       </div>
     </div>
