@@ -20,6 +20,7 @@ function comment(id: number, parentId: number | null, rootId: number): Community
     content: `comment-${id}`,
     status: 'published',
     is_admin: false,
+    owned: false,
     author_key: `author-${id}`,
     created_at: '2026-08-29T00:00:00+00:00',
     reply_to_name: '',
@@ -64,8 +65,9 @@ describe('community chat helpers', () => {
       created_at: new Date(2026, 7, 30, 8).toISOString(),
     }
     const today = { ...comment(3, null, 3), created_at: new Date(2026, 7, 31, 9).toISOString() }
-    expect(groupCommunityMessagesByLocalDate([today, old, yesterday], now).map((group) => group.label))
-      .toEqual(['8月28日', '昨天', '今天'])
+    expect(
+      groupCommunityMessagesByLocalDate([today, old, yesterday], now).map((group) => group.label),
+    ).toEqual(['8月28日', '昨天', '今天'])
   })
 })
 

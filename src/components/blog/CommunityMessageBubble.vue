@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { AtSign, ExternalLink, MessageSquareReply, ShieldCheck } from 'lucide-vue-next'
 import { getCommunityAvatarUrl, type CommunityComment } from '@/api/community'
 
@@ -15,6 +15,9 @@ const emit = defineEmits<{
   inspect: [comment: CommunityComment]
 }>()
 const avatarFailed = ref(false)
+// QQ-style direction is viewer-relative: only this browser's own messages go right.
+// Admin identity changes the visual treatment, never the direction by itself.
+const alignedRight = computed(() => props.comment.owned)
 
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || '访客'
@@ -42,11 +45,13 @@ function statusLabel(status: CommunityComment['status']): string {
     :class="[
       'message-row group/message',
       comment.is_admin ? 'is-admin' : 'is-visitor',
+      comment.owned && 'is-own',
+      alignedRight && 'is-right',
       selected && 'is-selected',
       localPending && 'is-local-pending',
     ]"
   >
-    <div v-if="!comment.is_admin" class="message-avatar">
+    <div v-if="!alignedRight" :class="['message-avatar', comment.is_admin && 'is-admin-avatar']">
       <img
         v-if="comment.status === 'published' && !avatarFailed && comment.id > 0"
         :src="getCommunityAvatarUrl(comment.id)"
@@ -58,7 +63,7 @@ function statusLabel(status: CommunityComment['status']): string {
     </div>
 
     <div class="min-w-0 max-w-[min(78%,38rem)]">
-      <div :class="['message-meta', comment.is_admin && 'justify-end']">
+      <div :class="['message-meta', alignedRight && 'justify-end']">
         <a
           v-if="comment.website"
           :href="comment.website"
@@ -88,7 +93,7 @@ function statusLabel(status: CommunityComment['status']): string {
         <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ comment.content }}</p>
       </div>
 
-      <div :class="['message-actions', comment.is_admin && 'justify-end']">
+      <div :class="['message-actions', alignedRight && 'justify-end']">
         <span
           v-if="localPending || (adminMode && comment.status !== 'published')"
           :class="[
@@ -119,7 +124,10 @@ function statusLabel(status: CommunityComment['status']): string {
       </div>
     </div>
 
-    <div v-if="comment.is_admin" class="message-avatar is-admin-avatar">
+    <div
+      v-if="alignedRight"
+      :class="['message-avatar', comment.is_admin ? 'is-admin-avatar' : 'is-own-avatar']"
+    >
       <img
         v-if="comment.status === 'published' && !avatarFailed && comment.id > 0"
         :src="getCommunityAvatarUrl(comment.id)"
@@ -140,7 +148,7 @@ function statusLabel(status: CommunityComment['status']): string {
   padding: 0.48rem 0;
 }
 
-.message-row.is-admin {
+.message-row.is-right {
   justify-content: flex-end;
 }
 
@@ -166,7 +174,15 @@ function statusLabel(status: CommunityComment['status']): string {
 }
 
 .is-admin-avatar {
-  background: hsl(var(--primary) / 0.1);
+  border: 1px solid hsl(var(--primary) / 0.55);
+  background: hsl(var(--primary) / 0.14);
+  box-shadow:
+    0 0 0 3px hsl(var(--primary) / 0.08),
+    0 5px 16px hsl(var(--primary) / 0.15);
+}
+
+.is-own-avatar {
+  background: hsl(var(--primary) / 0.08);
 }
 
 .message-meta,
@@ -201,7 +217,8 @@ function statusLabel(status: CommunityComment['status']): string {
   align-items: center;
   gap: 0.2rem;
   border-radius: 999px;
-  background: hsl(var(--primary) / 0.12);
+  border: 1px solid hsl(var(--primary) / 0.24);
+  background: hsl(var(--primary) / 0.14);
   padding: 0.15rem 0.4rem;
   color: hsl(var(--primary));
   font-size: 0.55rem;
@@ -221,9 +238,26 @@ function statusLabel(status: CommunityComment['status']): string {
     transform 160ms ease;
 }
 
-.is-admin .message-bubble {
+.is-own .message-bubble {
   border-radius: 0.7rem 0.25rem 0.7rem 0.7rem;
-  background: hsl(var(--primary) / 0.16);
+  background: hsl(var(--primary) / 0.11);
+}
+
+.is-admin .message-bubble {
+  position: relative;
+  border: 1px solid hsl(var(--primary) / 0.22);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.11));
+  box-shadow:
+    0 7px 22px hsl(var(--primary) / 0.09),
+    inset 0 1px hsl(var(--background) / 0.35);
+}
+
+.is-admin.is-right .message-bubble {
+  border-radius: 0.7rem 0.25rem 0.7rem 0.7rem;
+}
+
+.is-admin .message-author {
+  color: hsl(var(--primary));
 }
 
 .is-selected .message-bubble {

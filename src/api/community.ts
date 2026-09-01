@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getCommunityIdentityToken } from '@/lib/community-identity'
 
 export type CommentPage = 'about' | 'friends'
 export type CommentStatus = 'published' | 'pending' | 'rejected'
@@ -16,6 +17,7 @@ export interface CommunityComment {
   status: CommentStatus
   is_admin: boolean
   author_key: string
+  owned: boolean
   created_at: string
   reply_to_name: string
   moderation_reason?: string
@@ -108,6 +110,14 @@ function adminHeaders(secret: string) {
   return { 'X-Admin-Secret': secret }
 }
 
+function commentHeaders(secret = '') {
+  return {
+    'X-Client-ID': communityClientId(),
+    'X-Community-Identity': getCommunityIdentityToken(),
+    ...(secret ? adminHeaders(secret) : {}),
+  }
+}
+
 function communityClientId(): string {
   const storageKey = 'tonks_community_client_id'
   const existing = localStorage.getItem(storageKey)
@@ -128,10 +138,9 @@ export async function getCommunityComments(
   page: CommentPage,
   secret = '',
 ): Promise<CommunityComment[]> {
-  const { data } = await communityApi.get<CommentsResponse>(
-    `/blog/community/comments/${page}`,
-    secret ? { headers: adminHeaders(secret) } : undefined,
-  )
+  const { data } = await communityApi.get<CommentsResponse>(`/blog/community/comments/${page}`, {
+    headers: commentHeaders(secret),
+  })
   ensureSuccess(data)
   return Array.isArray(data.comments) ? data.comments : []
 }
@@ -152,8 +161,7 @@ export async function submitCommunityComment(
     },
     {
       headers: {
-        'X-Client-ID': communityClientId(),
-        ...(secret ? adminHeaders(secret) : {}),
+        ...commentHeaders(secret),
       },
     },
   )

@@ -4,6 +4,7 @@ import { ref, computed, nextTick } from 'vue'
 export type ThemeMode = 'light' | 'dark' | 'system'
 
 const STORAGE_KEY = 'theme'
+const SHARED_THEME_COOKIE = 'tonks_theme'
 const mql = window.matchMedia('(prefers-color-scheme: dark)')
 const ART_FADE_HOLD_CLASS = 'theme-art-fade-hold'
 const ART_FADE_ENTER_CLASS = 'theme-art-fade-enter'
@@ -11,6 +12,41 @@ const ART_FADE_ENTER_CLASS = 'theme-art-fade-enter'
 let artFadeFrame1: number | null = null
 let artFadeFrame2: number | null = null
 let artFadeGeneration = 0
+
+function isThemeMode(value: string | null): value is ThemeMode {
+  return value === 'light' || value === 'dark' || value === 'system'
+}
+
+function readSharedTheme(): ThemeMode | null {
+  const prefix = `${SHARED_THEME_COOKIE}=`
+  const entry = document.cookie.split('; ').find((item) => item.startsWith(prefix))
+  if (!entry) return null
+  try {
+    const value = decodeURIComponent(entry.slice(prefix.length))
+    return isThemeMode(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeSharedTheme(theme: ThemeMode): void {
+  const hostname = window.location.hostname.toLowerCase()
+  const sharedDomain = hostname === 'tonks.top' || hostname.endsWith('.tonks.top')
+  const attributes = [
+    'Path=/',
+    'Max-Age=31536000',
+    'SameSite=Lax',
+    ...(sharedDomain ? ['Domain=.tonks.top', 'Secure'] : []),
+  ]
+  document.cookie = `${SHARED_THEME_COOKIE}=${theme}; ${attributes.join('; ')}`
+}
+
+function initialTheme(): ThemeMode {
+  const shared = readSharedTheme()
+  if (shared) return shared
+  const stored = localStorage.getItem(STORAGE_KEY)
+  return isThemeMode(stored) ? stored : 'system'
+}
 
 function cancelArtFadeFrames() {
   if (artFadeFrame1 !== null) cancelAnimationFrame(artFadeFrame1)
@@ -40,7 +76,7 @@ function releaseArtFade(el: HTMLElement, wasHeld: boolean) {
 }
 
 export const useThemeStore = defineStore('theme', () => {
-  const mode = ref<ThemeMode>((localStorage.getItem(STORAGE_KEY) as ThemeMode) || 'system')
+  const mode = ref<ThemeMode>(initialTheme())
   const systemDark = ref(mql.matches)
 
   const isDark = computed(
@@ -58,6 +94,7 @@ export const useThemeStore = defineStore('theme', () => {
   function setMode(m: ThemeMode) {
     mode.value = m
     localStorage.setItem(STORAGE_KEY, m)
+    writeSharedTheme(m)
     applyClass()
   }
 
@@ -151,7 +188,21 @@ export const useThemeStore = defineStore('theme', () => {
   })
 
   // 初始应用（与 index.html 内联脚本一致，避免首屏闪烁）
+  localStorage.setItem(STORAGE_KEY, mode.value)
+  writeSharedTheme(mode.value)
   applyClass()
+
+  const syncSharedTheme = () => {
+    const shared = readSharedTheme()
+    if (!shared || shared === mode.value) return
+    mode.value = shared
+    localStorage.setItem(STORAGE_KEY, shared)
+    applyClass()
+  }
+  window.addEventListener('focus', syncSharedTheme)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncSharedTheme()
+  })
 
   return { mode, isDark, setMode, toggle, cycle }
 })

@@ -422,6 +422,7 @@ async function sendMessage() {
           content,
           status: 'pending',
           is_admin: false,
+          owned: true,
           author_key: 'local-pending-author',
           created_at: new Date().toISOString(),
           reply_to_name: target?.nickname ?? '',

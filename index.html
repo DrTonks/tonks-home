@@ -21,31 +21,48 @@
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/font/geist-sans/style.css"
-      media="print" onload="this.media='all'"
+      media="print"
+      onload="this.media = 'all'"
     />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/font/geist-mono/style.css"
-      media="print" onload="this.media='all'"
+      media="print"
+      onload="this.media = 'all'"
     />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.0/index.css"
-      media="print" onload="this.media='all'"
+      media="print"
+      onload="this.media = 'all'"
     />
     <!-- 中文字体：得意黑 -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/smiley-sans@2.0.1/index.css"
-      media="print" onload="this.media='all'"
+      media="print"
+      onload="this.media = 'all'"
     />
     <!-- Caveat 本地化 -->
     <link rel="preload" href="/fonts/caveat.woff2" as="font" type="font/woff2" crossorigin />
     <!-- 防闪烁：首屏渲染前依据 localStorage / 系统偏好预置 .dark -->
     <script>
-      (function () {
+      ;(function () {
         try {
-          var m = localStorage.getItem('theme') || 'system'
+          var entry = document.cookie.split('; ').find(function (item) {
+            return item.indexOf('tonks_theme=') === 0
+          })
+          var shared = entry ? decodeURIComponent(entry.slice('tonks_theme='.length)) : ''
+          var valid = shared === 'light' || shared === 'dark' || shared === 'system'
+          var m = valid ? shared : localStorage.getItem('theme') || 'system'
+          localStorage.setItem('theme', m)
+          var sharedDomain =
+            location.hostname === 'tonks.top' || location.hostname.endsWith('.tonks.top')
+          document.cookie =
+            'tonks_theme=' +
+            m +
+            '; Path=/; Max-Age=31536000; SameSite=Lax' +
+            (sharedDomain ? '; Domain=.tonks.top; Secure' : '')
           var dark =
             m === 'dark' ||
             (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
