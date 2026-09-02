@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   ArrowLeft,
   Check,
@@ -64,6 +64,7 @@ const composerError = ref('')
 const composerStatus = ref('')
 const cardComposerOpen = ref(false)
 const emojiOpen = ref(false)
+const emojiPopover = ref<HTMLElement | null>(null)
 const cardForm = ref({ title: '', kind: 'bug' as FeedbackKind, content: '' })
 const selectedTopicIds = ref(new Set<number>())
 const mergeOpen = ref(false)
@@ -248,6 +249,29 @@ function insertEmoji(emoji: string) {
   emojiOpen.value = false
 }
 
+function toggleEmojiPicker() {
+  const shouldOpen = !emojiOpen.value
+  emojiOpen.value = shouldOpen
+  if (shouldOpen) cardComposerOpen.value = false
+}
+
+function toggleCardComposer() {
+  const shouldOpen = !cardComposerOpen.value
+  cardComposerOpen.value = shouldOpen
+  if (shouldOpen) emojiOpen.value = false
+}
+
+function focusQuickMessage() {
+  cardComposerOpen.value = false
+}
+
+function handleEmojiOutsidePointer(event: PointerEvent) {
+  if (!emojiOpen.value) return
+  const target = event.target
+  if (target instanceof Node && emojiPopover.value?.contains(target)) return
+  emojiOpen.value = false
+}
+
 async function submitChatMessage() {
   const content = quickMessage.value.trim()
   if (!content || composerBusy.value || !ensureIdentity()) return
@@ -406,6 +430,11 @@ async function confirmDeleteTopic() {
     actionBusy.value = false
   }
 }
+
+document.addEventListener('pointerdown', handleEmojiOutsidePointer)
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleEmojiOutsidePointer)
+})
 </script>
 
 <template>
@@ -589,12 +618,13 @@ async function confirmDeleteTopic() {
         </div>
 
         <div class="feedback-composer-toolbar">
-          <div class="relative flex items-center gap-0.5">
+          <div ref="emojiPopover" class="relative flex items-center gap-0.5">
             <button
               type="button"
               class="feedback-tool-button"
               title="选择表情"
-              @click="emojiOpen = !emojiOpen"
+              :aria-expanded="emojiOpen"
+              @click="toggleEmojiPicker"
             >
               <Smile class="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
@@ -613,7 +643,7 @@ async function confirmDeleteTopic() {
               class="feedback-tool-button"
               title="发送反馈卡片"
               :aria-pressed="cardComposerOpen"
-              @click="cardComposerOpen = !cardComposerOpen"
+              @click="toggleCardComposer"
             >
               <SquarePlus class="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
@@ -629,6 +659,7 @@ async function confirmDeleteTopic() {
           rows="3"
           maxlength="800"
           placeholder="在 Feedback 群里说点什么…"
+          @focus="focusQuickMessage"
           @keydown="handleQuickKeydown"
         />
         <div class="feedback-send-row">
@@ -1274,7 +1305,6 @@ async function confirmDeleteTopic() {
   position: relative;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
   border-top: 1px solid hsl(var(--border));
   background: hsl(var(--card) / 0.46);
 }

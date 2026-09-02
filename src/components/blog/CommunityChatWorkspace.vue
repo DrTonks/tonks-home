@@ -98,6 +98,7 @@ const messagesViewport = ref<HTMLElement | null>(null)
 const composerInput = ref<HTMLTextAreaElement | null>(null)
 const identity = ref<VisitorIdentity>({ nickname: '', email: '', website: '' })
 const emojiOpen = ref(false)
+const emojiPopover = ref<HTMLElement | null>(null)
 const friendApplyOpen = ref(false)
 const feedbackConvertOpen = ref(false)
 const feedbackConvertRootId = ref<number | null>(null)
@@ -334,6 +335,13 @@ function insertEmoji(emoji: string) {
     const caret = start + emoji.length
     input?.setSelectionRange(caret, caret)
   })
+}
+
+function handleEmojiOutsidePointer(event: PointerEvent) {
+  if (!emojiOpen.value) return
+  const target = event.target
+  if (target instanceof Node && emojiPopover.value?.contains(target)) return
+  emojiOpen.value = false
 }
 
 function hasIdentity(): boolean {
@@ -599,9 +607,11 @@ watch(identityOpen, (visible) => {
 })
 
 document.addEventListener('visibilitychange', handleVisibilityChange)
+document.addEventListener('pointerdown', handleEmojiOutsidePointer)
 onBeforeUnmount(() => {
   stopRefreshTimer()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  document.removeEventListener('pointerdown', handleEmojiOutsidePointer)
 })
 </script>
 
@@ -858,7 +868,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="qq-composer-toolbar">
-          <div class="flex items-center gap-0.5">
+          <div ref="emojiPopover" class="flex items-center gap-0.5">
             <button
               type="button"
               class="qq-tool-button"
@@ -1458,7 +1468,6 @@ onBeforeUnmount(() => {
   position: relative;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
   min-height: 9.5rem;
   background: hsl(var(--card) / 0.46);
 }
@@ -1473,7 +1482,7 @@ onBeforeUnmount(() => {
 
 .qq-emoji-picker {
   position: absolute;
-  bottom: calc(100% - 2.5rem);
+  bottom: calc(100% + 0.4rem);
   left: 0.75rem;
   z-index: 30;
   display: grid;
