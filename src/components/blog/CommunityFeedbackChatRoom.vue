@@ -397,7 +397,8 @@ async function confirmDeleteTopic() {
       openedTopicId.value = null
     }
     deleteCandidate.value = null
-    composerStatus.value = deletedIds.length > 1 ? `已删除 ${deletedIds.length} 张关联卡片` : '反馈已删除'
+    composerStatus.value =
+      deletedIds.length > 1 ? `已删除 ${deletedIds.length} 张关联卡片` : '反馈已删除'
     emit('reload')
   } catch (cause) {
     composerError.value = readableError(cause, '删除失败，请稍后重试')
@@ -952,6 +953,9 @@ async function confirmDeleteTopic() {
 .feedback-chat-room {
   position: relative;
   display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
   grid-template-columns: minmax(0, 1fr) 248px;
   background: hsl(var(--background));
@@ -964,7 +968,10 @@ async function confirmDeleteTopic() {
   grid-template-rows: minmax(0, 1fr) auto;
 }
 .feedback-stream {
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0 1.2rem 1.2rem;
 }
@@ -1033,10 +1040,12 @@ async function confirmDeleteTopic() {
 }
 .feedback-message-list {
   display: grid;
+  min-width: 0;
   gap: 0.55rem;
 }
 .feedback-card-message {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   gap: 0.65rem;
   padding: 0.35rem 0;
@@ -1067,10 +1076,13 @@ async function confirmDeleteTopic() {
   object-fit: cover;
 }
 .feedback-card-message-copy {
+  min-width: 0;
+  max-width: 78%;
   width: min(25rem, 78%);
 }
 .feedback-room-message {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   gap: 0.65rem;
   padding: 0.25rem 0;
@@ -1079,9 +1091,11 @@ async function confirmDeleteTopic() {
   flex-direction: row-reverse;
 }
 .feedback-room-message-copy {
+  min-width: 0;
   max-width: min(30rem, 76%);
 }
 .feedback-room-message-copy > p {
+  max-width: 100%;
   width: fit-content;
   border: 1px solid hsl(var(--border));
   border-radius: 0.3rem 0.7rem 0.7rem;
@@ -1258,6 +1272,9 @@ async function confirmDeleteTopic() {
 }
 .feedback-composer {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border-top: 1px solid hsl(var(--border));
   background: hsl(var(--card) / 0.46);
 }
@@ -1318,6 +1335,9 @@ async function confirmDeleteTopic() {
 .feedback-composer > textarea {
   display: block;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 3.8rem;
   resize: none;
   background: transparent;
@@ -1325,6 +1345,9 @@ async function confirmDeleteTopic() {
   color: hsl(var(--foreground));
   font-size: 0.75rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
   outline: none;
 }
 .feedback-send-row {

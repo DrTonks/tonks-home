@@ -27,6 +27,13 @@ const avatarFailed = ref(false)
 const alignedRight = computed(
   () => props.comment.owned || (props.adminMode && props.comment.is_admin),
 )
+const quotedContent = computed(() => {
+  const source = (props.parent?.content || '原消息已不可见').trim()
+  const replyLength = Array.from(props.comment.content.trim()).length
+  const limit = Math.min(46, Math.max(10, replyLength * 2 + 6))
+  const characters = Array.from(source)
+  return characters.length > limit ? `${characters.slice(0, limit).join('').trimEnd()}…` : source
+})
 
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || '访客'
@@ -71,7 +78,7 @@ function statusLabel(status: CommunityComment['status']): string {
       <span v-else>{{ initials(comment.nickname) }}</span>
     </div>
 
-    <div class="min-w-0 max-w-[min(78%,38rem)]">
+    <div class="message-stack">
       <div :class="['message-meta', alignedRight && 'justify-end']">
         <a
           v-if="comment.website"
@@ -96,7 +103,7 @@ function statusLabel(status: CommunityComment['status']): string {
           <AtSign class="h-3 w-3 shrink-0" aria-hidden="true" />
           <div class="min-w-0">
             <strong>{{ parent?.nickname || comment.reply_to_name || '已删除的消息' }}</strong>
-            <p>{{ parent?.content || '原消息已不可见' }}</p>
+            <p :title="parent?.content || '原消息已不可见'">{{ quotedContent }}</p>
           </div>
         </div>
         <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ comment.content }}</p>
@@ -162,9 +169,15 @@ function statusLabel(status: CommunityComment['status']): string {
 <style scoped>
 .message-row {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   gap: 0.65rem;
   padding: 0.48rem 0;
+}
+
+.message-stack {
+  min-width: 0;
+  max-width: min(78%, 38rem);
 }
 
 .message-row.is-right {
@@ -245,6 +258,9 @@ function statusLabel(status: CommunityComment['status']): string {
 }
 
 .message-bubble {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border: 0;
   border-radius: 0.25rem 0.7rem 0.7rem;
   background: hsl(var(--card));
@@ -255,6 +271,12 @@ function statusLabel(status: CommunityComment['status']): string {
     border-color 160ms ease,
     background-color 160ms ease,
     transform 160ms ease;
+}
+
+.message-bubble > p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .is-own .message-bubble {
@@ -289,6 +311,9 @@ function statusLabel(status: CommunityComment['status']): string {
 
 .message-quote {
   display: flex;
+  min-width: 0;
+  max-width: min(100%, 26rem);
+  overflow: hidden;
   gap: 0.35rem;
   margin-bottom: 0.55rem;
   border-left: 2px solid hsl(var(--primary) / 0.45);
@@ -304,6 +329,7 @@ function statusLabel(status: CommunityComment['status']): string {
 }
 
 .message-quote p {
+  max-width: 100%;
   overflow: hidden;
   margin-top: 0.1rem;
   text-overflow: ellipsis;

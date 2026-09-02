@@ -607,7 +607,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="qq-chat-shell relative grid min-h-0 flex-1 lg:grid-cols-[244px_minmax(0,1fr)_248px] lg:grid-rows-[4rem_minmax(0,1fr)]"
+    class="qq-chat-shell relative grid min-h-0 min-w-0 flex-1 overflow-hidden lg:grid-cols-[244px_minmax(0,1fr)_248px] lg:grid-rows-[4rem_minmax(0,1fr)]"
   >
     <aside
       class="qq-session-pane hidden min-h-0 border-r border-border lg:row-span-2 lg:flex lg:flex-col"
@@ -783,7 +783,7 @@ onBeforeUnmount(() => {
 
     <section
       v-if="activePage !== 'feedback'"
-      class="qq-conversation-pane grid min-h-0 grid-rows-[minmax(0,1fr)_auto] lg:col-start-2 lg:row-start-2"
+      class="qq-conversation-pane grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:col-start-2 lg:row-start-2"
     >
       <div
         ref="messagesViewport"
@@ -839,7 +839,7 @@ onBeforeUnmount(() => {
       <footer class="qq-composer-panel border-t border-border">
         <div
           v-if="replyTarget"
-          class="mx-3 mt-2 flex items-center gap-2 rounded-md bg-primary/7 px-3 py-2 text-xs sm:mx-5"
+          class="qq-reply-context mx-3 mt-2 flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md bg-primary/7 px-3 py-2 text-xs sm:mx-5"
         >
           <MessageCircle class="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
           <p class="min-w-0 flex-1 truncate">
@@ -1136,7 +1136,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .qq-chat-shell {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: hsl(var(--background));
+  contain: inline-size;
 }
 
 .qq-session-pane {
@@ -1331,6 +1335,9 @@ onBeforeUnmount(() => {
 }
 
 .qq-conversation-pane {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   background: hsl(var(--background));
 }
 
@@ -1449,8 +1456,19 @@ onBeforeUnmount(() => {
 
 .qq-composer-panel {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   min-height: 9.5rem;
   background: hsl(var(--card) / 0.46);
+}
+
+.qq-reply-context p {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qq-emoji-picker {
@@ -1488,6 +1506,7 @@ onBeforeUnmount(() => {
 
 .qq-composer-toolbar {
   display: flex;
+  min-width: 0;
   height: 2.4rem;
   align-items: center;
   justify-content: space-between;
@@ -1526,18 +1545,26 @@ onBeforeUnmount(() => {
 }
 
 .community-composer {
+  min-width: 0;
+  max-width: 100%;
   padding: 0 0.95rem;
 }
 
 .qq-composer-input {
   display: block;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 4.2rem;
   resize: none;
   background: transparent;
   color: hsl(var(--foreground));
   font-size: 0.78rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
   outline: none;
 }
 
@@ -1547,12 +1574,22 @@ onBeforeUnmount(() => {
 
 .qq-composer-actions {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   min-height: 2.3rem;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0 0.8rem 0.55rem 0.95rem;
   font-size: 0.55rem;
+}
+
+.qq-composer-actions > p {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qq-send-button {
@@ -1639,6 +1676,9 @@ onBeforeUnmount(() => {
 }
 
 .community-message-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
 }
