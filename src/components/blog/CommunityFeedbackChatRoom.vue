@@ -538,10 +538,6 @@ onBeforeUnmount(() => {
                     </span>
                     <ChevronRight class="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
-                  <span v-if="item.topic.status === 'resolved'" class="feedback-resolved-stamp">
-                    <Check class="h-3.5 w-3.5" />
-                    已完成
-                  </span>
                 </button>
                 <p v-if="item.topic.status === 'merged'" class="feedback-merged-copy">
                   已合并到 #{{ item.topic.merged_into_id }}，原卡片保留为历史记录。
@@ -1084,9 +1080,6 @@ onBeforeUnmount(() => {
 .feedback-card-message.is-own {
   flex-direction: row-reverse;
 }
-.feedback-card-message.is-resolved {
-  opacity: 0.88;
-}
 .feedback-card-message.is-merged {
   opacity: 0.48;
 }
@@ -1197,13 +1190,16 @@ onBeforeUnmount(() => {
     transform 150ms ease,
     box-shadow 150ms ease;
 }
-.feedback-card-message.is-resolved .qq-feedback-card {
-  border-color: hsl(145 45% 42%/0.3);
-  background: linear-gradient(145deg, hsl(145 45% 42%/0.06), transparent 45%), hsl(var(--card));
-}
 .is-own .qq-feedback-card {
   border-radius: 0.65rem 0.3rem 0.65rem 0.65rem;
   background: linear-gradient(145deg, hsl(var(--primary) / 0.12), hsl(var(--card)));
+}
+.feedback-card-message.is-resolved .qq-feedback-card {
+  border-color: hsl(145 46% 40%/0.48);
+  background: linear-gradient(145deg, hsl(145 46% 42%/0.11), hsl(var(--card)) 52%);
+  box-shadow:
+    inset 3px 0 0 hsl(145 50% 42%/0.62),
+    0 1px 3px hsl(var(--foreground) / 0.07);
 }
 .qq-feedback-card:hover:not(:disabled) {
   border-color: hsl(var(--primary) / 0.38);
@@ -1238,8 +1234,10 @@ onBeforeUnmount(() => {
   color: hsl(var(--primary));
 }
 .feedback-status-chip.is-resolved {
-  background: hsl(145 45% 45%/0.12);
-  color: hsl(145 45% 38%);
+  background: hsl(145 48% 34%);
+  color: hsl(0 0% 100%);
+  font-weight: 650;
+  box-shadow: 0 2px 8px hsl(145 48% 30%/0.18);
 }
 .qq-feedback-card > strong {
   display: block;
@@ -1271,22 +1269,6 @@ onBeforeUnmount(() => {
 }
 .qq-feedback-card-foot span:nth-child(2) {
   margin-left: auto;
-}
-.feedback-resolved-stamp {
-  position: absolute;
-  right: 0.7rem;
-  bottom: 2.05rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  border: 1px solid hsl(145 45% 42%/0.28);
-  border-radius: 999px;
-  background: hsl(145 45% 42%/0.08);
-  padding: 0.16rem 0.4rem;
-  color: hsl(145 45% 35%);
-  font-size: 0.5rem;
-  font-weight: 650;
-  transform: rotate(-2deg);
 }
 .feedback-merged-copy {
   margin-top: 0.25rem;
