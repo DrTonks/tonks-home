@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+.pnpm-store/
 .DS_Store
 dist
 dist-ssr
@@ -37,6 +38,8 @@ coverage
 # Build artifacts
 *.tsbuildinfo
 node_modules/.tmp/
+.tmp/
+.tmp-*
 
 # Deploy scripts (contain credentials — do not commit)
 scripts/deploy.config.json

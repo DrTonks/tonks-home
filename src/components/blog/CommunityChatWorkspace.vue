@@ -25,6 +25,7 @@ import {
 } from 'lucide-vue-next'
 import {
   deleteCommunityComment,
+  pinCommunityComment,
   getCommunityAvatarUrl,
   getCommunityAvatarPreview,
   getCommunityComments,
@@ -59,6 +60,11 @@ import CommunityFriendApplyDialog from './CommunityFriendApplyDialog.vue'
 import CommunityFeedbackChatRoom from './CommunityFeedbackChatRoom.vue'
 import CommunityFeedbackConvertDialog from './CommunityFeedbackConvertDialog.vue'
 import CommunityMessageBubble from './CommunityMessageBubble.vue'
+import CommunityArticleButton from './CommunityArticleButton.vue'
+import CommunityEmojiPicker from './CommunityEmojiPicker.vue'
+import CommunityEmojiText from './CommunityEmojiText.vue'
+import {commentPlainText} from '@/lib/community-markdown'
+import {splitEmojiText,subscribeEmojis} from '@/lib/community-emojis'
 
 const props = defineProps<{
   active: boolean
@@ -71,6 +77,9 @@ const emit = defineEmits<{
 }>()
 
 const admin = useAdminStore()
+const emojiRevision=ref(0)
+const unsubscribeEmojis=subscribeEmojis(()=>emojiRevision.value++)
+function emojiSummary(text:string){void emojiRevision.value;return splitEmojiText(commentPlainText(text)).map(p=>p.emoji?(p.emoji.text??`[${p.emoji.label}]`):p.text).join('')}
 const comments = ref<CommunityComment[]>([])
 const feedbackTopics = ref<FeedbackTopic[]>([])
 const feedbackRoomMessages = ref<FeedbackRoomMessage[]>([])
@@ -95,6 +104,21 @@ const failedMemberAvatars = ref(new Set<number>())
 const mobilePanel = ref<'members' | 'review' | null>(null)
 const roomQuery = ref('')
 const messagesViewport = ref<HTMLElement | null>(null)
+const messagesContent = ref<HTMLElement | null>(null)
+let followLatest = true
+let contentObserver: ResizeObserver | undefined
+function trackMessageScroll() {
+  const el=messagesViewport.value
+  if (el) followLatest=el.scrollHeight-el.clientHeight-el.scrollTop < 48
+}
+watch(messagesContent,(el)=>{
+  contentObserver?.disconnect()
+  if (el && typeof ResizeObserver !== 'undefined') {
+    contentObserver=new ResizeObserver(()=>{if(followLatest)void scrollMessagesToBottom()})
+    contentObserver.observe(el)
+    if(messagesViewport.value)contentObserver.observe(messagesViewport.value)
+  }
+})
 const composerInput = ref<HTMLTextAreaElement | null>(null)
 const identity = ref<VisitorIdentity>({ nickname: '', email: '', website: '' })
 const emojiOpen = ref(false)
@@ -106,28 +130,6 @@ const profileAvatarUrl = ref('https://blog.tonks.top/assets/home/home.png')
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const DEFAULT_PROFILE_AVATAR = 'https://blog.tonks.top/assets/home/home.png'
-const COMMUNITY_EMOJIS = [
-  '😀',
-  '😄',
-  '😊',
-  '🥰',
-  '🤔',
-  '😭',
-  '😳',
-  '👍',
-  '👏',
-  '🎉',
-  '❤️',
-  '✨',
-  '🌙',
-  '🍀',
-  '🐾',
-  '☕',
-  '📚',
-  '💻',
-  '🚀',
-  '👀',
-] as const
 
 const activeRoom = computed(
   () => COMMUNITY_ROOMS.find((room) => room.page === activePage.value) ?? COMMUNITY_ROOMS[0],
@@ -154,6 +156,9 @@ const activeServerMessages = computed(() =>
     ? []
     : sortCommunityMessages(comments.value.filter((comment) => comment.page === activePage.value)),
 )
+const pinnedMessages = computed(() => activeServerMessages.value.filter(
+  (comment) => comment.is_pinned && comment.status === 'published',
+).reverse())
 const activePendingMessages = computed(() =>
   activePage.value === 'feedback'
     ? []
@@ -241,7 +246,7 @@ function latestFeedbackEntry():
         type: 'message' as const,
         createdAt: message.created_at,
         nickname: message.nickname,
-        text: message.content,
+        text: emojiSummary(message.content),
       })),
   ]
   return (
@@ -290,7 +295,7 @@ function roomPreview(page: CommunityRoomKey): string {
     return latest ? `${latest.nickname}：${latest.text}` : '还没有人说话'
   }
   const latest = roomLatest(page)
-  return latest ? `${latest.nickname}：${latest.content}` : '还没有人说话'
+  return latest ? `${latest.nickname}：${emojiSummary(latest.content)}` : '还没有人说话'
 }
 
 function readIdentity() {
@@ -374,6 +379,7 @@ function errorMessage(cause: unknown, fallback: string): string {
 }
 
 async function scrollMessagesToBottom() {
+  followLatest = true
   await nextTick()
   const viewport = messagesViewport.value
   if (viewport) viewport.scrollTop = viewport.scrollHeight
@@ -400,7 +406,6 @@ async function loadComments(options: { quiet?: boolean; scroll?: boolean } = {})
       selectedCommentId.value = null
       mobilePanel.value = null
     }
-    if (options.scroll) await scrollMessagesToBottom()
   } catch (cause) {
     console.warn('[community-chat] load failed', cause)
     loadError.value = admin.isLoggedIn
@@ -409,6 +414,7 @@ async function loadComments(options: { quiet?: boolean; scroll?: boolean } = {})
   } finally {
     loading.value = false
     refreshing.value = false
+    if (options.scroll) await scrollMessagesToBottom()
   }
 }
 
@@ -563,6 +569,20 @@ async function moderateSelected(status: 'published' | 'rejected') {
   }
 }
 
+async function toggleSelectedPin() {
+  const comment = selectedComment.value
+  if (!comment || !admin.isLoggedIn || actionBusy.value) return
+  actionBusy.value = true
+  try {
+    await pinCommunityComment(comment.id, !comment.is_pinned, admin.secret)
+    await loadComments({ quiet: true })
+  } catch (cause) {
+    loadError.value = errorMessage(cause, '置顶操作失败，请稍后重试')
+  } finally {
+    actionBusy.value = false
+  }
+}
+
 async function deleteSelected() {
   const comment = selectedComment.value
   if (!comment || !admin.isLoggedIn || actionBusy.value) return
@@ -609,6 +629,8 @@ watch(identityOpen, (visible) => {
 document.addEventListener('visibilitychange', handleVisibilityChange)
 document.addEventListener('pointerdown', handleEmojiOutsidePointer)
 onBeforeUnmount(() => {
+  unsubscribeEmojis()
+  contentObserver?.disconnect()
   stopRefreshTimer()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   document.removeEventListener('pointerdown', handleEmojiOutsidePointer)
@@ -617,6 +639,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    data-community-overlay-root
     class="qq-chat-shell relative grid min-h-0 min-w-0 flex-1 overflow-hidden lg:grid-cols-[244px_minmax(0,1fr)_248px] lg:grid-rows-[4rem_minmax(0,1fr)]"
   >
     <aside
@@ -797,6 +820,7 @@ onBeforeUnmount(() => {
     >
       <div
         ref="messagesViewport"
+        @scroll="trackMessageScroll"
         class="community-message-scroll min-h-0 overflow-y-auto px-3 py-4 sm:px-6 sm:py-5"
       >
         <p
@@ -825,7 +849,7 @@ onBeforeUnmount(() => {
             查看全部消息
           </button>
         </div>
-        <div v-else class="grid gap-1">
+        <div v-else ref="messagesContent" class="grid gap-1">
           <template v-for="group in messageGroups" :key="group.key">
             <div class="qq-time-divider">
               <span>{{ group.label }}</span>
@@ -867,8 +891,9 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
+        <div v-if="composer.trim()" class="px-4 pt-2 text-xs max-h-24 overflow-y-auto" aria-label="留言预览"><CommunityEmojiText :text="composer" /></div>
         <div class="qq-composer-toolbar">
-          <div ref="emojiPopover" class="flex items-center gap-0.5">
+          <div ref="emojiPopover" class="relative flex items-center gap-0.5">
             <button
               type="button"
               class="qq-tool-button"
@@ -879,17 +904,8 @@ onBeforeUnmount(() => {
             >
               <Smile class="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-            <div v-if="emojiOpen" class="qq-emoji-picker" role="listbox" aria-label="表情">
-              <button
-                v-for="emoji in COMMUNITY_EMOJIS"
-                :key="emoji"
-                type="button"
-                role="option"
-                @click="insertEmoji(emoji)"
-              >
-                {{ emoji }}
-              </button>
-            </div>
+            <CommunityArticleButton :target="composerInput" />
+            <CommunityEmojiPicker v-if="emojiOpen" :anchor="emojiPopover" @select="insertEmoji" @close="emojiOpen = false; composerInput?.focus()" />
           </div>
           <button
             type="button"
@@ -968,6 +984,10 @@ onBeforeUnmount(() => {
             REVIEW / #{{ selectedComment.id }}
           </p>
           <h3 class="mt-1 text-base font-semibold">审核消息</h3>
+          <Button v-if="selectedComment.status === 'published'" variant="outline" class="mt-3 w-full"
+            :disabled="actionBusy" @click="toggleSelectedPin">
+            {{ selectedComment.is_pinned ? '取消置顶' : '置顶消息' }}
+          </Button>
           <div class="mt-4 grid gap-2 text-xs">
             <div class="rounded-xl border border-border bg-card/70 p-3">
               <p class="text-muted-foreground">作者</p>
@@ -1067,6 +1087,13 @@ onBeforeUnmount(() => {
         <section class="qq-group-section border-b border-border">
           <h3>群公告</h3>
           <p>{{ activeRoom.description }}</p>
+        </section>
+        <section v-if="pinnedMessages.length" class="qq-group-section border-b border-border">
+          <h3>置顶消息</h3>
+          <article v-for="comment in pinnedMessages" :key="comment.id" class="mt-3 text-xs">
+            <strong>{{ comment.nickname }}</strong>
+            <CommunityEmojiText class="break-words" :text="comment.content" />
+          </article>
         </section>
         <section class="qq-group-section flex-1">
           <div class="flex items-center justify-between gap-2">
@@ -1480,38 +1507,10 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.qq-emoji-picker {
-  position: absolute;
-  bottom: calc(100% + 0.4rem);
-  left: 0.75rem;
-  z-index: 30;
-  display: grid;
-  width: min(17rem, calc(100% - 1.5rem));
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.2rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.6rem;
-  background: hsl(var(--popover));
-  padding: 0.55rem;
-  box-shadow: 0 0.8rem 2rem hsl(var(--foreground) / 0.13);
-}
 
-.qq-emoji-picker button {
-  display: grid;
-  aspect-ratio: 1;
-  place-items: center;
-  border-radius: 0.35rem;
-  font-size: 1.05rem;
-  transition:
-    background-color 120ms ease,
-    transform 120ms ease;
-}
 
-.qq-emoji-picker button:hover,
-.qq-emoji-picker button:focus-visible {
-  background: hsl(var(--primary) / 0.12);
-  transform: scale(1.08);
-}
+
+
 
 .qq-composer-toolbar {
   display: flex;

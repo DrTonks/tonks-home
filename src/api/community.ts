@@ -8,6 +8,7 @@ export type FeedbackKind = 'bug' | 'suggestion' | 'content' | 'other'
 export type FeedbackStatus = 'open' | 'in_progress' | 'resolved' | 'merged'
 
 export interface CommunityComment {
+  is_pinned?: boolean
   id: number
   page: CommentPage
   parent_id: number | null
@@ -294,6 +295,12 @@ export async function deleteCommunityComment(id: number, secret: string): Promis
   })
   ensureSuccess(data)
   return Array.isArray(data.deleted) ? data.deleted : []
+}
+
+export async function pinCommunityComment(id: number, pinned: boolean, secret: string): Promise<void> {
+  const { data } = await communityApi.patch(`/blog/community/comments/${id}/pin`,
+    { is_pinned: pinned }, { headers: adminHeaders(secret) })
+  ensureSuccess(data)
 }
 
 export async function getFriendApplications(

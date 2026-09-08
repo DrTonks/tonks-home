@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // 从环境变量读取后端地址，避免 IP 硬编码进公开仓库
   const apiTarget = process.env.VITE_API_TARGET || env.VITE_API_TARGET || 'http://localhost:9010'
+  const articleIndexTarget = process.env.VITE_ARTICLE_INDEX_TARGET || env.VITE_ARTICLE_INDEX_TARGET || 'https://blog.tonks.top'
 
   return {
     plugins: [vue()],
@@ -19,6 +20,13 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 5173,
       proxy: {
+        // Apache provides this alias in production; keep article selection
+        // available in pnpm dev too. Override with the local blog dev origin
+        // when previewing unpublished articles/headings.
+        '^/community/articles\\.json(?:\\?|$)': {
+          target: articleIndexTarget,
+          changeOrigin: true,
+        },
         // 开发环境代理到 sleepy 后端
         '/api': {
           target: apiTarget,

@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import {commentPlainText} from '@/lib/community-markdown'
+import {subscribeEmojis} from '@/lib/community-emojis'
+import CommunityEmojiText from './CommunityEmojiText.vue'
 import {
   AtSign,
   ExternalLink,
@@ -22,13 +25,16 @@ const emit = defineEmits<{
   feedback: [comment: CommunityComment]
 }>()
 const avatarFailed = ref(false)
+const emojiRevision = ref(0)
+onBeforeUnmount(subscribeEmojis(() => emojiRevision.value++))
 // QQ-style direction is viewer-relative. Visitors only see their own messages on the
 // right; in management mode the single station-owner identity is also treated as self.
 const alignedRight = computed(
   () => props.comment.owned || (props.adminMode && props.comment.is_admin),
 )
 const quotedContent = computed(() => {
-  const source = (props.parent?.content || '原消息已不可见').trim()
+  void emojiRevision.value
+  const source = commentPlainText(props.parent?.content || '原消息已不可见').trim()
   const replyLength = Array.from(props.comment.content.trim()).length
   const limit = Math.min(46, Math.max(10, replyLength * 2 + 6))
   const characters = Array.from(source)
@@ -106,10 +112,11 @@ function statusLabel(status: CommunityComment['status']): string {
             <p :title="parent?.content || '原消息已不可见'">{{ quotedContent }}</p>
           </div>
         </div>
-        <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ comment.content }}</p>
+        <CommunityEmojiText class="message-content text-sm" :text="comment.content" />
       </div>
 
       <div :class="['message-actions', alignedRight && 'justify-end']">
+        <span v-if="comment.is_pinned" class="text-[10px] text-primary">置顶</span>
         <span
           v-if="localPending || (adminMode && comment.status !== 'published')"
           :class="[
@@ -273,7 +280,7 @@ function statusLabel(status: CommunityComment['status']): string {
     transform 160ms ease;
 }
 
-.message-bubble > p {
+.message-bubble > .message-content {
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;

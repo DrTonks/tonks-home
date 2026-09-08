@@ -36,7 +36,12 @@ import {
   type FeedbackTopic,
 } from '@/api/community'
 import type { VisitorIdentity } from '@/lib/community'
+import { communityOverlayHost, communityOverlayPosition } from '@/lib/community-overlay'
 import { Button } from '@/components/ui/button'
+import CommunityArticleButton from './CommunityArticleButton.vue'
+import CommunityEmojiPicker from './CommunityEmojiPicker.vue'
+import CommunityEmojiText from './CommunityEmojiText.vue'
+import CommunityEmojiButton from './CommunityEmojiButton.vue'
 
 const props = defineProps<{
   topics: FeedbackTopic[]
@@ -57,12 +62,28 @@ type Filter = 'active' | 'open' | 'in_progress' | 'resolved' | 'all'
 const filter = ref<Filter>('all')
 const openedTopicId = ref<number | null>(null)
 const quickMessage = ref('')
+const quickInput = ref<HTMLTextAreaElement | null>(null)
 const detailReply = ref('')
+const detailInput = ref<HTMLTextAreaElement|null>(null)
+const cardInput = ref<HTMLTextAreaElement|null>(null)
 const composerBusy = ref(false)
 const actionBusy = ref(false)
 const composerError = ref('')
 const composerStatus = ref('')
 const cardComposerOpen = ref(false)
+const cardAnchor = ref<HTMLElement | null>(null)
+const cardPanel = ref<HTMLElement | null>(null)
+const cardPanelStyle = ref<Record<string,string>>({visibility:'hidden'})
+function positionCardComposer() {
+  if (cardComposerOpen.value && cardAnchor.value) cardPanelStyle.value = communityOverlayPosition(cardAnchor.value,640,360)
+}
+watch(cardComposerOpen, async open => {
+  if (!open) return
+  await nextTick()
+  positionCardComposer()
+  await nextTick()
+  cardPanel.value?.querySelector('input')?.focus({preventScroll:true})
+})
 const emojiOpen = ref(false)
 const emojiPopover = ref<HTMLElement | null>(null)
 const cardForm = ref({ title: '', kind: 'bug' as FeedbackKind, content: '' })
@@ -73,13 +94,59 @@ const mergeTitle = ref('')
 const deleteCandidate = ref<FeedbackTopic | null>(null)
 const resolutionDraft = ref<Record<number, string>>({})
 const feedbackStream = ref<HTMLElement | null>(null)
+const feedbackContent = ref<HTMLElement | null>(null)
+const followLatest = ref(true)
+let forceLatest = false
+let settledHeight = 0
+let settledScrollHeight = 0
+let resizeObserver: ResizeObserver | undefined
+let scrollFrame = 0
+let disposed = false
+function observeScroll() {
+  const stream = feedbackStream.value
+  if (!stream || forceLatest) return
+  if (stream.scrollHeight - stream.clientHeight - stream.scrollTop < 48) {
+    followLatest.value = true
+    settledHeight = stream.clientHeight
+    settledScrollHeight = stream.scrollHeight
+    return
+  }
+  // A resize/anchor scroll can arrive before ResizeObserver's frame. Compare
+  // with the geometry of the last completed follow, not the new bottom gap.
+  if (followLatest.value && (stream.clientHeight !== settledHeight || stream.scrollHeight !== settledScrollHeight)) {
+    scrollToLatest()
+    return
+  }
+  followLatest.value = false
+}
+function scrollToLatest() {
+  if (disposed || !followLatest.value || scrollFrame) return
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = 0
+    const stream = feedbackStream.value
+    if (!disposed && followLatest.value && stream) {
+      stream.scrollTop = stream.scrollHeight
+      settledHeight = stream.clientHeight
+      settledScrollHeight = stream.scrollHeight
+    }
+    forceLatest = false
+  })
+}
+watch([feedbackStream, feedbackContent], ([stream, content]) => {
+  resizeObserver?.disconnect()
+  if (stream && content) {
+    resizeObserver = new ResizeObserver(scrollToLatest)
+    resizeObserver.observe(stream)
+    resizeObserver.observe(content)
+    scrollToLatest()
+  }
+}, {flush:'post'})
 const stationOwnerIdentity: VisitorIdentity = {
   nickname: 'Tonks',
   email: '3064517736@qq.com',
   website: 'https://tonks.top/',
 }
 
-const EMOJIS = ['😀', '😄', '😊', '🤔', '😭', '👍', '🎉', '❤️', '✨', '🐾', '💻', '👀'] as const
 const kindLabels: Record<FeedbackKind, string> = {
   bug: '问题',
   suggestion: '建议',
@@ -100,15 +167,18 @@ const filterOptions: { key: Filter; label: string }[] = [
   { key: 'all', label: '全部' },
 ]
 
-watch(
-  () => [props.messages.length, props.topics.length, filter.value],
-  async () => {
-    await nextTick()
-    const stream = feedbackStream.value
-    if (stream) stream.scrollTo({ top: stream.scrollHeight, behavior: 'smooth' })
-  },
-  { immediate: true },
-)
+watch(() => [props.messages.length, props.topics.length, props.loading], async () => {
+  await nextTick()
+  scrollToLatest()
+}, {immediate:true})
+// A filter can shrink the layout and enqueue a scroll event before the next
+// frame. Keep this explicit jump pending until that frame has reached the end.
+watch(filter, async () => {followLatest.value=true;forceLatest=true;await nextTick();scrollToLatest()}, {flush:'sync'})
+
+function openCard(event: MouseEvent, topicId: number) {
+  if (event.target instanceof Element && event.target.closest('a,button,input')) return
+  openedTopicId.value = topicId
+}
 
 const visibleTopics = computed(() => {
   const topics = [...props.topics].sort(
@@ -244,8 +314,13 @@ function ensureIdentity() {
 }
 
 function insertEmoji(emoji: string) {
-  if (quickMessage.value.length + emoji.length > 800) return
-  quickMessage.value += emoji
+  const input=quickInput.value
+  const start=input?.selectionStart ?? quickMessage.value.length
+  const end=input?.selectionEnd ?? start
+  const next=quickMessage.value.slice(0,start)+emoji+quickMessage.value.slice(end)
+  if (next.length > 800) return
+  quickMessage.value=next
+  void nextTick(()=>{input?.focus();input?.setSelectionRange(start+emoji.length,start+emoji.length)})
   emojiOpen.value = false
 }
 
@@ -284,6 +359,7 @@ async function submitChatMessage() {
       props.adminMode ? props.adminSecret : '',
     )
     quickMessage.value = ''
+    followLatest.value = true
     composerStatus.value = result.message
     emit('reload')
   } catch (cause) {
@@ -309,6 +385,7 @@ async function submitCardFeedback() {
       props.adminMode ? props.adminSecret : '',
     )
     cardForm.value = { title: '', kind: 'bug', content: '' }
+    followLatest.value = true
     cardComposerOpen.value = false
     composerStatus.value = result.message
     emit('reload')
@@ -432,15 +509,22 @@ async function confirmDeleteTopic() {
 }
 
 document.addEventListener('pointerdown', handleEmojiOutsidePointer)
+window.addEventListener('resize',positionCardComposer)
+document.addEventListener('scroll',positionCardComposer,true)
 onBeforeUnmount(() => {
+  disposed = true
+  resizeObserver?.disconnect()
+  cancelAnimationFrame(scrollFrame)
   document.removeEventListener('pointerdown', handleEmojiOutsidePointer)
+  window.removeEventListener('resize',positionCardComposer)
+  document.removeEventListener('scroll',positionCardComposer,true)
 })
 </script>
 
 <template>
   <div class="feedback-chat-room lg:col-[2/4] lg:row-start-2">
     <section class="feedback-conversation">
-      <div ref="feedbackStream" class="feedback-stream">
+      <div ref="feedbackStream" class="feedback-stream" :style="{overflowAnchor: followLatest ? 'none' : 'auto'}" @scroll.passive="observeScroll">
         <div class="feedback-stream-toolbar">
           <div class="feedback-filter-tabs">
             <button
@@ -475,7 +559,7 @@ onBeforeUnmount(() => {
           <span>群里还没有消息</span>
         </div>
 
-        <div v-else class="feedback-message-list">
+        <div v-else ref="feedbackContent" class="feedback-message-list">
           <template v-for="item in visibleTimeline" :key="item.id">
             <article
               v-if="item.kind === 'topic'"
@@ -516,11 +600,11 @@ onBeforeUnmount(() => {
                   </label>
                 </div>
 
-                <button
-                  type="button"
+                <article
                   class="qq-feedback-card"
-                  @click="openedTopicId = item.topic.id"
+                  @click="openCard($event, item.topic.id)"
                 >
+                  <button type="button" class="qq-feedback-card-open" :aria-label="`打开反馈：${item.topic.title}`" @click.stop="openedTopicId = item.topic.id">
                   <span class="qq-feedback-app-row">
                     <span class="qq-feedback-app-icon"><FileText class="h-4 w-4" /></span>
                     <span>Tonks Feedback</span>
@@ -529,7 +613,8 @@ onBeforeUnmount(() => {
                     </span>
                   </span>
                   <strong>{{ item.topic.title }}</strong>
-                  <p>{{ item.topic.messages[0]?.content || '从评论区迁移来的反馈事项' }}</p>
+                  </button>
+                  <div class="feedback-rich-content"><CommunityEmojiText :text="item.topic.messages[0]?.content || '从评论区迁移来的反馈事项'" /></div>
                   <span class="qq-feedback-card-foot">
                     <span>#{{ item.topic.id }} · {{ kindLabels[item.topic.kind] }}</span>
                     <span>
@@ -538,7 +623,7 @@ onBeforeUnmount(() => {
                     </span>
                     <ChevronRight class="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
-                </button>
+                </article>
                 <p v-if="item.topic.status === 'merged'" class="feedback-merged-copy">
                   已合并到 #{{ item.topic.merged_into_id }}，原卡片保留为历史记录。
                 </p>
@@ -571,7 +656,7 @@ onBeforeUnmount(() => {
                   </span>
                   <time>{{ formatTime(item.message.created_at) }}</time>
                 </div>
-                <p>{{ item.message.content }}</p>
+                <div class="feedback-rich-content"><CommunityEmojiText :text="item.message.content" /></div>
               </div>
             </article>
           </template>
@@ -579,7 +664,7 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="feedback-composer">
-        <div v-if="cardComposerOpen" class="feedback-card-composer">
+        <Teleport :to="communityOverlayHost(cardAnchor)"><div v-if="cardComposerOpen" ref="cardPanel" :style="cardPanelStyle" class="feedback-card-composer" role="dialog" aria-label="发送反馈卡片" @keydown.esc.stop.prevent="cardComposerOpen = false; cardAnchor?.focus()">
           <div class="feedback-card-composer-head">
             <div>
               <SquarePlus class="h-4 w-4" />
@@ -599,10 +684,12 @@ onBeforeUnmount(() => {
             </select>
             <textarea
               v-model="cardForm.content"
+              ref="cardInput"
               rows="2"
               maxlength="800"
               placeholder="补充发生了什么、期望怎样…"
             />
+            <div class="flex items-center gap-1"><CommunityEmojiButton v-model="cardForm.content" :target="cardInput" /><CommunityArticleButton :target="cardInput" /></div>
             <Button
               size="sm"
               :disabled="composerBusy || !cardForm.title.trim() || !cardForm.content.trim()"
@@ -611,8 +698,9 @@ onBeforeUnmount(() => {
               发送卡片
             </Button>
           </div>
-        </div>
+        </div></Teleport>
 
+        <div v-if="quickMessage.trim()" class="px-4 pt-2 text-xs max-h-24 overflow-y-auto" aria-label="留言预览"><CommunityEmojiText :text="quickMessage" /></div>
         <div class="feedback-composer-toolbar">
           <div ref="emojiPopover" class="relative flex items-center gap-0.5">
             <button
@@ -624,20 +712,13 @@ onBeforeUnmount(() => {
             >
               <Smile class="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-            <div v-if="emojiOpen" class="feedback-emoji-picker">
-              <button
-                v-for="emoji in EMOJIS"
-                :key="emoji"
-                type="button"
-                @click="insertEmoji(emoji)"
-              >
-                {{ emoji }}
-              </button>
-            </div>
+            <CommunityArticleButton :target="quickInput" />
+            <CommunityEmojiPicker v-if="emojiOpen" :anchor="emojiPopover" @select="insertEmoji" @close="emojiOpen = false; quickInput?.focus()" />
             <button
               type="button"
               class="feedback-tool-button"
               title="发送反馈卡片"
+              ref="cardAnchor"
               :aria-pressed="cardComposerOpen"
               @click="toggleCardComposer"
             >
@@ -651,6 +732,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <textarea
+          ref="quickInput"
           v-model="quickMessage"
           rows="3"
           maxlength="800"
@@ -777,7 +859,7 @@ onBeforeUnmount(() => {
                   </em>
                   <time>{{ formatTime(item.created_at) }}</time>
                 </div>
-                <p>{{ item.content }}</p>
+                <div class="feedback-rich-content"><CommunityEmojiText :text="item.content" /></div>
               </div>
             </article>
             <details
@@ -797,7 +879,7 @@ onBeforeUnmount(() => {
                   :class="Boolean(comment.parent_id) && 'is-reply'"
                 >
                   <strong>{{ comment.nickname }}</strong>
-                  <p>{{ comment.content }}</p>
+                  <div class="feedback-rich-content"><CommunityEmojiText :text="comment.content" /></div>
                 </article>
               </div>
             </details>
@@ -879,7 +961,9 @@ onBeforeUnmount(() => {
           </aside>
         </div>
         <footer class="feedback-detail-composer">
+          <div class="flex items-center gap-1"><CommunityEmojiButton v-model="detailReply" :target="detailInput" /><CommunityArticleButton :target="detailInput" /></div>
           <textarea
+            ref="detailInput"
             v-model="detailReply"
             rows="2"
             maxlength="800"
@@ -1118,7 +1202,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   max-width: min(30rem, 76%);
 }
-.feedback-room-message-copy > p {
+.feedback-room-message-copy > .feedback-rich-content {
   max-width: 100%;
   width: fit-content;
   border: 1px solid hsl(var(--border));
@@ -1131,13 +1215,13 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
   box-shadow: 0 1px 3px hsl(var(--foreground) / 0.06);
 }
-.feedback-room-message.is-own .feedback-room-message-copy > p {
+.feedback-room-message.is-own .feedback-room-message-copy > .feedback-rich-content {
   margin-left: auto;
   border-color: hsl(var(--primary) / 0.22);
   border-radius: 0.7rem 0.3rem 0.7rem 0.7rem;
   background: hsl(var(--primary) / 0.13);
 }
-.feedback-room-message.is-admin .feedback-room-message-copy > p {
+.feedback-room-message.is-admin .feedback-room-message-copy > .feedback-rich-content {
   border-color: hsl(var(--primary) / 0.32);
   box-shadow: inset 2px 0 hsl(var(--primary) / 0.7);
 }
@@ -1239,7 +1323,9 @@ onBeforeUnmount(() => {
   font-weight: 650;
   box-shadow: 0 2px 8px hsl(145 48% 30%/0.18);
 }
-.qq-feedback-card > strong {
+.qq-feedback-card-open {display:block;width:100%;text-align:left}
+.qq-feedback-card-open:focus-visible {outline:2px solid hsl(var(--ring));outline-offset:3px;border-radius:3px}
+.qq-feedback-card-open > strong {
   display: block;
   margin-top: 0.55rem;
   overflow: hidden;
@@ -1247,7 +1333,7 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.qq-feedback-card > p {
+.qq-feedback-card > .feedback-rich-content {
   display: -webkit-box;
   overflow: hidden;
   margin-top: 0.25rem;
@@ -1309,28 +1395,9 @@ onBeforeUnmount(() => {
   background: hsl(var(--foreground) / 0.07);
   color: hsl(var(--foreground));
 }
-.feedback-emoji-picker {
-  position: absolute;
-  z-index: 25;
-  bottom: 2.3rem;
-  left: 0;
-  display: grid;
-  width: 12rem;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.2rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.55rem;
-  background: hsl(var(--popover));
-  padding: 0.45rem;
-  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.13);
-}
-.feedback-emoji-picker button {
-  padding: 0.3rem;
-  border-radius: 0.3rem;
-}
-.feedback-emoji-picker button:hover {
-  background: hsl(var(--primary) / 0.1);
-}
+
+
+
 .feedback-identity-button {
   display: flex;
   align-items: center;
@@ -1380,8 +1447,13 @@ onBeforeUnmount(() => {
   gap: 0.55rem;
 }
 .feedback-card-composer {
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.25);
+  z-index: 9000;
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 12px 36px #0002;
   padding: 0.7rem 0.8rem;
 }
 .feedback-card-composer-head,
@@ -1411,7 +1483,7 @@ onBeforeUnmount(() => {
 }
 .feedback-card-composer-row {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  grid-template-columns: 6rem minmax(0, 1fr) auto auto;
   gap: 0.4rem;
   margin-top: 0.4rem;
 }
@@ -1614,7 +1686,7 @@ onBeforeUnmount(() => {
   color: hsl(var(--primary));
   font-style: normal;
 }
-.feedback-detail-message > div > p {
+.feedback-detail-message > div > .feedback-rich-content {
   border-radius: 0.25rem 0.65rem 0.65rem;
   background: hsl(var(--card));
   padding: 0.55rem 0.7rem;
@@ -1622,7 +1694,7 @@ onBeforeUnmount(() => {
   line-height: 1.55;
   white-space: pre-wrap;
 }
-.feedback-detail-message.is-own > div > p {
+.feedback-detail-message.is-own > div > .feedback-rich-content {
   border-radius: 0.65rem 0.25rem 0.65rem 0.65rem;
   background: hsl(var(--primary) / 0.11);
 }
@@ -1657,7 +1729,7 @@ onBeforeUnmount(() => {
 .feedback-source-tree article.is-reply {
   margin-left: 1rem;
 }
-.feedback-source-tree article p {
+.feedback-source-tree article .feedback-rich-content {
   margin-top: 0.1rem;
   color: hsl(var(--muted-foreground));
   line-height: 1.5;
@@ -1720,7 +1792,7 @@ onBeforeUnmount(() => {
 }
 .feedback-detail-composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.5rem;
   border-top: 1px solid hsl(var(--border));
   padding: 0.65rem 0.8rem;
