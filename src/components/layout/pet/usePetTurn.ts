@@ -60,40 +60,14 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
 
     // 转身计数器：光标反复横扫/转圈 → 累积转身 → 超过阈值才生气
     const TURN_ANGER_THRESHOLD = 10
+    const IMMEDIATE_ANGER_THRESHOLD = 15
     let turnCount = 0
     let prevTurnDir: 'left' | 'right' | null = null
     let firstTransition = true
 
-    function trackTick() {
+    function finishTracking() {
       if (!state.tracking.value) return
-      const dir = mouseXDir()
-      const newTurnDir = dir === 'over' ? null : dir
-
-      // 方向变化计数：跳过首次 transition（跟踪开始时的初始朝向），
-      // 后续每次 direction ↔ null 转换计 1 次转身
-      if (newTurnDir !== prevTurnDir) {
-        if (firstTransition) {
-          firstTransition = false
-        } else {
-          turnCount++
-        }
-        prevTurnDir = newTurnDir
-      }
-
-      if (dir === 'left') {
-        state.turnDirection.value = 'left'
-        state.showFrame.value = TURN_FRAME_PATH
-      } else if (dir === 'right') {
-        state.turnDirection.value = 'right'
-        state.showFrame.value = TURN_FRAME_PATH
-      } else {
-        state.turnDirection.value = null
-        state.showFrame.value = FRAMES.idle
-      }
-      if (state.tracking.value) requestAnimationFrame(trackTick)
-    }
-
-    t.trackingEndTimer = setTimeout(() => {
+      if (t.trackingEndTimer) clearTimeout(t.trackingEndTimer)
       state.tracking.value = false
       t.trackingEndTimer = null
       state.turnDirection.value = null
@@ -114,7 +88,44 @@ export function usePetTurn(state: PetState, onTrackingExit: () => void) {
         state.mood.value = 'idle'
         onTrackingExit()
       }
-    }, dur)
+    }
+
+    function trackTick() {
+      if (!state.tracking.value) return
+      const dir = mouseXDir()
+      const newTurnDir = dir === 'over' ? null : dir
+
+      // 方向变化计数：跳过首次 transition（跟踪开始时的初始朝向），
+      // 后续每次 direction ↔ null 转换计 1 次转身
+      if (newTurnDir !== prevTurnDir) {
+        if (firstTransition) {
+          firstTransition = false
+        } else {
+          turnCount++
+        }
+        prevTurnDir = newTurnDir
+      }
+
+      // 超过 15 次立即生气，不再等待本轮跟踪倒计时结束。
+      if (turnCount > IMMEDIATE_ANGER_THRESHOLD) {
+        finishTracking()
+        return
+      }
+
+      if (dir === 'left') {
+        state.turnDirection.value = 'left'
+        state.showFrame.value = TURN_FRAME_PATH
+      } else if (dir === 'right') {
+        state.turnDirection.value = 'right'
+        state.showFrame.value = TURN_FRAME_PATH
+      } else {
+        state.turnDirection.value = null
+        state.showFrame.value = FRAMES.idle
+      }
+      if (state.tracking.value) requestAnimationFrame(trackTick)
+    }
+
+    t.trackingEndTimer = setTimeout(finishTracking, dur)
 
     requestAnimationFrame(trackTick)
   }
