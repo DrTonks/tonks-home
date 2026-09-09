@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import {pathToFileURL} from 'node:url'
 import {createServer} from 'vite'
+import {checkEmojiPreview} from './check-emoji-preview.mjs'
 const runtime=process.env.PLAYWRIGHT_MODULE_PATH
 const {chromium}=await import(runtime?pathToFileURL(runtime).href:'playwright')
 const server=await createServer({server:{host:'127.0.0.1',port:0,open:false,hmr:false}})
@@ -24,7 +25,7 @@ try {
     const url=new URL(route.request().url())
     if(url.origin!==origin) return route.abort()
     if(url.pathname.startsWith('/api/')) {
-      const comments=Array.from({length:20},(_,i)=>({id:i+1,page:'about',parent_id:null,root_id:i+1,nickname:'本地测试',website:'',content:`测试留言 ${i+1}`,created_at:'2026-09-08T00:00:00Z',status:'published',author_key:'test',owned:false,is_admin:false,reply_to_name:''}))
+      const comments=Array.from({length:20},(_,i)=>({id:i+1,page:'about',parent_id:null,root_id:i+1,nickname:'本地测试',website:'',content:`测试留言 ${i+1}${i===19?' :laopu:happy-1:':''}`,is_pinned:i===19,created_at:'2026-09-08T00:00:00Z',status:'published',author_key:'test',owned:false,is_admin:false,reply_to_name:''}))
       return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,status:'published',message:'已发送',comments,room_messages:comments,topics:[]})})
     }
     if(url.pathname==='/community/articles.json')return route.fulfill({contentType:'application/json',body:JSON.stringify([{title:'文章样式备忘录',url:'https://blog.tonks.top/posts/writing-guide/',headings:[{title:'测试小标题',id:'section-one'}]}])})
@@ -164,6 +165,8 @@ try {
   await page.goto(origin+'/tests/community-regression.html?surface=dialog')
   await page.locator('.qq-community-window').waitFor()
   const modal=page.locator('.qq-community-window')
+  const pinnedEmoji=modal.locator('.qq-group-section:visible').filter({has:page.getByRole('heading',{name:'置顶消息',exact:true})}).locator('.community-inline-emoji').first()
+  await checkEmojiPreview(page,pinnedEmoji,modal)
   const insertPickers=async(scope,input)=>{
     await scope.getByRole('button',{name:'选择表情',exact:true}).click()
     const emoji=page.locator('.community-emoji-picker')
@@ -198,8 +201,10 @@ try {
   await insertPickers(card,card.locator('textarea'))
   await page.getByRole('button',{name:'收起反馈卡片',exact:true}).click()
   assert(await modal.isVisible())
+  await checkEmojiPreview(page,modal.locator('.feedback-stream .community-inline-emoji').last(),modal)
+  await modal.locator('.feedback-stream .community-inline-emoji').last().click()
   await page.evaluate(()=>window.communityTest.unmount())
-  assert.equal(await page.locator('.community-emoji-picker,.community-article-picker,.feedback-card-composer').count(),0)
+  assert.equal(await page.locator('.community-emoji-picker,.community-article-picker,.feedback-card-composer,.community-image-preview').count(),0)
   assert.deepEqual(errors,[])
   console.log('PASS: overflowing fixture, filter scroll, three picker focus/Escape entries, entities, safe URLs, code literals, card links, delayed images, history scroll, 900/390px picker, insertion, reactive reply, cleanup')
 } finally {await browser?.close();await server.close()}

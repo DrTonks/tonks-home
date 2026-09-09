@@ -92,6 +92,7 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function setMode(m: ThemeMode) {
+    systemDark.value = mql.matches
     mode.value = m
     localStorage.setItem(STORAGE_KEY, m)
     writeSharedTheme(m)
@@ -107,6 +108,13 @@ export const useThemeStore = defineStore('theme', () => {
    */
   function transitionTo(next: ThemeMode, x?: number, y?: number, fadeCarouselArt = false) {
     const el = document.documentElement
+    const nextIsDark = next === 'dark' || (next === 'system' && mql.matches)
+    // A preference change can leave the resolved appearance unchanged. Persist it
+    // immediately so system following changes without capturing an empty reveal.
+    if (el.classList.contains('dark') === nextIsDark) {
+      setMode(next)
+      return
+    }
     const fadeGeneration = ++artFadeGeneration
     resetArtFadeClasses(el)
 
