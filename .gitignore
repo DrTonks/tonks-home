@@ -41,9 +41,9 @@ node_modules/.tmp/
 .tmp/
 .tmp-*
 
-# Deploy scripts (contain credentials — do not commit)
+# Deployment credentials (scripts are versioned)
 scripts/deploy.config.json
-scripts/deploy.js
+deploy.config.json
 
 # Docs
 API文档.md
