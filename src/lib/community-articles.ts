@@ -1,4 +1,4 @@
-import {communityOverlayHost,communityOverlayPosition} from './community-overlay'
+import {activateCommunityPicker,communityOverlayHost,communityOverlayPosition} from './community-overlay'
 
 export interface CommunityArticle { title: string; url: string; headings: Array<{title: string; id: string}> }
 let articles: CommunityArticle[] | undefined
@@ -52,12 +52,13 @@ export function attachArticlePicker(textarea: HTMLTextAreaElement, host: HTMLEle
   const close = document.createElement('button'); close.type = 'button'; close.textContent = '关闭'; close.className = 'community-article-close'
   panel.append(search,back,list,status,close); wrapper.append(toggle); host.append(wrapper); communityOverlayHost(host).append(panel)
   let available: CommunityArticle[] = [], selected: CommunityArticle | undefined, trigger: {start:number;end:number} | undefined
+  let releasePicker=()=>{}
   let open = false
   const position = () => {
     if (!open) return
     Object.assign(panel.style,communityOverlayPosition(toggle,380,420))
   }
-  const hide = (focus = false) => {open=false; panel.hidden=true;toggle.setAttribute('aria-expanded','false'); if(focus) textarea.focus()}
+  const hide = (focus = false) => {releasePicker();open=false; panel.hidden=true;toggle.setAttribute('aria-expanded','false'); if(focus) textarea.focus()}
   const choose = (article:CommunityArticle, heading?:CommunityArticle['headings'][number]) => {
     const start = trigger?.start ?? textarea.selectionStart, end = trigger?.end ?? textarea.selectionEnd
     const insert = `${articleMention(article,heading)} `
@@ -91,6 +92,8 @@ export function attachArticlePicker(textarea: HTMLTextAreaElement, host: HTMLEle
     if(count>60) status.textContent='已显示前 60 篇，请输入关键词缩小范围。'
   }
   const show = async (fromTyping=false) => {
+    releasePicker()
+    releasePicker=activateCommunityPicker(()=>hide())
     if(!fromTyping) trigger=undefined
     open=true;panel.hidden=false;toggle.setAttribute('aria-expanded','true');selected=undefined;search.value='';position();search.focus()
     status.textContent='正在读取文章目录…'
@@ -115,5 +118,5 @@ export function attachArticlePicker(textarea: HTMLTextAreaElement, host: HTMLEle
   document.addEventListener('focusin',(event)=>{if(event.target instanceof Node&&!wrapper.contains(event.target)&&!panel.contains(event.target)&&event.target!==textarea) hide()},{signal})
   window.addEventListener('resize',position,{signal})
   document.addEventListener('scroll',position,{signal,capture:true})
-  return ()=>{abort.abort();wrapper.remove();panel.remove()}
+  return ()=>{releasePicker();abort.abort();wrapper.remove();panel.remove()}
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed,nextTick,onBeforeUnmount,onMounted,ref,watch} from 'vue'
 import {getEmojiGroups,loadEmojiManifest,subscribeEmojis,recentEmojis,rememberEmoji,type EmojiItem} from '@/lib/community-emojis'
-import {communityOverlayHost,communityOverlayPosition} from '@/lib/community-overlay'
+import {activateCommunityPicker,communityOverlayHost,communityOverlayPosition} from '@/lib/community-overlay'
 const emit=defineEmits<{select:[value:string];close:[]}>()
 const props=defineProps<{anchor:HTMLElement|null}>()
 const panel=ref<HTMLElement|null>(null)
@@ -16,8 +16,9 @@ const limit=ref(80)
 watch([selected,query],()=>limit.value=80)
 const stop=subscribeEmojis(()=>revision.value++)
 onBeforeUnmount(stop)
-onMounted(async()=>{void loadEmojiManifest();position();window.addEventListener('resize',position);document.addEventListener('scroll',position,true);await nextTick();searchInput.value?.focus()})
-onBeforeUnmount(()=>{window.removeEventListener('resize',position);document.removeEventListener('scroll',position,true)})
+let releasePicker=()=>{}
+onMounted(async()=>{releasePicker=activateCommunityPicker(()=>emit('close'));void loadEmojiManifest();position();window.addEventListener('resize',position);document.addEventListener('scroll',position,true);await nextTick();searchInput.value?.focus()})
+onBeforeUnmount(()=>{releasePicker();window.removeEventListener('resize',position);document.removeEventListener('scroll',position,true)})
 watch(()=>props.anchor,position,{flush:'post'})
 const groups=computed(()=>{void revision.value;return [{id:'recent',label:'最近',items:recentEmojis()},...getEmojiGroups()]})
 const items=computed(()=>{
@@ -41,8 +42,7 @@ function choose(item:EmojiItem){rememberEmoji(item);emit('select',item.text??ite
   </section></Teleport>
 </template>
 <style scoped>
-.community-emoji-picker{position:fixed;z-index:10000;box-sizing:border-box;overflow-y:auto;padding:10px;border:1px solid hsl(var(--border));border-radius:12px;background:#fff;color:hsl(var(--foreground));box-shadow:0 8px 30px #0002}
-:global(.dark) .community-emoji-picker{background:#202b3b}
+.community-emoji-picker{position:fixed;z-index:10000;box-sizing:border-box;overflow-y:auto;padding:10px;border:1px solid hsl(var(--border));border-radius:12px;background:hsl(var(--background));color:hsl(var(--foreground));box-shadow:0 8px 30px #0002}
 .emoji-search{display:flex;gap:8px}.emoji-search input{width:100%;min-width:0;background:hsl(var(--muted));border-radius:6px;padding:6px 9px;font-size:12px;outline-offset:2px}.emoji-search button{width:24px}
 .emoji-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}.emoji-tabs button{padding:4px 7px;border-radius:5px;font-size:11px}.emoji-tabs button[aria-pressed=true]{background:hsl(var(--primary)/.14);color:hsl(var(--primary))}
 .emoji-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;max-height:220px;overflow-y:auto;overscroll-behavior:contain}

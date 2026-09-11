@@ -26,3 +26,13 @@ export function communityOverlayPosition(anchor: HTMLElement, preferredWidth: nu
     bottom:openAbove?`${(local ? hostRect.bottom - host.clientTop : innerHeight) - rect.top + 8}px`:'auto',
   }
 }
+
+// Emoji and article pickers share one active slot, including keyboard openings.
+let closeActivePicker: (() => void) | undefined
+export function activateCommunityPicker(close: () => void): () => void {
+  closeActivePicker?.()
+  closeActivePicker = close
+  return () => {
+    if (closeActivePicker === close) closeActivePicker = undefined
+  }
+}

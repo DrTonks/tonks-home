@@ -36,7 +36,6 @@ import {
   type FeedbackTopic,
 } from '@/api/community'
 import type { VisitorIdentity } from '@/lib/community'
-import { communityOverlayHost, communityOverlayPosition } from '@/lib/community-overlay'
 import { Button } from '@/components/ui/button'
 import CommunityArticleButton from './CommunityArticleButton.vue'
 import CommunityEmojiPicker from './CommunityEmojiPicker.vue'
@@ -73,14 +72,8 @@ const composerStatus = ref('')
 const cardComposerOpen = ref(false)
 const cardAnchor = ref<HTMLElement | null>(null)
 const cardPanel = ref<HTMLElement | null>(null)
-const cardPanelStyle = ref<Record<string,string>>({visibility:'hidden'})
-function positionCardComposer() {
-  if (cardComposerOpen.value && cardAnchor.value) cardPanelStyle.value = communityOverlayPosition(cardAnchor.value,640,360)
-}
 watch(cardComposerOpen, async open => {
   if (!open) return
-  await nextTick()
-  positionCardComposer()
   await nextTick()
   cardPanel.value?.querySelector('input')?.focus({preventScroll:true})
 })
@@ -509,15 +502,11 @@ async function confirmDeleteTopic() {
 }
 
 document.addEventListener('pointerdown', handleEmojiOutsidePointer)
-window.addEventListener('resize',positionCardComposer)
-document.addEventListener('scroll',positionCardComposer,true)
 onBeforeUnmount(() => {
   disposed = true
   resizeObserver?.disconnect()
   cancelAnimationFrame(scrollFrame)
   document.removeEventListener('pointerdown', handleEmojiOutsidePointer)
-  window.removeEventListener('resize',positionCardComposer)
-  document.removeEventListener('scroll',positionCardComposer,true)
 })
 </script>
 
@@ -664,7 +653,7 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="feedback-composer">
-        <Teleport :to="communityOverlayHost(cardAnchor)"><div v-if="cardComposerOpen" ref="cardPanel" :style="cardPanelStyle" class="feedback-card-composer" role="dialog" aria-label="发送反馈卡片" @keydown.esc.stop.prevent="cardComposerOpen = false; cardAnchor?.focus()">
+        <div v-if="cardComposerOpen" ref="cardPanel" class="feedback-card-composer" role="dialog" aria-label="发送反馈卡片" @keydown.esc.stop.prevent="cardComposerOpen = false; cardAnchor?.focus()">
           <div class="feedback-card-composer-head">
             <div>
               <SquarePlus class="h-4 w-4" />
@@ -698,7 +687,7 @@ onBeforeUnmount(() => {
               发送卡片
             </Button>
           </div>
-        </div></Teleport>
+        </div>
 
         <div v-if="quickMessage.trim()" class="px-4 pt-2 text-xs max-h-24 overflow-y-auto" aria-label="留言预览"><CommunityEmojiText :text="quickMessage" /></div>
         <div class="feedback-composer-toolbar">
@@ -1447,12 +1436,18 @@ onBeforeUnmount(() => {
   gap: 0.55rem;
 }
 .feedback-card-composer {
-  z-index: 9000;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 12px;
+  right: 12px;
+  max-height: min(360px, 40dvh);
+  z-index: 20;
   box-sizing: border-box;
   overflow: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 12px;
-  background: hsl(var(--card));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   box-shadow: 0 12px 36px #0002;
   padding: 0.7rem 0.8rem;
 }
