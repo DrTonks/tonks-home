@@ -5,6 +5,8 @@ export interface BlogPost {
   link: string
   date: string
   summary: string
+  category?: string
+  stats?: { views: number | null; likes: number | null; comments: number | null }
 }
 
 export interface BlogLink {
