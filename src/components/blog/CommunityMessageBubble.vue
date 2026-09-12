@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityAvatar from './CommunityAvatar.vue'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {commentPlainText} from '@/lib/community-markdown'
 import {subscribeEmojis} from '@/lib/community-emojis'
@@ -24,7 +25,7 @@ const emit = defineEmits<{
   inspect: [comment: CommunityComment]
   feedback: [comment: CommunityComment]
 }>()
-const avatarFailed = ref(false)
+
 const emojiRevision = ref(0)
 onBeforeUnmount(subscribeEmojis(() => emojiRevision.value++))
 // QQ-style direction is viewer-relative. Visitors only see their own messages on the
@@ -74,13 +75,11 @@ function statusLabel(status: CommunityComment['status']): string {
     ]"
   >
     <div v-if="!alignedRight" :class="['message-avatar', comment.is_admin && 'is-admin-avatar']">
-      <img
-        v-if="comment.status === 'published' && !avatarFailed && comment.id > 0"
+      <CommunityAvatar
+        v-if="comment.status === 'published' && comment.id > 0"
         :src="getCommunityAvatarUrl(comment.id)"
         alt=""
-        draggable="false"
-        @error="avatarFailed = true"
-      />
+        draggable="false" :name="comment.nickname" />
       <span v-else>{{ initials(comment.nickname) }}</span>
     </div>
 
@@ -161,13 +160,11 @@ function statusLabel(status: CommunityComment['status']): string {
       v-if="alignedRight"
       :class="['message-avatar', comment.is_admin ? 'is-admin-avatar' : 'is-own-avatar']"
     >
-      <img
-        v-if="comment.status === 'published' && !avatarFailed && comment.id > 0"
+      <CommunityAvatar
+        v-if="comment.status === 'published' && comment.id > 0"
         :src="getCommunityAvatarUrl(comment.id)"
         alt=""
-        draggable="false"
-        @error="avatarFailed = true"
-      />
+        draggable="false" :name="comment.nickname" />
       <span v-else>{{ initials(comment.nickname) }}</span>
     </div>
   </article>

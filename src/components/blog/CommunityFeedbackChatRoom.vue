@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityAvatar from './CommunityAvatar.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   ArrowLeft,
@@ -560,9 +561,9 @@ onBeforeUnmount(() => {
               ]"
             >
               <span class="feedback-sender-avatar">
-                <img
+                <CommunityAvatar
                   v-if="item.topic.messages[0]?.status === 'published'"
-                  :src="getFeedbackAvatarUrl(item.topic.messages[0].id)"
+                  :src="getFeedbackAvatarUrl(item.topic.messages[0].id)" :name="item.topic.nickname"
                   alt=""
                   draggable="false"
                 />
@@ -585,7 +586,7 @@ onBeforeUnmount(() => {
                       :checked="selectedTopicIds.has(item.topic.id)"
                       :aria-label="`选择反馈 ${item.topic.title}`"
                       @change="toggleSelected(item.topic.id)"
-                    />
+                   />
                   </label>
                 </div>
 
@@ -628,9 +629,9 @@ onBeforeUnmount(() => {
               ]"
             >
               <span class="feedback-sender-avatar">
-                <img
+                <CommunityAvatar
                   v-if="item.message.status === 'published'"
-                  :src="getFeedbackRoomAvatarUrl(item.message.id)"
+                  :src="getFeedbackRoomAvatarUrl(item.message.id)" :name="item.message.nickname"
                   alt=""
                   draggable="false"
                 />
@@ -783,7 +784,7 @@ onBeforeUnmount(() => {
             class="feedback-member"
           >
             <span>
-              <img :src="memberAvatar(member)" alt="" draggable="false" />
+              <CommunityAvatar :src="memberAvatar(member)" :name="member.nickname" alt="" draggable="false" />
             </span>
             <span>
               <strong>{{ member.nickname }}</strong>
@@ -831,9 +832,9 @@ onBeforeUnmount(() => {
               ]"
             >
               <span>
-                <img
+                <CommunityAvatar
                   v-if="item.status === 'published'"
-                  :src="getFeedbackAvatarUrl(item.id)"
+                  :src="getFeedbackAvatarUrl(item.id)" :name="item.nickname"
                   alt=""
                   draggable="false"
                 />
@@ -916,7 +917,7 @@ onBeforeUnmount(() => {
                     v-model="resolutionDraft[openedTopic.id]"
                     maxlength="300"
                     placeholder="完成说明（可选）"
-                  />
+                 />
                   <Button
                     size="sm"
                     :disabled="actionBusy"

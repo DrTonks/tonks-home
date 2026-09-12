@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityAvatar from './CommunityAvatar.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
   ArrowLeft,
@@ -100,7 +101,7 @@ const actionBusy = ref(false)
 const confirmDelete = ref(false)
 const identityOpen = ref(false)
 const pendingSendAfterIdentity = ref(false)
-const failedMemberAvatars = ref(new Set<number>())
+
 const mobilePanel = ref<'members' | 'review' | null>(null)
 const roomQuery = ref('')
 const messagesViewport = ref<HTMLElement | null>(null)
@@ -353,13 +354,9 @@ function hasIdentity(): boolean {
   return Boolean(identity.value.nickname.trim() && identity.value.email.trim())
 }
 
-function initials(name: string): string {
-  return name.trim().slice(0, 2).toUpperCase() || '访客'
-}
 
-function failMemberAvatar(commentId: number) {
-  failedMemberAvatars.value = new Set([...failedMemberAvatars.value, commentId])
-}
+
+
 
 function errorMessage(cause: unknown, fallback: string): string {
   if (
@@ -1117,14 +1114,7 @@ onBeforeUnmount(() => {
               @click="selectMember(member.authorKey)"
             >
               <span class="member-avatar">
-                <img
-                  v-if="!failedMemberAvatars.has(member.avatarCommentId)"
-                  :src="getCommunityAvatarUrl(member.avatarCommentId)"
-                  alt=""
-                  draggable="false"
-                  @error="failMemberAvatar(member.avatarCommentId)"
-                />
-                <span v-else>{{ initials(member.nickname) }}</span>
+                <CommunityAvatar :src="getCommunityAvatarUrl(member.avatarCommentId)" :name="member.nickname" />
               </span>
               <span class="min-w-0 flex-1 text-left">
                 <span class="flex items-center gap-1">
