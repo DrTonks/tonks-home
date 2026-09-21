@@ -6,12 +6,6 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 const STORAGE_KEY = 'theme'
 const SHARED_THEME_COOKIE = 'tonks_theme'
 const mql = window.matchMedia('(prefers-color-scheme: dark)')
-const ART_FADE_HOLD_CLASS = 'theme-art-fade-hold'
-const ART_FADE_ENTER_CLASS = 'theme-art-fade-enter'
-
-let artFadeFrame1: number | null = null
-let artFadeFrame2: number | null = null
-let artFadeGeneration = 0
 
 function isThemeMode(value: string | null): value is ThemeMode {
   return value === 'light' || value === 'dark' || value === 'system'
@@ -48,33 +42,6 @@ function initialTheme(): ThemeMode {
   return isThemeMode(stored) ? stored : 'system'
 }
 
-function cancelArtFadeFrames() {
-  if (artFadeFrame1 !== null) cancelAnimationFrame(artFadeFrame1)
-  if (artFadeFrame2 !== null) cancelAnimationFrame(artFadeFrame2)
-  artFadeFrame1 = null
-  artFadeFrame2 = null
-}
-
-function resetArtFadeClasses(el: HTMLElement) {
-  cancelArtFadeFrames()
-  el.classList.remove(ART_FADE_HOLD_CLASS, ART_FADE_ENTER_CLASS)
-}
-
-function releaseArtFade(el: HTMLElement, wasHeld: boolean) {
-  cancelArtFadeFrames()
-  if (wasHeld) {
-    el.classList.remove(ART_FADE_HOLD_CLASS)
-    el.classList.add(ART_FADE_ENTER_CLASS)
-  }
-  artFadeFrame1 = requestAnimationFrame(() => {
-    artFadeFrame2 = requestAnimationFrame(() => {
-      el.classList.remove(ART_FADE_ENTER_CLASS)
-      artFadeFrame1 = null
-      artFadeFrame2 = null
-    })
-  })
-}
-
 export const useThemeStore = defineStore('theme', () => {
   const mode = ref<ThemeMode>(initialTheme())
   const systemDark = ref(mql.matches)
@@ -100,13 +67,13 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   /**
-   * 在 light / dark 之间显式切换（脱离 system 跟随）。
+   * 切换主题偏好，按实际亮暗变化执行统一的圆形扩散。
    * 传入点击坐标时用 View Transitions 做圆形扩散过渡（从点击点贝塞尔扩大到全屏）；
    * 圆心/半径通过 CSS 变量 --vt-x/--vt-y/--vt-r 传给 index.css 的 @keyframes
    * （比 WAAPI 的 pseudoElement animate 兼容性更好）。
    * 浏览器不支持或 reduced-motion 时降级为瞬切。
    */
-  function transitionTo(next: ThemeMode, x?: number, y?: number, fadeCarouselArt = false) {
+  function transitionTo(next: ThemeMode, x?: number, y?: number) {
     const el = document.documentElement
     const nextIsDark = next === 'dark' || (next === 'system' && mql.matches)
     // A preference change can leave the resolved appearance unchanged. Persist it
@@ -115,8 +82,6 @@ export const useThemeStore = defineStore('theme', () => {
       setMode(next)
       return
     }
-    const fadeGeneration = ++artFadeGeneration
-    resetArtFadeClasses(el)
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const startVT = (
@@ -126,13 +91,7 @@ export const useThemeStore = defineStore('theme', () => {
     ).startViewTransition
 
     if (reduce || typeof startVT !== 'function' || x == null || y == null) {
-      if (fadeCarouselArt && !reduce) el.classList.add(ART_FADE_ENTER_CLASS)
       setMode(next)
-      if (fadeCarouselArt && !reduce) {
-        void nextTick().then(() => {
-          if (fadeGeneration === artFadeGeneration) releaseArtFade(el, false)
-        })
-      }
       return
     }
 
@@ -152,41 +111,26 @@ export const useThemeStore = defineStore('theme', () => {
     el.style.setProperty('--vt-y', `${py}%`)
     el.style.setProperty('--vt-r', `${pr}%`)
 
+    // 背景图随主题一起进入快照，不因轮播状态额外隐藏或延迟淡入。
     // 回调返回 Promise（等 Vue flush），确保新主题的 DOM 更新被截入过渡快照
     const vt = startVT.call(document, async () => {
-      if (fadeCarouselArt) el.classList.add(ART_FADE_HOLD_CLASS)
       setMode(next)
       await nextTick()
     }) as { finished?: Promise<unknown> }
     // 快速双击时前一个过渡被跳过，其 promise 会 reject —— 吞掉避免控制台噪音
-    if (vt?.finished) {
-      if (!fadeCarouselArt) {
-        void vt.finished.catch(() => {})
-        return
-      }
-      void vt.finished.then(
-        () => {
-          if (fadeGeneration === artFadeGeneration) releaseArtFade(el, true)
-        },
-        () => {
-          if (fadeGeneration === artFadeGeneration) releaseArtFade(el, true)
-        },
-      )
-    } else {
-      if (fadeCarouselArt && fadeGeneration === artFadeGeneration) releaseArtFade(el, true)
-    }
+    void vt?.finished?.catch(() => {})
   }
 
-  function toggle(x?: number, y?: number, fadeCarouselArt = false) {
+  function toggle(x?: number, y?: number) {
     const next: ThemeMode = isDark.value ? 'light' : 'dark'
-    transitionTo(next, x, y, fadeCarouselArt)
+    transitionTo(next, x, y)
   }
 
-  function cycle(x?: number, y?: number, fadeCarouselArt = false) {
+  function cycle(x?: number, y?: number) {
     const modes: ThemeMode[] = ['light', 'dark', 'system']
     const currentIndex = modes.indexOf(mode.value)
     const next = modes[(currentIndex + 1) % modes.length]
-    transitionTo(next, x, y, fadeCarouselArt)
+    transitionTo(next, x, y)
   }
 
   // 跟随系统偏好变化（仅当 mode=system 时生效）

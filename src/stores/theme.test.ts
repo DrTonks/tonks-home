@@ -54,7 +54,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('theme preference changes with unchanged resolved appearance', () => {
   it('dark -> system under dark skips VT/art fade, persists preference and resumes system following', async () => {
     const env = await setup(true, 'dark')
-    env.store.cycle(10, 10, true)
+    env.store.cycle(10, 10)
     expect(env.store.mode).toBe('system')
     expect(env.entries.get('theme')).toBe('system')
     expect(env.document.cookie).toContain('tonks_theme=system;')
@@ -73,7 +73,7 @@ describe('theme preference changes with unchanged resolved appearance', () => {
 
   it('system -> light under light skips VT and stops following future OS changes', async () => {
     const env = await setup(false, 'system')
-    env.store.cycle(10, 10, true)
+    env.store.cycle(10, 10)
     expect(env.store.mode).toBe('light')
     expect(env.entries.get('theme')).toBe('light')
     expect(env.document.cookie).toContain('tonks_theme=light;')
@@ -93,5 +93,42 @@ describe('theme preference changes with unchanged resolved appearance', () => {
     expect(env.document.startViewTransition).toHaveBeenCalledTimes(1)
     expect(env.store.isDark).toBe(false)
     expect(env.meta.setAttribute).toHaveBeenLastCalledWith('content', '#F5F0F2')
+  })
+})
+
+
+describe('theme transitions preserve artwork in both snapshots', () => {
+  it.each([
+    [false, 'dark', 'system', false],
+    [true, 'light', 'dark', true],
+    [true, 'system', 'light', false],
+  ] as const)('%s system: %s -> %s keeps artwork visible', async (systemDark, initial, next, expectedDark) => {
+    const env = await setup(systemDark, initial)
+    let update: (() => unknown) | undefined
+    let finish!: () => void
+    const finished = new Promise<void>((resolve) => { finish = resolve })
+    env.document.startViewTransition.mockImplementation((callback) => {
+      update = callback
+      return { finished }
+    })
+
+    env.store.cycle(10, 10)
+    // The old snapshot must keep the original theme and its artwork.
+    expect(env.store.mode).toBe(initial)
+    expect([...env.classes]).toEqual(initial === 'light' ? [] : ['dark'])
+    expect(update).toBeDefined()
+    await update!()
+    // The new snapshot must include the complete destination background.
+    expect(env.store.mode).toBe(next)
+    expect(env.store.isDark).toBe(expectedDark)
+    expect([...env.classes]).toEqual(expectedDark ? ['dark'] : [])
+    expect(env.entries.get('theme')).toBe(next)
+    finish()
+    await finished
+    expect(env.raf).not.toHaveBeenCalled()
+    if (next === 'system') {
+      env.system(true)
+      expect(env.store.isDark).toBe(true)
+    }
   })
 })

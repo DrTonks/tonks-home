@@ -62,7 +62,7 @@ function onMiddleFinger() {
 // 竖食指横扫 → 以当前桌宠中心为起点，圆形扩散切换主题
 function onSwipe() {
   const c = petRef.value?.getPetCenter?.() ?? { x: window.innerWidth / 2, y: 80 }
-  theme.toggle(c.x, c.y, outgoingBackgroundIndex.value !== null)
+  theme.toggle(c.x, c.y)
 }
 
 // 睁眼动画（仅亮色）
@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
     />
     <!-- 睁眼动画（仅亮色；图层在背景之上、内容之下，不遮挡内容） -->
     <img v-if="showEye" :src="eyeSrc" :class="['rage-eye', { sharp: eyeSharp }]" alt="" aria-hidden="true" />
-    <ThemeToggle :fade-carousel-art="outgoingBackgroundIndex !== null" />
+    <ThemeToggle />
     <AdminAuth />
     <GestureToggle
       v-if="!isMobile"

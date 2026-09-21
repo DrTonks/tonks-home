@@ -355,25 +355,6 @@ html.dark .time-select .el-input__wrapper:hover {
   }
 }
 
-/* 新主题的轮播图片在圆形主题过渡结束后单独淡入一次。 */
-.theme-carousel-art-stage {
-  opacity: 1;
-  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
-}
-html.theme-art-fade-hold .theme-carousel-art-stage,
-html.theme-art-fade-enter .theme-carousel-art-stage {
-  opacity: 0;
-}
-html.theme-art-fade-hold .theme-carousel-art-stage {
-  transition: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-carousel-art-stage {
-    transition: none;
-  }
-}
-
 /* ============================================================
    暗色中心头像自发光呼吸（AvatarCore 外层发光层专用）
    仅暗色挂载该层（模板 hidden dark:block），暖金辉光柔和脉动。

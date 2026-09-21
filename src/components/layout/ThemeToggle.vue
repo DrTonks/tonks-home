@@ -3,12 +3,8 @@ import { Contrast, Moon, Sun } from 'lucide-vue-next'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()
-const props = withDefaults(defineProps<{ fadeCarouselArt?: boolean }>(), {
-  fadeCarouselArt: false,
-})
-
 function onToggle(e: MouseEvent) {
-  theme.cycle(e.clientX, e.clientY, props.fadeCarouselArt)
+  theme.cycle(e.clientX, e.clientY)
 }
 
 const modeLabels = { light: '亮色', dark: '暗色', system: '跟随系统' } as const
