@@ -14,25 +14,38 @@ export const useCalendarStore = defineStore('calendar', () => {
   const publicHolidays = ref<Holiday[]>([])
   const customHolidays = ref<CalendarEvent[]>([])
   const loading = ref(false)
+  const workdays = ref<Holiday[]>([])
+  const holidayStatus = ref('')
+  let holidayRequest = 0
+  let eventRequest = 0
 
   async function fetchEvents(params?: { date?: string; type?: EventType }) {
+    const request = ++eventRequest
     loading.value = true
     try {
       const res = await getCalendarEvents(params)
-      if (res.success) events.value = res.events
+      if (res.success && request === eventRequest) events.value = res.events
     } finally {
-      loading.value = false
+      if (request === eventRequest) loading.value = false
     }
   }
 
   async function fetchHolidays(year?: number) {
+    const request = ++holidayRequest
+    publicHolidays.value = []
+    customHolidays.value = []
+    workdays.value = []
+    holidayStatus.value = ''
     try {
       const res = await getHolidays(year)
-      if (res.success) {
+      if (res.success && request === holidayRequest) {
+        workdays.value = res.workdays || []
+        holidayStatus.value = res.holidayStatus || 'available'
         publicHolidays.value = res.publicHolidays
         customHolidays.value = res.customHolidays
       }
     } catch (e) {
+      if (request === holidayRequest) holidayStatus.value = 'unavailable'
       console.error('fetchHolidays failed:', e)
     }
   }
@@ -73,6 +86,8 @@ export const useCalendarStore = defineStore('calendar', () => {
   return {
     events,
     publicHolidays,
+    workdays,
+    holidayStatus,
     customHolidays,
     loading,
     fetchEvents,

@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import { cn } from '@/lib/utils'
 import type { CalendarEvent, Holiday } from '@/api/calendar'
-import { MULTI_DAY_RANGES } from '@/lib/holidays'
+import { holidayRanges, getDayOfHoliday as dayInRange } from '@/lib/holidays'
 
 const props = defineProps<{
   year: number
   month: number
   events: CalendarEvent[]
   holidays: Holiday[]
+  workdays?: Holiday[]
   todayStr: string
 }>()
 
@@ -37,24 +38,13 @@ const days = computed<DayCell[]>(() => {
   return arr
 })
 
-// 获取某日期的节日名（从 Nager.Date 单日 or 多日范围）
-function getHolidayInfo(date: string | null): { name: string; isFirst: boolean; isLast: boolean; isMiddle: boolean } | null {
+const ranges = computed(() => holidayRanges(props.holidays))
+const workdayMap = computed(() => new Map((props.workdays || []).map(d => [d.date, d])))
+function getWorkday(date: string | null) { return date ? workdayMap.value.get(date) : undefined }
+function getHolidayInfo(date: string | null) {
   if (!date) return null
-  // 先查 Nager 单日节日
-  const single = props.holidays.find((h) => h.date === date)
-  if (single) return { name: single.name, isFirst: true, isLast: true, isMiddle: false }
-  // 再查多日范围
-  for (const range of MULTI_DAY_RANGES) {
-    if (date >= range.start && date <= range.end) {
-      return {
-        name: range.name,
-        isFirst: date === range.start,
-        isLast: date === range.end,
-        isMiddle: date !== range.start && date !== range.end,
-      }
-    }
-  }
-  return null
+  const range = ranges.value.find(r => date >= r.start && date <= r.end)
+  return range ? {name:range.name, isFirst:date === range.start, isLast:date === range.end, isMiddle:date !== range.start && date !== range.end} : null
 }
 
 function isToday(date: string | null): boolean {
@@ -82,6 +72,8 @@ function onCellEnter(e: MouseEvent, date: string | null) {
   const hi = getHolidayInfo(date)
   const evs = getEvents(date)
   const labels: string[] = []
+  const workday = getWorkday(date)
+  if (workday) labels.push(`${workday.name}调休上班`)
   if (hi) labels.push(hi.name + (hi.isFirst && hi.isLast ? '' : ` (第${getDayOfHoliday(date)}天)`))
   evs.forEach((e) => labels.push(e.name))
   if (!labels.length) return
@@ -95,12 +87,8 @@ function onCellLeave() {
 }
 
 function getDayOfHoliday(date: string): number {
-  for (const range of MULTI_DAY_RANGES) {
-    if (date >= range.start && date <= range.end) {
-      return Math.floor((new Date(date).getTime() - new Date(range.start).getTime()) / 86400000) + 1
-    }
-  }
-  return 1
+  const range = ranges.value.find(r => date >= r.start && date <= r.end)
+  return range ? dayInRange(date, range) : 1
 }
 </script>
 
@@ -131,6 +119,7 @@ function getDayOfHoliday(date: string): number {
         v-for="(cell, idx) in days"
         :key="idx"
         :disabled="!cell.date"
+        :aria-label="cell.date ? `${cell.date}${getWorkday(cell.date) ? ' ' + getWorkday(cell.date)!.name + '调休上班' : getHolidayInfo(cell.date) ? ' ' + getHolidayInfo(cell.date)!.name + '休息' : ''}` : undefined"
         class="aspect-square relative flex items-center justify-center text-xs transition-all duration-fast rounded-md hover:bg-primary/15 disabled:pointer-events-none font-medium group"
         :class="
           cn(
@@ -140,6 +129,7 @@ function getDayOfHoliday(date: string): number {
             !isToday(cell.date) && getHolidayInfo(cell.date) &&
               (() => {
                 const hi = getHolidayInfo(cell.date)!
+                if (hi.isFirst && hi.isLast) return 'border-2 border-secondary/50 bg-secondary/15 dark:bg-secondary/30 font-semibold'
                 if (hi.isMiddle) return 'rounded-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-y-2 border-secondary/40 dark:border-secondary/70'
                 if (hi.isFirst) return 'rounded-r-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-2 border-secondary/40 dark:border-secondary/70 border-r-0'
                 if (hi.isLast) return 'rounded-l-none bg-secondary/15 dark:bg-secondary/30 text-secondary-foreground font-semibold border-2 border-secondary/40 dark:border-secondary/70 border-l-0'
@@ -154,6 +144,7 @@ function getDayOfHoliday(date: string): number {
         @mouseleave="onCellLeave"
       >
         <span v-if="cell.day">{{ cell.day }}</span>
+        <span v-if="getWorkday(cell.date) || getHolidayInfo(cell.date)" class="absolute right-0.5 top-0 text-[8px] leading-tight" :class="getWorkday(cell.date) ? 'text-brand-sky' : 'text-brand-amber-deep'">{{ getWorkday(cell.date) ? '班' : '休' }}</span>
         <span
           v-if="cell.date && getEvents(cell.date).length > 0"
           class="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5"

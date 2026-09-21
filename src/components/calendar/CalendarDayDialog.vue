@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Trash2, Plus } from 'lucide-vue-next'
+import { Trash2, Plus, CalendarDays } from 'lucide-vue-next'
 import { useCalendarStore } from '@/stores/calendar'
 import { useAdminStore } from '@/stores/admin'
 import type { CalendarEvent, EventType } from '@/api/calendar'
@@ -34,7 +34,7 @@ const isSaving = ref(false)
 
 const dateLabel = computed(() => {
   if (!props.date) return ''
-  const d = new Date(props.date)
+  const d = new Date(`${props.date}T00:00:00`)
   const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][d.getDay()]
   return `${props.date} · ${weekday}`
 })
@@ -95,7 +95,7 @@ async function removeEvent(id: string) {
       <!-- 节日 -->
       <div v-if="holidays.length" class="space-y-1.5 mb-2">
         <div v-for="(h, i) in holidays" :key="i" class="flex items-center gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
-          <span class="text-sm">🎉</span>
+          <CalendarDays class="h-4 w-4 shrink-0 text-brand-amber" aria-hidden="true" />
           <span class="flex-1 text-sm font-medium text-amber-700 dark:text-amber-400 truncate">{{ h }}</span>
         </div>
       </div>

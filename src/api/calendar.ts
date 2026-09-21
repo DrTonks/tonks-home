@@ -13,6 +13,8 @@ export interface Holiday {
   date: string
   name: string
   countryCode?: string
+  isOffDay?: boolean
+  inferredWeekend?: boolean
 }
 
 export interface CalendarEventsResponse {
@@ -26,6 +28,9 @@ export interface HolidaysResponse {
   country: string
   publicHolidays: Holiday[]
   customHolidays: CalendarEvent[]
+  workdays?: Holiday[]
+  holidayStatus?: 'available' | 'unpublished' | 'unavailable'
+  holidayStale?: boolean
 }
 
 /** 获取日历事件 */
@@ -38,11 +43,14 @@ export function manageEvent(action: 'add' | 'update' | 'delete', event: Partial<
   return api.post('/calendar/events', { action, event }).then((r) => r.data)
 }
 
-/** 获取公共节假日 */
-export function getHolidays(year?: number, country = 'CN') {
-  return api
-    .get<HolidaysResponse>('/calendar/holidays', {
-      params: { year: year || new Date().getFullYear(), country },
-    })
-    .then((r) => r.data)
+/** Coalesce simultaneous month/upcoming requests; keep custom events fresh. */
+const holidayRequests = new Map<string, Promise<HolidaysResponse>>()
+export function getHolidays(year = new Date().getFullYear(), country = 'CN') {
+  const key = `${country}:${year}`
+  const pending = holidayRequests.get(key)
+  if (pending) return pending
+  const request = api.get<HolidaysResponse>('/calendar/holidays', {params: {year, country}})
+    .then(r => r.data).finally(() => holidayRequests.delete(key))
+  holidayRequests.set(key, request)
+  return request
 }

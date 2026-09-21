@@ -28,13 +28,8 @@ const monthEvents = computed(() => {
   return store.events.filter((e) => e.date.startsWith(ym))
 })
 
-const monthHolidays = computed(() => {
-  const ym = `${viewYear.value}-${(viewMonth.value + 1).toString().padStart(2, '0')}`
-  return [
-    ...store.publicHolidays.filter((h) => h.date.startsWith(ym)),
-    ...store.customHolidays.filter((h) => h.date.startsWith(ym)),
-  ]
-})
+// Keep full-year records so a month boundary does not restart a holiday range.
+const monthHolidays = computed(() => store.publicHolidays)
 
 function prevMonth() {
   if (viewMonth.value === 0) {
@@ -64,6 +59,8 @@ function openDayDialog(dateStr: string) {
 const selectedDateEvents = computed(() =>
   selectedDate.value ? store.events.filter((e) => e.date === selectedDate.value) : [],
 )
+
+const selectedDateHolidays = computed(() => [...store.publicHolidays, ...store.customHolidays, ...store.workdays].filter(h => h.date === selectedDate.value).map(h => h.name + ('isOffDay' in h && h.isOffDay === false ? '（调休上班）' : '')))
 
 async function loadMonth() {
   const ym = `${viewYear.value}-${(viewMonth.value + 1).toString().padStart(2, '0')}`
@@ -106,11 +103,13 @@ onMounted(() => {
       </div>
     </div>
 
+    <p v-if="store.holidayStatus === 'unpublished' || store.holidayStatus === 'unavailable'" class="text-[10px] text-muted-foreground mb-2" role="status">{{ store.holidayStatus === 'unpublished' ? '该年放假安排尚未公布' : '节假日数据暂不可用' }}</p>
     <CalendarGrid
       :year="viewYear"
       :month="viewMonth"
       :events="monthEvents"
       :holidays="monthHolidays"
+      :workdays="store.workdays"
       :today-str="todayStr"
       @select-date="openDayDialog"
     />
@@ -119,7 +118,7 @@ onMounted(() => {
       v-model:open="showDayDialog"
       :date="selectedDate"
       :events="selectedDateEvents"
-      :holidays="[]"
+      :holidays="selectedDateHolidays"
       @changed="loadMonth"
     />
   </Card>

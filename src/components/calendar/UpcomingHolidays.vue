@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { holidayRanges, daysUntil } from '@/lib/holidays'
 import { Calendar } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 import { getCalendarEvents, getHolidays, type CalendarEvent, type Holiday } from '@/api/calendar'
@@ -12,8 +13,10 @@ const today = new Date()
 const todayStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`
 
 // 组件挂载时独立拉取
-getCalendarEvents().then((r) => { if (r.success) events.value = r.events })
-getHolidays(today.getFullYear()).then((r) => { if (r.success) holidays.value = r.publicHolidays })
+getCalendarEvents().then((r) => { if (r.success) events.value = r.events }).catch(() => {})
+for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
+  getHolidays(year).then(r => { if (r.success) holidays.value.push(...r.publicHolidays) }).catch(() => {})
+}
 
 interface Upcoming {
   name: string
@@ -24,9 +27,9 @@ interface Upcoming {
 
 const upcoming = computed<Upcoming[]>(() => {
   const all: Upcoming[] = []
-  for (const h of holidays.value) {
-    if (h.date >= todayStr) {
-      all.push({ name: h.name, date: h.date, color: 'hsl(var(--color-amber))', diffLabel: '' })
+  for (const h of holidayRanges(holidays.value)) {
+    if (h.end >= todayStr) {
+      all.push({ name: `${h.name}假期`, date: h.start < todayStr ? todayStr : h.start, color: 'hsl(var(--color-amber))', diffLabel: '' })
     }
   }
   for (const e of events.value) {
@@ -39,7 +42,7 @@ const upcoming = computed<Upcoming[]>(() => {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3)
     .map((item) => {
-      const diff = Math.ceil((new Date(item.date).getTime() - today.getTime()) / 86400000)
+      const diff = daysUntil(item.date, todayStr)
       return { ...item, diffLabel: diff === 0 ? '今天' : diff === 1 ? '明天' : `${diff}天后` }
     })
 })

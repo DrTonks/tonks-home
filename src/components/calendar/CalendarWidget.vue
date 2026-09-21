@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useCalendarStore } from '@/stores/calendar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MULTI_DAY_RANGES } from '@/lib/holidays'
 import CalendarGrid from './CalendarGrid.vue'
 import CalendarDayDialog from './CalendarDayDialog.vue'
 
@@ -34,13 +33,8 @@ const monthEvents = computed(() => {
   return store.events.filter((e) => e.date.startsWith(ym))
 })
 
-const monthHolidays = computed(() => {
-  const ym = `${viewYear.value}-${(viewMonth.value + 1).toString().padStart(2, '0')}`
-  return [
-    ...store.publicHolidays.filter((h) => h.date.startsWith(ym)),
-    ...store.customHolidays.filter((h) => h.date.startsWith(ym)),
-  ]
-})
+// Keep full-year records so a month boundary does not restart a holiday range.
+const monthHolidays = computed(() => store.publicHolidays)
 
 // 下个节日（从今天开始）
 const nextHoliday = computed(() => {
@@ -98,11 +92,8 @@ const selectedDateHolidays = computed(() => {
   for (const h of store.customHolidays) {
     if (h.date === selectedDate.value) names.push(h.name)
   }
-  // 多日节假日范围
-  for (const r of MULTI_DAY_RANGES) {
-    if (selectedDate.value >= r.start && selectedDate.value <= r.end) {
-      if (!names.includes(r.name)) names.push(r.name)
-    }
+  for (const h of store.workdays) {
+    if (h.date === selectedDate.value) names.push(`${h.name}（调休上班）`)
   }
   return names
 })
@@ -181,11 +172,13 @@ onMounted(() => {
     </div>
 
     <!-- 月视图 -->
+    <p v-if="store.holidayStatus === 'unpublished' || store.holidayStatus === 'unavailable'" class="text-[10px] text-muted-foreground mb-2" role="status">{{ store.holidayStatus === 'unpublished' ? '该年放假安排尚未公布' : '节假日数据暂不可用' }}</p>
     <CalendarGrid
       :year="viewYear"
       :month="viewMonth"
       :events="monthEvents"
       :holidays="monthHolidays"
+      :workdays="store.workdays"
       :today-str="todayStr"
       @select-date="openDayDialog"
     />
