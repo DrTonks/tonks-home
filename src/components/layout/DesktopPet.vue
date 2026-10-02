@@ -33,7 +33,6 @@ import { usePetRecommendation } from '@/composables/usePetRecommendation'
 import { useSpecialDate } from '@/composables/useSpecialDate'
 import { useWeatherVisitor, type WeatherIcon } from '@/composables/useWeatherVisitor'
 import WeatherBubble from './pet/WeatherBubble.vue'
-import WelcomeDialog, { WELCOME_VERSION, WELCOME_LS_KEY } from './WelcomeDialog.vue'
 
 const emit = defineEmits<{ rage: []; rageStart: [] }>()
 const state = createPetState()
@@ -117,7 +116,6 @@ function canDailyTalk(): boolean {
     state.mood.value !== 'threat' &&
     !bubble.isMusicMode() &&
     !questions.isActive.value &&
-    !showWelcomeBubble.value &&
     !weatherBubbleVisible.value
   )
 }
@@ -225,9 +223,6 @@ defineExpose({
 const showNotebook = ref(false)
 const showDevPanel = ref(false)
 const showRecommendations = ref(false)
-// 首次访问欢迎引导
-const showWelcomeBubble = ref(false)
-const showWelcomeDialog = ref(false)
 // 天气气泡状态
 const weatherBubbleVisible = ref(false)
 const weatherBubbleData = ref<ReturnType<typeof weatherVisitor.getWeatherData>>(null)
@@ -417,20 +412,6 @@ function onDevTriggerWeather(icon: string, desc: string, temp: number, tMin: num
   console.log('[DesktopPet] 模拟天气气泡:', weatherBubbleData.value)
 }
 
-// ===== 欢迎气泡回调 =====
-function onWelcomeExpand() {
-  showWelcomeBubble.value = false
-  showWelcomeDialog.value = true
-}
-
-function onWelcomeConfirm() {
-  showWelcomeDialog.value = false
-  localStorage.setItem(WELCOME_LS_KEY, WELCOME_VERSION)
-  // 弹窗关闭后补一段问候
-  if (greetTimer) clearTimeout(greetTimer)
-  greetTimer = setTimeout(greet, 400)
-}
-
 // ===== 天气气泡 =====
 async function showWeatherBubble() {
   wakeUp() // B1: 先唤醒
@@ -480,17 +461,11 @@ onMounted(async () => {
     if (debugQuestionId) setTimeout(() => onDevTriggerQuestion(debugQuestionId), 1_000)
   }
 
-  // 首次访问 / 版本更新 → 显示欢迎气泡
-  const isFirstVisit = localStorage.getItem(WELCOME_LS_KEY) !== WELCOME_VERSION
-  if (isFirstVisit) {
-    showWelcomeBubble.value = true
-  }
-
   // 特殊日期检测（生日等）—— 最高优先级，覆盖一切
   const isSpecialDay = specialDate.checkToday(bubble, '生日快乐。')
 
   if (!isSpecialDay) {
-    // === 每日天气首屏（5s，与欢迎气泡共存） ===
+    // === 每日天气首屏 ===
     if (!weatherVisitor.isDailyWeatherShown()) {
       await weatherVisitor.ensureLoaded()
       const wData = weatherVisitor.getWeatherData()
@@ -502,16 +477,16 @@ onMounted(async () => {
         )
         weatherBubbleVisible.value = true
         weatherVisitor.markDailyWeatherShown()
-        // 7s 后关闭天气气泡；非首次访问时补问候
+        // 7s 后关闭天气气泡并问候
         greetTimer = setTimeout(() => {
           weatherBubbleVisible.value = false
-          if (!isFirstVisit) greet()
+          greet()
         }, 7000)
-      } else if (!isFirstVisit) {
-        // 天气获取失败且非首次访问 → 降级为正常问候
+      } else {
+        // 天气获取失败 → 降级为正常问候
         greetTimer = setTimeout(greet, 1600)
       }
-    } else if (!isFirstVisit) {
+    } else {
       // === 今天已展示天气 → 正常流程（地址切换 + 按时段问候） ===
       const locPromise = weatherVisitor.ensureLoaded()
       const locationChanged = await Promise.race([
@@ -530,8 +505,6 @@ onMounted(async () => {
         }
       }, 1600)
     }
-    // 首次访问 + 今天已展示天气 → 不做任何事，等用户点欢迎气泡
-    // （onWelcomeConfirm 里会补一段问候）
   }
 
   // 空闲随机冒泡（仅真正 idle 时）
@@ -640,18 +613,6 @@ onBeforeUnmount(() => {
           @close="onQuestionClose"
         />
 
-        <!-- 首次访问欢迎气泡（云朵形态，点击后弹出弹窗而非输入框） -->
-        <QuestionBubble
-          :visible="showWelcomeBubble"
-          question-text="戳我一下~"
-          icon-name="Sunny"
-          placement="top"
-          :vertical-offset="60"
-          :prevent-expand="true"
-          @expand="onWelcomeExpand"
-          @close="showWelcomeBubble = false"
-        />
-
         <!-- 天气气泡 -->
         <WeatherBubble
           :visible="weatherBubbleVisible"
@@ -741,9 +702,6 @@ onBeforeUnmount(() => {
 
     <!-- 记忆笔记窗口 -->
     <MemoryNotebook :visible="showNotebook" @close="showNotebook = false" />
-
-    <!-- 首次访问欢迎弹窗 -->
-    <WelcomeDialog :visible="showWelcomeDialog" @confirm="onWelcomeConfirm" />
 
     <!-- 调试提问面板（仅管理员） -->
     <DevQuestionPanel

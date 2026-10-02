@@ -40,8 +40,6 @@ const props = withDefaults(
     iconName?: string
     placement?: 'top' | 'bottom'
     verticalOffset?: number
-    /** 设为 true 阻止点击云朵后展开为输入卡片，父组件可通过 @expand 事件执行自定义操作 */
-    preventExpand?: boolean
     maxLength?: number
     recommendationCategory?: RecommendationCategory | null
     recommendationState?: 'idle' | 'sending' | 'error'
@@ -56,7 +54,6 @@ const props = withDefaults(
     iconName: 'User',
     placement: 'top',
     verticalOffset: 90,
-    preventExpand: false,
     maxLength: 100,
     recommendationCategory: null,
     recommendationState: 'idle',
@@ -68,8 +65,6 @@ const emit = defineEmits<{
   submit: [answer: string]
   reject: []
   close: []
-  /** 点击 collapsed 云朵时触发；配合 preventExpand 可实现自定义展开行为 */
-  expand: []
   recommend: [answer: string]
 }>()
 
@@ -163,10 +158,7 @@ function onCloudClick(e: MouseEvent) {
   e.stopPropagation()
   if (isClosing.value || isDragging) return
   if (!isExpanded.value) {
-    emit('expand')
-    if (!props.preventExpand) {
-      isExpanded.value = true
-    }
+    isExpanded.value = true
   }
 }
 

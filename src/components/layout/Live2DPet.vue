@@ -43,7 +43,6 @@ import { usePetRecommendation } from '@/composables/usePetRecommendation'
 import { useSpecialDate } from '@/composables/useSpecialDate'
 import { useWeatherVisitor, type WeatherIcon } from '@/composables/useWeatherVisitor'
 import WeatherBubble from './pet/WeatherBubble.vue'
-import WelcomeDialog, { WELCOME_VERSION, WELCOME_LS_KEY } from './WelcomeDialog.vue'
 
 /** 句库类型（greeting 是嵌套对象，其余是 string[]） */
 type Live2DDialogue = {
@@ -226,9 +225,6 @@ watch(
 const showNotebook = ref(false)
 const showDevPanel = ref(false)
 const showRecommendations = ref(false)
-// 首次访问欢迎引导
-const showWelcomeBubble = ref(false)
-const showWelcomeDialog = ref(false)
 // 天气气泡状态
 const weatherBubbleVisible = ref(false)
 const weatherBubbleData = ref<ReturnType<typeof weatherVisitor.getWeatherData>>(null)
@@ -417,23 +413,6 @@ function onDevTriggerWeather(icon: string, desc: string, temp: number, tMin: num
   console.log('[Live2DPet] 模拟天气气泡:', weatherBubbleData.value)
 }
 
-// ===== 欢迎气泡回调 =====
-function onWelcomeExpand() {
-  showWelcomeBubble.value = false
-  showWelcomeDialog.value = true
-}
-
-function onWelcomeConfirm() {
-  showWelcomeDialog.value = false
-  localStorage.setItem(WELCOME_LS_KEY, WELCOME_VERSION)
-  // 弹窗关闭后补一段问候
-  if (greetTimer) clearTimeout(greetTimer)
-  const h = new Date().getHours()
-  const slot =
-    h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-  greetTimer = setTimeout(() => bubble.say(pick(dl.greeting[slot])), 400)
-}
-
 // ===== 天气气泡 =====
 async function showWeatherBubble() {
   wakeUp() // B1: 先唤醒
@@ -525,12 +504,6 @@ onMounted(async () => {
   // B5: 挂载时若音乐已在播放且音频有信号，显式启动唱歌
   if (petEnv.isMusicPlaying) singing.startSinging()
 
-  // 首次访问 / 版本更新 → 显示欢迎气泡
-  const isFirstVisit = localStorage.getItem(WELCOME_LS_KEY) !== WELCOME_VERSION
-  if (isFirstVisit) {
-    showWelcomeBubble.value = true
-  }
-
   // 特殊日期检测（生日等）— U酱的活泼庆祝文案
   const isSpecialDay = specialDate.checkToday(bubble, '生日快乐！！！U酱给你准备了惊喜哦~🎂🎉')
 
@@ -542,7 +515,7 @@ onMounted(async () => {
   }
 
   if (!isSpecialDay) {
-    // === 每日天气首屏（5s，与欢迎气泡共存） ===
+    // === 每日天气首屏 ===
     if (!weatherVisitor.isDailyWeatherShown()) {
       await weatherVisitor.ensureLoaded()
       const wData = weatherVisitor.getWeatherData()
@@ -551,16 +524,16 @@ onMounted(async () => {
         weatherCareText.value = weatherVisitor.pickWeatherCareLine(dl.weather_talk)
         weatherBubbleVisible.value = true
         weatherVisitor.markDailyWeatherShown()
-        // 7s 后关闭天气气泡；非首次访问时补问候
+        // 7s 后关闭天气气泡并问候
         greetTimer = setTimeout(() => {
           weatherBubbleVisible.value = false
-          if (!isFirstVisit) l2dGreet()
+          l2dGreet()
         }, 7000)
-      } else if (!isFirstVisit) {
-        // 天气获取失败且非首次访问 → 降级为正常问候
+      } else {
+        // 天气获取失败 → 降级为正常问候
         greetTimer = setTimeout(l2dGreet, 1600)
       }
-    } else if (!isFirstVisit) {
+    } else {
       // === 今天已展示天气 → 正常流程（地址切换 + 按时段问候） ===
       const locPromise = weatherVisitor.ensureLoaded()
       const locationChanged = await Promise.race([
@@ -580,13 +553,12 @@ onMounted(async () => {
   }
 
   idleTalkTimer = setInterval(() => {
-    // B12: 唱歌时跳过闲聊；欢迎气泡存在时也跳过
+    // B12: 唱歌或其它气泡显示时跳过闲聊
     if (
       state.mood.value !== 'idle' ||
       singing.isSinging.value ||
       bubble.visible.value ||
       questions.isActive.value ||
-      showWelcomeBubble.value ||
       weatherBubbleVisible.value
     )
       return
@@ -621,7 +593,6 @@ onMounted(async () => {
     if (
       singing.isSinging.value ||
       questions.isActive.value ||
-      showWelcomeBubble.value ||
       weatherBubbleVisible.value
     )
       return
@@ -706,18 +677,6 @@ onBeforeUnmount(() => {
         @close="onQuestionClose"
       />
 
-      <!-- 首次访问欢迎气泡（云朵形态，点击后弹出弹窗而非输入框） -->
-      <QuestionBubble
-        :visible="showWelcomeBubble"
-        question-text="戳我一下~"
-        icon-name="Sunny"
-        placement="top"
-        :vertical-offset="35"
-        :prevent-expand="true"
-        @expand="onWelcomeExpand"
-        @close="showWelcomeBubble = false"
-      />
-
       <!-- 天气气泡 -->
       <WeatherBubble
         :visible="weatherBubbleVisible"
@@ -800,9 +759,6 @@ onBeforeUnmount(() => {
 
     <!-- 记忆笔记窗口 -->
     <MemoryNotebook :visible="showNotebook" @close="showNotebook = false" />
-
-    <!-- 首次访问欢迎弹窗 -->
-    <WelcomeDialog :visible="showWelcomeDialog" @confirm="onWelcomeConfirm" />
 
     <!-- 调试提问面板（仅管理员） -->
     <DevQuestionPanel
