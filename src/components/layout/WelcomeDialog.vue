@@ -36,6 +36,7 @@ function onOpenChange(value: boolean) {
           <div>
             <p class="note-eyebrow">欢迎来访！</p>
             <DialogTitle class="note-title">很高兴遇见你</DialogTitle>
+            <DialogDescription class="sr-only">本站功能、桌宠互动与来访提示。</DialogDescription>
           </div>
         </div>
       </header>
