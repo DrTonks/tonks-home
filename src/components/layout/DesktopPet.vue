@@ -86,6 +86,10 @@ const singing = usePetSinging(state, () => {
 // ===== 对话气泡 =====
 const bubble = useSpeechBubble()
 const reactions = usePetReactions('static', bubble)
+// moved becomes true only after the existing drag threshold (4px); a press/click is not a drag.
+watch(() => state.moved.value, (moved) => {
+  if (moved) bubble.cancelPendingReaction()
+}, { flush: 'sync' })
 
 // ===== 记忆与提问系统 =====
 const memory = usePetMemory()
@@ -182,7 +186,6 @@ let questionTimer: ReturnType<typeof setInterval> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
-  bubble.cancelPendingReaction()
   if (state.rageActive.value) return
   // 拖拽后的伪点击：交给 core 检测并清 moved 标志，不触发任何点击反应/气泡
   if (state.moved.value) {
@@ -576,7 +579,7 @@ onBeforeUnmount(() => {
       width: `${W}px`,
       height: `${H}px`,
     }"
-    @pointerdown="bubble.cancelPendingReaction(); core.onPointerDown($event)"
+    @pointerdown="core.onPointerDown"
     @pointermove="core.onPointerMove"
     @pointerup="core.onPointerUp"
     @pointercancel="core.onPointerUp"

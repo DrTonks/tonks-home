@@ -24,10 +24,20 @@ describe('pet reaction policy', () => {
     expect(picker.reply('static', first.id)).toBeUndefined()
     expect(picker.local('live2d', 'happy')?.pets).toContain('live2d')
   })
-  it('uses different local probabilities while never substituting unrelated scenes', () => {
-    expect(createReactionPicker(Date.now, () => .3).local('static', 'happy')).toBeUndefined()
-    expect(createReactionPicker(Date.now, () => .3).local('live2d', 'happy')).toBeDefined()
+  it('never substitutes unrelated scenes', () => {
     expect(createReactionPicker(Date.now, () => 0).local('live2d', 'threat')).toBeUndefined()
     expect(petReactions.every(r => r.src.startsWith('/emojis/') && r.label)).toBe(true)
+  })
+  it('partitions pure-picture and sequential replies without multiplying probabilities', () => {
+    expect(createReactionPicker(Date.now, () => .399).local('static', 'happy')?.imageOnly).toBe(true)
+    expect(createReactionPicker(Date.now, () => .4).local('static', 'happy')?.imageOnly).toBe(false)
+    expect(createReactionPicker(Date.now, () => .599).local('static', 'happy')?.imageOnly).toBe(false)
+    expect(createReactionPicker(Date.now, () => .6).local('static', 'happy')).toBeUndefined()
+    expect(createReactionPicker(Date.now, () => .299).local('live2d', 'happy')?.imageOnly).toBe(true)
+    expect(createReactionPicker(Date.now, () => .3).local('live2d', 'happy')?.imageOnly).toBe(false)
+    expect(createReactionPicker(Date.now, () => .599).local('live2d', 'happy')?.imageOnly).toBe(false)
+    expect(createReactionPicker(Date.now, () => .6).local('live2d', 'happy')).toBeUndefined()
+    const legacy = legacyReaction('static', '/assets/emoji/happy-1.jpg')!
+    expect(createReactionPicker(Date.now, () => .99).local('static', 'happy', legacy)?.imageOnly).toBe(true)
   })
 })

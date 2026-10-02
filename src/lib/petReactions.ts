@@ -30,10 +30,15 @@ export function createReactionPicker(now = Date.now, random = Math.random) {
   }
   return {
     local(pet: PetPersona, scene: ReactionScene, preferred?: PetReaction) {
-      if (preferred) return allowed(preferred) ? preferred : undefined
-      if (now() - lastShown < config.cooldownMs || random() >= config.profiles[pet].chance) return undefined
+      if (preferred) return allowed(preferred) ? { ...preferred, imageOnly: true } : undefined
+      if (now() - lastShown < config.cooldownMs) return undefined
+      // One roll partitions local replies into pure picture, text then picture, and text only.
+      const roll = random()
+      const profile = config.profiles[pet]
+      if (roll >= profile.chance) return undefined
       const choices = petReactions.filter(item => item.pets.includes(pet) && item.scenes.includes(scene) && allowed(item))
-      return choices[Math.floor(random() * choices.length)]
+      const image = choices[Math.floor(random() * choices.length)]
+      return image ? { ...image, imageOnly: roll < profile.pureImageChance } : undefined
     },
     reply(pet: PetPersona, id: unknown) {
       const item = findReaction(pet, id)
@@ -46,4 +51,3 @@ export function createReactionPicker(now = Date.now, random = Math.random) {
   }
 }
 export const reactionPicker = createReactionPicker()
-export const reactionProfiles = config.profiles

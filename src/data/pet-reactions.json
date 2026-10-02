@@ -4,12 +4,12 @@
   "recentCount": 3,
   "profiles": {
     "static": {
-      "chance": 0.22,
-      "imageOnly": true
+      "chance": 0.6,
+      "pureImageChance": 0.4
     },
     "live2d": {
-      "chance": 0.38,
-      "imageOnly": false
+      "chance": 0.6,
+      "pureImageChance": 0.3
     }
   },
   "items": [

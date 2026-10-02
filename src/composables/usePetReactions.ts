@@ -1,5 +1,5 @@
 import type { SpeechBubbleApi } from '@/components/layout/pet/useSpeechBubble'
-import { legacyReaction, reactionPicker, reactionProfiles, type PetPersona, type ReactionScene } from '@/lib/petReactions'
+import { legacyReaction, reactionPicker, type PetPersona, type ReactionScene } from '@/lib/petReactions'
 
 export function usePetReactions(pet: PetPersona, bubble: SpeechBubbleApi) {
   function sayLocal(scene: ReactionScene, line: string, force = false) {
@@ -8,7 +8,7 @@ export function usePetReactions(pet: PetPersona, bubble: SpeechBubbleApi) {
     const image = reactionPicker.local(pet, scene, legacy)
     const fallback = legacy?.fallback || legacy?.label || line
     bubble.sayReply({
-      text: image && (legacy || reactionProfiles[pet].imageOnly) ? '' : fallback,
+      text: image?.imageOnly ? '' : fallback,
       image,
       onImageShown: image ? () => reactionPicker.mark(image) : undefined,
     }, force)

@@ -14,7 +14,7 @@ describe('speech bubble image replies', () => {
     expect(b.text.value).toBe('好耶。')
     expect(b.emoji.value).toBe('')
     expect(shown).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(2884) // 3 characters: typing + original reading time
+    vi.advanceTimersByTime(1634) // 3 characters: 135ms typing + 1.5s reading
     expect(b.mode.value).toBe('typing')
     vi.advanceTimersByTime(1)
     expect(b.mode.value).toBe('emoji')
@@ -38,10 +38,27 @@ describe('speech bubble image replies', () => {
     b.cancelPendingReaction()
     expect(b.visible.value).toBe(true)
     expect(b.text.value).toBe('好耶。')
-    vi.advanceTimersByTime(1885)
+    vi.advanceTimersByTime(635)
     expect(b.visible.value).toBe(false)
     expect(b.emoji.value).toBe('')
     expect(shown).not.toHaveBeenCalled()
+  })
+  it.each([[20, 2400], [40, 3800], [80, 7600]])('shows an image after %i characters within the bounded reading time', (length, duration) => {
+    const b = useSpeechBubble()
+    b.sayReply({ text: '字'.repeat(length), image: { src: '/assets/emoji/happy-1.jpg', label: '开心' } }, true, true)
+    vi.advanceTimersByTime(duration - 1)
+    expect(b.mode.value).toBe('typing')
+    vi.advanceTimersByTime(1)
+    expect(b.mode.value).toBe('emoji')
+    b.hide()
+  })
+  it('keeps the original reading time for text-only replies', () => {
+    const b = useSpeechBubble()
+    b.say('字'.repeat(20), true, true)
+    vi.advanceTimersByTime(7899)
+    expect(b.visible.value).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(b.visible.value).toBe(false)
   })
   it.each(['lyrics', 'notes', 'status', 'new speech', 'hide', 'new question'])('does not leak a queued image after %s', (replacement) => {
     const b = useSpeechBubble()

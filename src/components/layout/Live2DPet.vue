@@ -76,6 +76,10 @@ const { model, loading, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
 const bubble = useSpeechBubble()
 const reactions = usePetReactions('live2d', bubble)
+// Keep pending pictures on normal clicks; only a confirmed drag cancels them.
+watch(() => state.moved.value, (moved) => {
+  if (moved) bubble.cancelPendingReaction()
+}, { flush: 'sync' })
 
 // ===== 记忆与提问系统 =====
 const memory = usePetMemory()
@@ -457,7 +461,6 @@ function onContextMenu(e: MouseEvent) {
 }
 
 function handleClick(e: MouseEvent) {
-  bubble.cancelPendingReaction()
   if (state.moved.value) {
     state.moved.value = false
     return
@@ -643,7 +646,7 @@ onBeforeUnmount(() => {
     <div
       class="drop-enter-live2d drop-layer"
       style="position: relative"
-      @pointerdown="bubble.cancelPendingReaction(); interaction.onPointerDown($event)"
+      @pointerdown="interaction.onPointerDown"
       @pointermove="interaction.onPointerMove"
       @pointerup="interaction.onPointerUp"
       @pointercancel="interaction.onPointerUp"

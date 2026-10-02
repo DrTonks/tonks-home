@@ -23,6 +23,9 @@ const THINK_MIN_LEN = 4 // 句子 ≥ 此长度才走思考态（短句直接打
 const TYPE_SPEED = 45 // 每字毫秒
 const READ_BASE = 2000 // 打字完后的基础停留（阅读）时间
 const READ_PER_CHAR = 250 // 每多一个字符延长的停留时间，让用户多看几眼
+const IMAGE_READ_PER_CHAR = 50
+const IMAGE_READ_MIN = 1500 // 配图回复打完字后停留 1.5–4 秒，再发表情
+const IMAGE_READ_MAX = 4000
 const SAY_COOLDOWN = 300 // 气泡收起后的冷却期，避免连续无缝冒泡，让它"喘口气"
 const EMOJI_MS = 4000 // 表情包固定展示时长（区别于文字：文字随字数）
 const FOLLOW_UP_EMOJI_MS = 3000 // 文字读完后的补充表情
@@ -48,7 +51,7 @@ export function useSpeechBubble() {
   let onImageShown: SpeechReply['onImageShown']
   let lastHideAt = 0 // 上次气泡收起的时间戳（用于结束冷却）
 
-  // Clicking/dragging or opening a menu cancels only the queued picture, keeping readable text.
+  // Actual dragging or opening a menu cancels only the queued picture, keeping readable text.
   function cancelPendingReaction() {
     pendingImage = undefined
     onImageShown = undefined
@@ -103,7 +106,10 @@ export function useSpeechBubble() {
       if (!sentence) { showImage(EMOJI_MS); return }
       text.value = sentence
       mode.value = 'typing'
-      const dwell = sentence.length * TYPE_SPEED + READ_BASE + sentence.length * READ_PER_CHAR
+      const readingMs = image
+        ? Math.min(IMAGE_READ_MAX, Math.max(IMAGE_READ_MIN, sentence.length * IMAGE_READ_PER_CHAR))
+        : READ_BASE + sentence.length * READ_PER_CHAR
+      const dwell = sentence.length * TYPE_SPEED + readingMs
       hideTimer = setTimeout(() => {
         if (pendingImage) showImage(FOLLOW_UP_EMOJI_MS)
         else hide()
