@@ -30,7 +30,6 @@ function onOpenChange(value: boolean) {
   <Dialog v-model:open="open" @update:open="onOpenChange">
     <DialogContent class="welcome-note w-[calc(100%-2rem)] max-w-[660px] max-h-[85dvh] overflow-y-auto rounded-2xl p-0 gap-0">
       <header class="note-header">
-        <span class="note-register"> 公告 <span>NO. {{ WELCOME_VERSION }}</span></span>
         <div class="note-intro">
           <img class="note-avatar" src="/assets/avatar.jpg" alt="Tonks 的头像" width="64" height="64" />
           <div>
@@ -45,7 +44,6 @@ function onOpenChange(value: boolean) {
         <aside class="note-postcard" aria-label="桌宠合影">
           <span class="note-tape" aria-hidden="true"></span>
           <img src="/assets/pet/happy.png" alt="普瑞赛斯向你打招呼" width="130" height="195" />
-          <span class="postcard-caption">HELLO, FRIEND.</span>
           <p>请多指教。</p>
         </aside>
         <div class="note-guide">
@@ -79,9 +77,7 @@ function onOpenChange(value: boolean) {
 <style scoped>
 .welcome-note { background: hsl(var(--background)); color: hsl(var(--foreground)); }
 .note-header { padding: 26px 30px 23px; border-bottom: 1px solid hsl(var(--border)); }
-.note-register { display: flex; gap: 12px; padding-right: 30px; color: hsl(var(--muted-foreground)); font: 10px/1.5 ui-monospace, monospace; letter-spacing: .15em; }
-.note-register span { opacity: .65; }
-.note-intro { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
+.note-intro { display: flex; align-items: center; gap: 18px; }
 .note-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid hsl(var(--background)); box-shadow: 0 0 0 1px hsl(var(--border)); flex-shrink: 0; }
 .note-eyebrow { margin-bottom: 8px; color: hsl(var(--color-amber)); font-size: 11px; letter-spacing: .12em; }
 .note-title { font-size: 25px; font-weight: 750; line-height: 1.3; letter-spacing: -.035em; }
@@ -89,7 +85,6 @@ function onOpenChange(value: boolean) {
 .note-postcard { position: relative; padding: 12px 10px 14px; text-align: center; transform: rotate(-4deg); background: #f1ecdf; color: #45433c; border: 1px solid #d7d0bd; box-shadow: 5px 6px 0 rgb(0 0 0 / .12); }
 .note-tape { position: absolute; width: 52px; height: 17px; top: -9px; left: 45px; transform: rotate(8deg); background: #c9c3b0; opacity: .8; }
 .note-postcard img { height: 142px; width: 100%; object-fit: contain; }
-.postcard-caption { font: 8px/2 ui-monospace, monospace; letter-spacing: .12em; color: #756e5b; }
 .note-postcard p { font-size: 14px; font-weight: 600; margin-top: 4px; }
 .note-guide { display: grid; gap: 18px; }
 .note-guide section { display: flex; align-items: flex-start; gap: 10px; }
@@ -111,7 +106,6 @@ function onOpenChange(value: boolean) {
   .note-postcard { padding: 10px 5px; }
   .note-postcard img { height: 105px; }
   .note-tape { left: 20px; width: 40px; }
-  .postcard-caption { font-size: 6px; }
   .note-guide { gap: 14px; }
   .note-guide svg { display: none; }
   .note-details { margin: 0 20px; }
