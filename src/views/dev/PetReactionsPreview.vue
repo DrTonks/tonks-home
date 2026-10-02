@@ -10,7 +10,7 @@ const selected = ref('quiet_happy')
 const bubble = useSpeechBubble()
 const choices = computed(() => petReactions.filter(r => r.pets.includes(pet.value)))
 const reactions = { static: usePetReactions('static', bubble), live2d: usePetReactions('live2d', bubble) }
-const text = ref('谢谢，收到你的推荐了。今天又多了一点值得期待的事。')
+const text = ref('好耶，收到啦！')
 function preview(imageOnly = false) {
   bubble.sayReply({ text: imageOnly ? '' : text.value, image: findReaction(pet.value, selected.value) }, true, true)
 }
@@ -20,14 +20,15 @@ onBeforeUnmount(bubble.hide)
 <template>
   <main class="preview">
     <h1>桌宠表情预览</h1>
-    <p>本地验收页 · 共用实际气泡组件，不请求 AI，也不记录用户记忆。</p>
+    <p>先说文字，读完后补一张表情 · 不请求 AI，也不记录用户记忆。</p>
     <div class="controls">
       <label>角色 <select v-model="pet"><option value="static">普瑞赛斯</option><option value="live2d">U 酱</option></select></label>
       <label>回复文字 <input v-model="text" /></label>
-      <button @click="preview()">预览图文回复</button>
+      <button @click="preview()">预览分段回复</button>
       <button @click="preview(true)">预览纯表情</button>
       <button @click="reactions[pet].sayLocal('happy', pet === 'static' ? '很高兴见到你。' : '好耶，老板！', true)">本地开心互动（实际概率）</button>
       <button @click="bubble.showLyric('星星落在你的眼睛里')">切换到歌词</button>
+      <button @click="bubble.cancelPendingReaction()">取消后续表情</button>
       <button @click="bubble.sayReply({text: text, image:{src:'/emojis/v1/test/missing.jpg',label:'测试坏图'}},true,true)">测试图片失败</button>
     </div>
     <div class="stage">

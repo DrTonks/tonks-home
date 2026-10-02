@@ -12,7 +12,11 @@ import { usePetEnvStore } from '@/stores/petEnv'
 
 export type BubbleMode = 'thinking' | 'status' | 'typing' | 'lyric' | 'notes' | 'emoji'
 export type BubbleStatusStage = 'thinking' | 'searching'
-export interface SpeechReply { text: string; image?: { src: string; label: string } }
+export interface SpeechReply {
+  text: string
+  image?: { src: string; label: string }
+  onImageShown?: () => void
+}
 
 const THINK_MS = 600 // "..." 思考缓冲
 const THINK_MIN_LEN = 4 // 句子 ≥ 此长度才走思考态（短句直接打字，免拖沓）
@@ -21,6 +25,7 @@ const READ_BASE = 2000 // 打字完后的基础停留（阅读）时间
 const READ_PER_CHAR = 250 // 每多一个字符延长的停留时间，让用户多看几眼
 const SAY_COOLDOWN = 300 // 气泡收起后的冷却期，避免连续无缝冒泡，让它"喘口气"
 const EMOJI_MS = 4000 // 表情包固定展示时长（区别于文字：文字随字数）
+const FOLLOW_UP_EMOJI_MS = 3000 // 文字读完后的补充表情
 
 /** 句库条目是否为表情包图片（public/assets/emoji 下的相对路径，或图片扩展名） */
 export function isEmoji(s: string): boolean {
@@ -39,9 +44,18 @@ export function useSpeechBubble() {
 
   let thinkTimer: ReturnType<typeof setTimeout> | null = null
   let hideTimer: ReturnType<typeof setTimeout> | null = null
+  let pendingImage: SpeechReply['image']
+  let onImageShown: SpeechReply['onImageShown']
   let lastHideAt = 0 // 上次气泡收起的时间戳（用于结束冷却）
 
+  // Clicking/dragging or opening a menu cancels only the queued picture, keeping readable text.
+  function cancelPendingReaction() {
+    pendingImage = undefined
+    onImageShown = undefined
+  }
+
   function clearTimers() {
+    cancelPendingReaction()
     if (thinkTimer) {
       clearTimeout(thinkTimer)
       thinkTimer = null
@@ -67,17 +81,33 @@ export function useSpeechBubble() {
     if (petEnv.isQuestionActive && !force) return false
     if (!force && performance.now() - lastHideAt < SAY_COOLDOWN) return false
     clearTimers()
+    pendingImage = image
+    onImageShown = reply.onImageShown
     revision.value++
     text.value = ''
     emoji.value = ''
     visible.value = true
+    const showImage = (duration: number) => {
+      const next = pendingImage
+      const notifyShown = onImageShown
+      cancelPendingReaction()
+      if (!next || (sentence && petEnv.isQuestionActive)) { hide(); return }
+      text.value = ''
+      emoji.value = next.src
+      emojiLabel.value = next.label
+      mode.value = 'emoji'
+      notifyShown?.()
+      hideTimer = setTimeout(hide, duration)
+    }
     const show = () => {
+      if (!sentence) { showImage(EMOJI_MS); return }
       text.value = sentence
-      emoji.value = image?.src || ''
-      emojiLabel.value = image?.label || '表情'
-      mode.value = sentence ? 'typing' : 'emoji'
+      mode.value = 'typing'
       const dwell = sentence.length * TYPE_SPEED + READ_BASE + sentence.length * READ_PER_CHAR
-      hideTimer = setTimeout(hide, image ? Math.max(EMOJI_MS, dwell) : dwell)
+      hideTimer = setTimeout(() => {
+        if (pendingImage) showImage(FOLLOW_UP_EMOJI_MS)
+        else hide()
+      }, dwell)
     }
     if (!skipThinking && (image || sentence.length >= THINK_MIN_LEN)) {
       mode.value = 'thinking'
@@ -141,6 +171,7 @@ export function useSpeechBubble() {
     revision,
     say,
     sayReply,
+    cancelPendingReaction,
     showStatus,
     showLyric,
     showNotes,

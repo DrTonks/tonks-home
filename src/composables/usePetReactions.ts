@@ -7,18 +7,21 @@ export function usePetReactions(pet: PetPersona, bubble: SpeechBubbleApi) {
     const legacy = legacyReaction(pet, line)
     const image = reactionPicker.local(pet, scene, legacy)
     const fallback = legacy?.fallback || legacy?.label || line
-    const accepted = bubble.sayReply({
+    bubble.sayReply({
       text: image && (legacy || reactionProfiles[pet].imageOnly) ? '' : fallback,
       image,
+      onImageShown: image ? () => reactionPicker.mark(image) : undefined,
     }, force)
-    if (accepted && image) reactionPicker.mark(image)
   }
   function sayReply(text: string, emojiId?: string, prefix = '') {
     const legacy = legacyReaction(pet, text)
     const image = reactionPicker.reply(pet, emojiId || legacy?.id)
     // Preserve acknowledgement prefixes, even when a legacy fixed reply is an image.
-    const accepted = bubble.sayReply({ text: `${prefix.trim()}${legacy?.fallback || legacy?.label || text.trim()}`, image }, true, true)
-    if (accepted && image) reactionPicker.mark(image)
+    bubble.sayReply({
+      text: `${prefix.trim()}${legacy?.fallback || legacy?.label || text.trim()}`,
+      image,
+      onImageShown: image ? () => reactionPicker.mark(image) : undefined,
+    }, true, true)
   }
   return { sayLocal, sayReply }
 }

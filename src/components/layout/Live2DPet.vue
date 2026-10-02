@@ -449,6 +449,7 @@ watch(
 )
 
 function onContextMenu(e: MouseEvent) {
+  bubble.cancelPendingReaction()
   e.preventDefault()
   ctxMenuX.value = e.clientX
   ctxMenuY.value = e.clientY
@@ -456,6 +457,7 @@ function onContextMenu(e: MouseEvent) {
 }
 
 function handleClick(e: MouseEvent) {
+  bubble.cancelPendingReaction()
   if (state.moved.value) {
     state.moved.value = false
     return
@@ -641,7 +643,7 @@ onBeforeUnmount(() => {
     <div
       class="drop-enter-live2d drop-layer"
       style="position: relative"
-      @pointerdown="interaction.onPointerDown"
+      @pointerdown="bubble.cancelPendingReaction(); interaction.onPointerDown($event)"
       @pointermove="interaction.onPointerMove"
       @pointerup="interaction.onPointerUp"
       @pointercancel="interaction.onPointerUp"
@@ -656,7 +658,7 @@ onBeforeUnmount(() => {
         :original="bubble.original.value"
         :translation="bubble.translation.value"
         :emoji="bubble.emoji.value"
-          :emoji-label="bubble.emojiLabel.value"
+        :emoji-label="bubble.emojiLabel.value"
         :placement="placement"
         :vertical-offset="46"
         :horizontal-offset="56"

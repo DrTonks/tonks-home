@@ -21,7 +21,7 @@ const props = withDefaults(
     text?: string // typing：完整句子（组件内逐字）
     original?: string // lyric：原文（主）
     translation?: string // lyric：译文（次）
-    emoji?: string // 图片或图文回复中的表情包
+    emoji?: string // 独立表情，或文字结束后的补充表情
     emojiLabel?: string
     placement?: Placement
     verticalOffset?: number // 气泡垂直偏移 (top)
@@ -95,9 +95,9 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       class="pet-bubble"
       :class="[`place-${placement}`, { 'is-emoji': mode === 'emoji' }]"
       :style="
-        placement && mode !== 'emoji'
+        placement
           ? {
-              top: `${verticalOffset}px`,
+              top: `${verticalOffset - (mode === 'emoji' ? 30 : 0)}px`,
               [placement === 'left' ? 'right' : 'left']: `calc(100% - ${horizontalOffset}px)`,
             }
           : undefined
@@ -123,11 +123,7 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       </span>
 
       <!-- 日常句：打字机 -->
-      <div v-else-if="mode === 'typing'" class="bubble-reply">
-        <span class="bubble-text">{{ typed }}<i v-if="!typingDone" class="caret" /></span>
-        <img v-if="emoji && failedEmoji !== emoji" :src="emoji" :alt="emojiLabel"
-          class="bubble-emoji bubble-reply-image" draggable="false" @error="failedEmoji = emoji" />
-      </div>
+      <span v-else-if="mode === 'typing'" class="bubble-text">{{ typed }}<i v-if="!typingDone" class="caret" /></span>
 
       <!-- 歌词：原文主 + 译文次 -->
       <span v-else-if="mode === 'lyric'" class="lyric">
@@ -183,20 +179,22 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
   padding: 4px;
   min-width: 0;
   max-width: none;
-  top: -16px; /* 表情包更高，补偿图片高度 */
 }
 .bubble-emoji {
   display: block;
-  max-width: 100px;
-  max-height: 100px;
+  max-width: 112px;
+  max-height: 112px;
   width: auto;
   height: auto;
   border-radius: 8px;
   object-fit: contain;
+  animation: reaction-appear 160ms ease-out;
 }
 
-.bubble-reply { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.bubble-reply-image { max-width: 84px; max-height: 84px; }
+@keyframes reaction-appear {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
 .emoji-fallback { display: block; max-width: 180px; padding: 4px 8px; }
 
 /* ===== 相对桌宠的方位（桌宠在 petRef 容器内，宽 W=130）=====
@@ -401,6 +399,7 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
   .dots i,
   .status-icon,
   .note,
+  .bubble-emoji,
   .caret {
     animation: none;
   }

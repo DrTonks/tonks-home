@@ -182,6 +182,7 @@ let questionTimer: ReturnType<typeof setInterval> | null = null
 
 // 点击路由：唱歌模式出音符；日常模式进 core
 function handleClick(e: MouseEvent) {
+  bubble.cancelPendingReaction()
   if (state.rageActive.value) return
   // 拖拽后的伪点击：交给 core 检测并清 moved 标志，不触发任何点击反应/气泡
   if (state.moved.value) {
@@ -284,6 +285,7 @@ const ctxMenuItems = computed<ContextMenuItem[]>(() => {
 })
 
 function onContextMenu(e: MouseEvent) {
+  bubble.cancelPendingReaction()
   e.preventDefault()
   ctxMenuX.value = e.clientX
   ctxMenuY.value = e.clientY
@@ -574,7 +576,7 @@ onBeforeUnmount(() => {
       width: `${W}px`,
       height: `${H}px`,
     }"
-    @pointerdown="core.onPointerDown"
+    @pointerdown="bubble.cancelPendingReaction(); core.onPointerDown($event)"
     @pointermove="core.onPointerMove"
     @pointerup="core.onPointerUp"
     @pointercancel="core.onPointerUp"
