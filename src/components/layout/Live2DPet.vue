@@ -4,6 +4,7 @@
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
+import { usePetReactions } from '@/composables/usePetReactions'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
@@ -74,6 +75,7 @@ const modelCtrl = useLive2DModel(containerRef)
 const { model, loading, error, loadModel, destroy } = modelCtrl
 const pixiAppRef = computed(() => modelCtrl.pixiApp.value)
 const bubble = useSpeechBubble()
+const reactions = usePetReactions('live2d', bubble)
 
 // ===== 记忆与提问系统 =====
 const memory = usePetMemory()
@@ -158,7 +160,7 @@ const interaction = useLive2DInteraction(
   state.moved,
   () => {
     if (state.mood.value === 'idle' && !bubble.visible.value && Math.random() < 0.6) {
-      bubble.say(pick(dl.turn))
+      reactions.sayLocal('turn', pick(dl.turn))
     }
   },
   isAsleep,
@@ -217,7 +219,9 @@ watch(
     if (!model.value || bubble.visible.value || questions.isActive.value) return
     const key = m as keyof Live2DDialogue
     const lines = dl[key]
-    if (lines && Array.isArray(lines)) bubble.say(pick(lines as string[]))
+    if (lines && Array.isArray(lines) && ['happy', 'angry', 'cry', 'sleep', 'idle'].includes(m)) {
+      reactions.sayLocal(m as 'happy' | 'angry' | 'cry' | 'sleep' | 'idle', pick(lines as string[]))
+    }
   },
 )
 
@@ -511,7 +515,7 @@ onMounted(async () => {
     const h = new Date().getHours()
     const slot =
       h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-    bubble.say(pick(dl.greeting[slot]))
+    reactions.sayLocal('greeting', pick(dl.greeting[slot]))
   }
 
   if (!isSpecialDay) {
@@ -583,7 +587,7 @@ onMounted(async () => {
     }
 
     if (Math.random() < 0.8) {
-      bubble.say(pick(dl.idle))
+      reactions.sayLocal('idle', pick(dl.idle))
     }
   }, 28000)
 
@@ -652,6 +656,7 @@ onBeforeUnmount(() => {
         :original="bubble.original.value"
         :translation="bubble.translation.value"
         :emoji="bubble.emoji.value"
+          :emoji-label="bubble.emojiLabel.value"
         :placement="placement"
         :vertical-offset="46"
         :horizontal-offset="56"

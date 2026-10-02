@@ -21,7 +21,8 @@ const props = withDefaults(
     text?: string // typing：完整句子（组件内逐字）
     original?: string // lyric：原文（主）
     translation?: string // lyric：译文（次）
-    emoji?: string // emoji：表情包图片路径
+    emoji?: string // 图片或图文回复中的表情包
+    emojiLabel?: string
     placement?: Placement
     verticalOffset?: number // 气泡垂直偏移 (top)
     horizontalOffset?: number // 气泡水平偏移 (right/left 表达式中的 px 值)
@@ -34,6 +35,7 @@ const props = withDefaults(
     original: '',
     translation: '',
     emoji: '',
+    emojiLabel: '表情',
     placement: 'left',
     verticalOffset: 14,
     horizontalOffset: 13,
@@ -81,6 +83,8 @@ watch(
 
 onBeforeUnmount(stopTyping)
 
+const failedEmoji = ref('')
+watch(() => [props.emoji, props.visible], () => { failedEmoji.value = '' })
 const noteSymbols = computed(() => NOTE_SYMBOLS)
 </script>
 
@@ -119,10 +123,11 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       </span>
 
       <!-- 日常句：打字机 -->
-      <span v-else-if="mode === 'typing'" class="bubble-text">
-        {{ typed }}
-        <i v-if="!typingDone" class="caret" />
-      </span>
+      <div v-else-if="mode === 'typing'" class="bubble-reply">
+        <span class="bubble-text">{{ typed }}<i v-if="!typingDone" class="caret" /></span>
+        <img v-if="emoji && failedEmoji !== emoji" :src="emoji" :alt="emojiLabel"
+          class="bubble-emoji bubble-reply-image" draggable="false" @error="failedEmoji = emoji" />
+      </div>
 
       <!-- 歌词：原文主 + 译文次 -->
       <span v-else-if="mode === 'lyric'" class="lyric">
@@ -131,13 +136,11 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
       </span>
 
       <!-- 表情包：图片，气泡贴合尺寸 -->
-      <img
-        v-else-if="mode === 'emoji'"
-        :src="emoji"
-        class="bubble-emoji"
-        alt="表情"
-        draggable="false"
-      />
+      <span v-else-if="mode === 'emoji'">
+        <img v-if="failedEmoji !== emoji" :src="emoji" class="bubble-emoji" :alt="emojiLabel"
+          draggable="false" @error="failedEmoji = emoji" />
+        <span v-else class="emoji-fallback">{{ emojiLabel }}</span>
+      </span>
 
       <!-- 无歌词时段：彩色跳动音符 -->
       <span v-else class="notes" aria-hidden="true">
@@ -191,6 +194,10 @@ const noteSymbols = computed(() => NOTE_SYMBOLS)
   border-radius: 8px;
   object-fit: contain;
 }
+
+.bubble-reply { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bubble-reply-image { max-width: 84px; max-height: 84px; }
+.emoji-fallback { display: block; max-width: 180px; padding: 4px 8px; }
 
 /* ===== 相对桌宠的方位（桌宠在 petRef 容器内，宽 W=130）=====
    气泡水平出现在桌宠一侧、对齐头部高度；尾巴在朝桌宠那侧、垂直居中，尖角指向桌宠。 */

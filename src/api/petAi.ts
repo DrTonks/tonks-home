@@ -1,4 +1,5 @@
 export type PetAIStage = 'thinking' | 'searching'
+export interface PetAIReply { reply: string; emoji_id?: string }
 
 export interface PetAIRequest {
   pet_id: 'static' | 'live2d'
@@ -16,6 +17,7 @@ interface PetAIEvent {
   type: 'status' | 'result' | 'error'
   stage?: PetAIStage
   reply?: string
+  emoji_id?: string
   code?: string
 }
 
@@ -57,8 +59,12 @@ export async function streamPetReply(
   payload: PetAIRequest,
   onStage: (stage: PetAIStage) => void,
   timeoutMs = 15_000,
-): Promise<string> {
+  signal?: AbortSignal,
+): Promise<PetAIReply> {
   const controller = new AbortController()
+  const abort = () => controller.abort()
+  signal?.addEventListener('abort', abort, { once: true })
+  if (signal?.aborted) abort()
   const timer = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch('/api/pet/reply', {
@@ -80,15 +86,15 @@ export async function streamPetReply(
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
-    let reply = ''
+    let reply: PetAIReply | undefined
 
     const handleBlock = (block: string) => {
       const event = parseSSEBlock(block)
       if (!event) return
       if (event.type === 'status' && (event.stage === 'thinking' || event.stage === 'searching')) {
         onStage(event.stage)
-      } else if (event.type === 'result' && event.reply) {
-        reply = event.reply
+      } else if (event.type === 'result' && typeof event.reply === 'string' && event.reply.trim()) {
+        reply = { reply: event.reply, ...(typeof event.emoji_id === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(event.emoji_id) ? { emoji_id: event.emoji_id } : {}) }
       } else if (event.type === 'error') {
         throw new PetAIError(event.code || 'reply_failed')
       }
@@ -115,6 +121,7 @@ export async function streamPetReply(
     }
     throw new PetAIError('network_error')
   } finally {
+    signal?.removeEventListener('abort', abort)
     window.clearTimeout(timer)
   }
 }

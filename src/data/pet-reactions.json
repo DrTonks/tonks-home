@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "cooldownMs": 45000,
+  "recentCount": 3,
+  "profiles": {
+    "static": {
+      "chance": 0.22,
+      "imageOnly": true
+    },
+    "live2d": {
+      "chance": 0.38,
+      "imageOnly": false
+    }
+  },
+  "items": [
+    {
+      "id": "quiet_angry",
+      "token": ":laopu:angry:",
+      "description": "沉默地生气，有点不满",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "angry",
+        "threat",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/angry.jpg",
+      "fallback": "……别再戳了。"
+    },
+    {
+      "id": "quiet_pout",
+      "token": ":laopu:angry2:",
+      "description": "气鼓鼓，轻微抗议",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "angry",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/angry2.jpg",
+      "fallback": "有点生气。"
+    },
+    {
+      "id": "quiet_cry",
+      "token": ":laopu:cry:",
+      "description": "委屈、难过，希望被陪伴",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "cry",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/cry.jpg",
+      "fallback": "别留下我。"
+    },
+    {
+      "id": "quiet_happy",
+      "token": ":laopu:happy-1:",
+      "description": "微笑送花，含蓄的开心与感谢",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "happy",
+        "greeting",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/happy-1.jpg",
+      "fallback": "很高兴见到你。"
+    },
+    {
+      "id": "quiet_cheer",
+      "token": ":laopu:happy-2:",
+      "description": "好耶，收到好消息",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "happy",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/happy-2.jpg",
+      "fallback": "好耶。"
+    },
+    {
+      "id": "quiet_sleep",
+      "token": ":laopu:sleep:",
+      "description": "困倦、晚安、盖好被子",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "sleep",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/sleep.jpg",
+      "fallback": "有点困了。"
+    },
+    {
+      "id": "quiet_think",
+      "token": ":laopu:think:",
+      "description": "托腮思考，安静地倾听",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "idle",
+        "turn",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/think.jpg",
+      "fallback": "……我在想。"
+    },
+    {
+      "id": "quiet_wait",
+      "token": ":laopu:wait:",
+      "description": "有点紧张，等待回应",
+      "pets": [
+        "static"
+      ],
+      "scenes": [
+        "turn",
+        "reply"
+      ],
+      "legacySrc": "/assets/emoji/wait.jpg",
+      "fallback": "我在这里。"
+    },
+    {
+      "id": "u_cute",
+      "token": ":2233:9879bbb846b78bbd:",
+      "description": "俏皮地卖萌、打招呼",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "greeting",
+        "happy",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_surprise",
+      "token": ":2233:987deaf4c942c347:",
+      "description": "吃惊，意料之外的消息",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "reply"
+      ]
+    },
+    {
+      "id": "u_drink",
+      "token": ":2233:a71dbf474a9fabb2:",
+      "description": "喝水休息一下",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "idle",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_confused",
+      "token": ":2233:76299860fa9bced2:",
+      "description": "困惑，没太明白",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "turn",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_cry",
+      "token": ":2233:c4476304aecd27ae:",
+      "description": "夸张地哭哭、委屈",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "cry",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_laugh",
+      "token": ":2233:fe766c59519dc255:",
+      "description": "大笑，真的很开心",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "happy",
+        "greeting",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_grievance",
+      "token": ":2233:1e8fa95fcf7c8b96:",
+      "description": "委屈巴巴，轻轻抱怨",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "cry",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_angry",
+      "token": ":2233:f74354d83bbcd2d6:",
+      "description": "气呼呼，抗议被戳",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "angry",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_speechless",
+      "token": ":2233:8b0d0b8becb28a00:",
+      "description": "无言以对、短暂沉默",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "turn",
+        "idle",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_embarrassed",
+      "token": ":2233:1eda3a0677b96e7f:",
+      "description": "流汗、尴尬、心虚",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "reply"
+      ]
+    },
+    {
+      "id": "u_best",
+      "token": ":2233:cc25333ddd02746e:",
+      "description": "举起第一名牌子，夸奖、祝贺",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "happy",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_cheer",
+      "token": ":2233:7b31e98b9d156055:",
+      "description": "比耶、庆祝、打招呼",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "happy",
+        "greeting",
+        "reply"
+      ]
+    },
+    {
+      "id": "u_gloomy",
+      "token": ":2233:889616080e5a94e9:",
+      "description": "郁闷，心情有点低落",
+      "pets": [
+        "live2d"
+      ],
+      "scenes": [
+        "cry",
+        "reply"
+      ]
+    },
+    {
+      "id": "cat_coffee",
+      "token": ":blobcat:4528e1a17f71d2ed:",
+      "description": "捧着咖啡，休息片刻",
+      "pets": [
+        "static",
+        "live2d"
+      ],
+      "scenes": [
+        "idle",
+        "reply"
+      ]
+    },
+    {
+      "id": "cat_comfy",
+      "token": ":blobcat:75b9f498d1d5a7b6:",
+      "description": "裹着被子，困倦、晚安",
+      "pets": [
+        "static",
+        "live2d"
+      ],
+      "scenes": [
+        "sleep",
+        "reply"
+      ]
+    },
+    {
+      "id": "cat_flower",
+      "token": ":blobcat:1ad3101800831209:",
+      "description": "送花，鼓励、感谢、祝福",
+      "pets": [
+        "static",
+        "live2d"
+      ],
+      "scenes": [
+        "happy",
+        "reply"
+      ]
+    }
+  ]
+}

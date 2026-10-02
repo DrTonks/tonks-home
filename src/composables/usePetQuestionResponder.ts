@@ -1,3 +1,5 @@
+import { onScopeDispose } from 'vue'
+import { usePetReactions } from './usePetReactions'
 import { useMusicStore } from '@/stores/music'
 import { useThemeStore } from '@/stores/theme'
 import { streamPetReply, type PetAIRequest, type PetAIStage } from '@/api/petAi'
@@ -5,7 +7,6 @@ import { usePetMemory } from './usePetMemory'
 import { useWeatherVisitor } from './useWeatherVisitor'
 import type { PetQuestion, SubmittedPetAnswer } from './usePetQuestions'
 import type { SpeechBubbleApi } from '@/components/layout/pet/useSpeechBubble'
-import { prependPetReply } from '@/lib/petReplyText'
 
 interface PetReplyDialogue {
   mood_replies?: Record<string, string[]>
@@ -29,6 +30,11 @@ export function usePetQuestionResponder(
   bubble: SpeechBubbleApi,
   getPetCenter?: () => { x: number; y: number },
 ) {
+  const reactions = usePetReactions(petId, bubble)
+  let disposed = false
+  let requestId = 0
+  let pending: AbortController | undefined
+  onScopeDispose(() => { disposed = true; requestId++; pending?.abort() })
   const memory = usePetMemory()
   const weatherVisitor = useWeatherVisitor()
   const theme = useThemeStore()
@@ -47,7 +53,7 @@ export function usePetQuestionResponder(
   function sayFallback(question: PetQuestion, answer: string, replyPrefix = '') {
     const line = fallback(question, answer)
     const reply = line || (petId === 'live2d' ? '好，我记住啦~' : '……我记下了。')
-    bubble.say(prependPetReply(replyPrefix, reply), true, true)
+    reactions.sayReply(reply, undefined, replyPrefix)
   }
 
   function context(
@@ -72,6 +78,9 @@ export function usePetQuestionResponder(
     submitted: SubmittedPetAnswer,
     replyPrefix = '',
   ): Promise<void> {
+    if (disposed) return
+    pending?.abort()
+    const current = ++requestId
     if (question.replyMode === 'fixed') {
       sayFallback(question, submitted.answer, replyPrefix)
       return
@@ -82,7 +91,11 @@ export function usePetQuestionResponder(
     }
     if (question.replyMode !== 'ai_with_fallback') return
 
+    const controller = new AbortController()
+    pending = controller
     bubble.showStatus('thinking')
+    let revision = bubble.revision.value
+    const isCurrent = () => !disposed && current === requestId && bubble.revision.value === revision
     try {
       const reply = await streamPetReply(
         {
@@ -91,12 +104,21 @@ export function usePetQuestionResponder(
           answer: submitted.answer,
           context: context(question, submitted.previousAnswer),
         },
-        (stage: PetAIStage) => bubble.showStatus(stage),
+        (stage: PetAIStage) => {
+          if (!isCurrent()) { controller.abort(); return }
+          bubble.showStatus(stage)
+          revision = bubble.revision.value
+        },
+        15_000,
+        controller.signal,
       )
-      bubble.say(prependPetReply(replyPrefix, reply), true, true)
+      if (isCurrent()) reactions.sayReply(reply.reply, reply.emoji_id, replyPrefix)
     } catch (error) {
+      if (!isCurrent()) return
       console.warn('[pet-ai] reply unavailable, using local fallback', error)
       sayFallback(question, submitted.answer, replyPrefix)
+    } finally {
+      if (pending === controller) pending = undefined
     }
   }
 

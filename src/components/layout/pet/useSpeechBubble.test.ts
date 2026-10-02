@@ -1,0 +1,45 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+const env = vi.hoisted(() => ({ isQuestionActive: false }))
+vi.mock('@/stores/petEnv', () => ({ usePetEnvStore: () => env }))
+import { isEmoji, useSpeechBubble } from './useSpeechBubble'
+
+beforeEach(() => { vi.useFakeTimers(); env.isQuestionActive = false })
+afterEach(() => vi.useRealTimers())
+describe('speech bubble image replies', () => {
+  it('uses one lifetime for text and image, and clears the image for subsequent text', () => {
+    const b = useSpeechBubble()
+    b.sayReply({ text: '好耶。', image: { src: '/emojis/v1/laopu/happy-1.jpg', label: '开心' } }, true, true)
+    expect(b.mode.value).toBe('typing')
+    expect(b.text.value).toBe('好耶。')
+    expect(b.emojiLabel.value).toBe('开心')
+    vi.advanceTimersByTime(3999)
+    expect(b.visible.value).toBe(true)
+    vi.advanceTimersByTime(1)
+    expect(b.visible.value).toBe(false)
+    b.say('仅文字', true, true)
+    expect(b.emoji.value).toBe('')
+    expect(b.text.value).toBe('仅文字')
+    b.hide()
+  })
+  it('keeps legacy picture sentences and cancels pending images when lyrics arrive', () => {
+    const b = useSpeechBubble()
+    b.say('/assets/emoji/happy-1.jpg', true)
+    vi.advanceTimersByTime(600)
+    expect(b.mode.value).toBe('emoji')
+    b.say('/assets/emoji/cry.jpg', true)
+    b.showLyric('歌词')
+    vi.advanceTimersByTime(600)
+    expect(b.mode.value).toBe('lyric')
+    expect(b.emoji.value).toBe('')
+    b.hide()
+  })
+  it('keeps the question lock and never interprets prose or external URLs as images', () => {
+    const b = useSpeechBubble()
+    env.isQuestionActive = true
+    expect(b.sayReply({ text: '别打断提问' })).toBe(false)
+    expect(b.visible.value).toBe(false)
+    expect(isEmoji('谢谢，/assets/emoji/happy-1.jpg')).toBe(false)
+    expect(isEmoji('https://outside.test/track.jpg')).toBe(false)
+    expect(isEmoji('/assets/emoji/../secret.png')).toBe(false)
+  })
+})

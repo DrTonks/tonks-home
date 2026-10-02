@@ -6,7 +6,8 @@ import AppFooter from '@/components/layout/AppFooter.vue'
 import WelcomeDialog from '@/components/layout/WelcomeDialog.vue'
 
 const route = useRoute()
-const loading = ref(route.name !== 'not-found')
+const isDevPreview = import.meta.env.DEV && route.path.startsWith('/__design/')
+const loading = ref(route.name !== 'not-found' && !isDevPreview)
 </script>
 
 <template>
@@ -18,7 +19,7 @@ const loading = ref(route.name !== 'not-found')
       </transition>
     </RouterView>
     <AppFooter />
-    <WelcomeDialog v-if="route.name !== 'not-found'" />
+    <WelcomeDialog v-if="route.name !== 'not-found' && !isDevPreview" />
   </template>
 </template>
 

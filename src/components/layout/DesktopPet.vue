@@ -6,6 +6,7 @@ import { usePetSinging } from './pet/usePetSinging'
 import { usePetTurn } from './pet/usePetTurn'
 import SpeechBubble from './pet/SpeechBubble.vue'
 import { useSpeechBubble } from './pet/useSpeechBubble'
+import { usePetReactions } from '@/composables/usePetReactions'
 import { usePetLyrics } from './pet/usePetLyrics'
 import ContextMenu from './ContextMenu.vue'
 import type { ContextMenuItem } from './ContextMenu.vue'
@@ -84,6 +85,7 @@ const singing = usePetSinging(state, () => {
 
 // ===== 对话气泡 =====
 const bubble = useSpeechBubble()
+const reactions = usePetReactions('static', bubble)
 
 // ===== 记忆与提问系统 =====
 const memory = usePetMemory()
@@ -135,7 +137,7 @@ function greet() {
   const h = new Date().getHours()
   const slot =
     h < 5 ? 'night' : h < 11 ? 'morning' : h < 18 ? 'afternoon' : h < 23 ? 'evening' : 'night'
-  bubble.say(pick(dialogue.greeting[slot as keyof typeof dialogue.greeting]))
+  reactions.sayLocal('greeting', pick(dialogue.greeting[slot as keyof typeof dialogue.greeting]))
 }
 
 // 情绪变化时说对应情绪的台词（含 threat；空句类自动跳过）
@@ -145,15 +147,15 @@ watch(
     if (!canEmotionTalk()) return
     // 威胁：激怒是重要时刻，强制打断当前气泡
     if (m === 'threat') {
-      bubble.say(pick(dialogue.threat), true)
+      reactions.sayLocal('threat', pick(dialogue.threat), true)
       return
     }
     // 其它情绪：上一个气泡还在显示则不打断（等它说完，再配合结束冷却）
     if (bubble.visible.value) return
-    if (m === 'happy') bubble.say(pick(dialogue.happy))
-    else if (m === 'angry') bubble.say(pick(dialogue.angry))
-    else if (m === 'cry') bubble.say(pick(dialogue.cry))
-    else if (m === 'sleep') bubble.say(pick(dialogue.sleep))
+    if (m === 'happy') reactions.sayLocal('happy', pick(dialogue.happy))
+    else if (m === 'angry') reactions.sayLocal('angry', pick(dialogue.angry))
+    else if (m === 'cry') reactions.sayLocal('cry', pick(dialogue.cry))
+    else if (m === 'sleep') reactions.sayLocal('sleep', pick(dialogue.sleep))
   },
 )
 
@@ -169,7 +171,7 @@ watch(
       canDailyTalk() &&
       Math.random() < 0.6
     ) {
-      bubble.say(pick(dialogue.turn))
+      reactions.sayLocal('turn', pick(dialogue.turn))
     }
   },
 )
@@ -531,7 +533,7 @@ onMounted(async () => {
       }
       // 正常 idle 闲聊
       if (Math.random() < 0.8) {
-        bubble.say(pick(dialogue.idle))
+        reactions.sayLocal('idle', pick(dialogue.idle))
       }
     }
   }, 28000)
@@ -590,6 +592,7 @@ onBeforeUnmount(() => {
           :original="bubble.original.value"
           :translation="bubble.translation.value"
           :emoji="bubble.emoji.value"
+          :emoji-label="bubble.emojiLabel.value"
           :placement="placement"
         />
 

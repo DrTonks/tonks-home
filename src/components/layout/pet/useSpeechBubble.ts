@@ -12,6 +12,7 @@ import { usePetEnvStore } from '@/stores/petEnv'
 
 export type BubbleMode = 'thinking' | 'status' | 'typing' | 'lyric' | 'notes' | 'emoji'
 export type BubbleStatusStage = 'thinking' | 'searching'
+export interface SpeechReply { text: string; image?: { src: string; label: string } }
 
 const THINK_MS = 600 // "..." 思考缓冲
 const THINK_MIN_LEN = 4 // 句子 ≥ 此长度才走思考态（短句直接打字，免拖沓）
@@ -23,7 +24,7 @@ const EMOJI_MS = 4000 // 表情包固定展示时长（区别于文字：文字�
 
 /** 句库条目是否为表情包图片（public/assets/emoji 下的相对路径，或图片扩展名） */
 export function isEmoji(s: string): boolean {
-  return /\.(png|jpe?g|gif|webp|apng)$/i.test(s) || s.startsWith('/assets/emoji/')
+  return /^\/(?:assets\/emoji|emojis\/v\d+\/[a-z0-9-]+)\/[a-zA-Z0-9_-]+\.(png|jpe?g|gif|webp|apng)$/i.test(s)
 }
 
 export function useSpeechBubble() {
@@ -32,6 +33,8 @@ export function useSpeechBubble() {
   const text = ref('')
   const original = ref('')
   const translation = ref('')
+  const revision = ref(0)
+  const emojiLabel = ref('表情')
   const emoji = ref('') // 表情包图片路径（emoji 模式）
 
   let thinkTimer: ReturnType<typeof setTimeout> | null = null
@@ -51,43 +54,42 @@ export function useSpeechBubble() {
 
   /** 说一句日常话：（长句）思考 → 打字机 → 停留 → 淡出；短句跳过思考直接打字。force=true 跳过结束冷却（用于威胁句等重要时刻） */
   function say(sentence: string, force = false, skipThinking = false) {
-    if (!sentence) return
-    // 提问气泡激活时阻塞所有 SpeechBubble（集中互斥锁）
+    return sayReply(isEmoji(sentence)
+      ? { text: '', image: { src: sentence, label: '表情' } }
+      : { text: sentence }, force, skipThinking)
+  }
+
+  function sayReply(reply: SpeechReply, force = false, skipThinking = false): boolean {
+    const sentence = reply.text
+    const image = reply.image && isEmoji(reply.image.src) ? reply.image : undefined
+    if (!sentence && !image) return false
     const petEnv = usePetEnvStore()
-    if (petEnv.isQuestionActive && !force) return
-    // 结束冷却：气泡刚收起不久则跳过本次，避免高频连续冒泡（force 时不受此限）
-    if (!force && performance.now() - lastHideAt < SAY_COOLDOWN) return
+    if (petEnv.isQuestionActive && !force) return false
+    if (!force && performance.now() - lastHideAt < SAY_COOLDOWN) return false
     clearTimers()
+    revision.value++
     text.value = ''
+    emoji.value = ''
     visible.value = true
-    // 表情包：先 "..." 思考缓冲（同 ≥4 字文字），再出图，固定 EMOJI_MS
-    if (isEmoji(sentence)) {
-      const showEmoji = () => {
-        mode.value = 'emoji'
-        emoji.value = sentence
-        hideTimer = setTimeout(hide, EMOJI_MS)
-      }
-      mode.value = 'thinking'
-      thinkTimer = setTimeout(showEmoji, THINK_MS)
-      return
-    }
-    const showText = () => {
-      mode.value = 'typing'
+    const show = () => {
       text.value = sentence
-      // 停留 = 基础 2000ms + 每字延长；字越多看得越久
+      emoji.value = image?.src || ''
+      emojiLabel.value = image?.label || '表情'
+      mode.value = sentence ? 'typing' : 'emoji'
       const dwell = sentence.length * TYPE_SPEED + READ_BASE + sentence.length * READ_PER_CHAR
-      hideTimer = setTimeout(hide, dwell)
+      hideTimer = setTimeout(hide, image ? Math.max(EMOJI_MS, dwell) : dwell)
     }
-    if (!skipThinking && sentence.length >= THINK_MIN_LEN) {
+    if (!skipThinking && (image || sentence.length >= THINK_MIN_LEN)) {
       mode.value = 'thinking'
-      thinkTimer = setTimeout(showText, THINK_MS)
-    } else {
-      showText()
-    }
+      thinkTimer = setTimeout(show, THINK_MS)
+    } else show()
+    return true
   }
 
   /** 外部异步流程状态：常显，直到 say/hide/其它模式显式替换。 */
   function showStatus(stage: BubbleStatusStage) {
+    revision.value++
+    emoji.value = ''
     clearTimers()
     mode.value = 'status'
     text.value = stage === 'searching' ? '联网搜索中…' : '思考中…'
@@ -97,6 +99,8 @@ export function useSpeechBubble() {
 
   /** 歌词模式：常显，外部按进度反复调用切行 */
   function showLyric(orig: string, trans = '') {
+    revision.value++
+    emoji.value = ''
     clearTimers()
     mode.value = 'lyric'
     original.value = orig
@@ -106,12 +110,16 @@ export function useSpeechBubble() {
 
   /** 无歌词时段：彩色音符 */
   function showNotes() {
+    revision.value++
+    emoji.value = ''
     clearTimers()
     mode.value = 'notes'
     visible.value = true
   }
 
   function hide() {
+    revision.value++
+    emoji.value = ''
     clearTimers()
     visible.value = false
     lastHideAt = performance.now()
@@ -129,7 +137,10 @@ export function useSpeechBubble() {
     original,
     translation,
     emoji,
+    emojiLabel,
+    revision,
     say,
+    sayReply,
     showStatus,
     showLyric,
     showNotes,

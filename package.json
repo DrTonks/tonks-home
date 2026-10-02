@@ -10,6 +10,8 @@
     "ship": "pnpm build && pnpm run check:build && pnpm run deploy",
     "preview": "vite preview",
     "test": "vitest run",
+    "reactions:sync": "node scripts/sync-pet-reactions.mjs",
+    "reactions:check": "node scripts/sync-pet-reactions.mjs --check",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{vue,js,ts,jsx,tsx,css,scss,md}\"",
     "check:build": "node scripts/check-build.mjs",

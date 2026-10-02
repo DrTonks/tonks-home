@@ -1,0 +1,98 @@
+{
+  "quiet_angry": {
+    "src": "/emojis/v1/laopu/angry.jpg",
+    "label": "沉默地生气，有点不满"
+  },
+  "quiet_pout": {
+    "src": "/emojis/v1/laopu/angry2.jpg",
+    "label": "气鼓鼓，轻微抗议"
+  },
+  "quiet_cry": {
+    "src": "/emojis/v1/laopu/cry.jpg",
+    "label": "委屈、难过，希望被陪伴"
+  },
+  "quiet_happy": {
+    "src": "/emojis/v1/laopu/happy-1.jpg",
+    "label": "微笑送花，含蓄的开心与感谢"
+  },
+  "quiet_cheer": {
+    "src": "/emojis/v1/laopu/happy-2.jpg",
+    "label": "好耶，收到好消息"
+  },
+  "quiet_sleep": {
+    "src": "/emojis/v1/laopu/sleep.jpg",
+    "label": "困倦、晚安、盖好被子"
+  },
+  "quiet_think": {
+    "src": "/emojis/v1/laopu/think.jpg",
+    "label": "托腮思考，安静地倾听"
+  },
+  "quiet_wait": {
+    "src": "/emojis/v1/laopu/wait.jpg",
+    "label": "有点紧张，等待回应"
+  },
+  "u_cute": {
+    "src": "/emojis/v1/2233/9879bbb846b78bbd.png",
+    "label": "俏皮地卖萌、打招呼"
+  },
+  "u_surprise": {
+    "src": "/emojis/v1/2233/987deaf4c942c347.png",
+    "label": "吃惊，意料之外的消息"
+  },
+  "u_drink": {
+    "src": "/emojis/v1/2233/a71dbf474a9fabb2.png",
+    "label": "喝水休息一下"
+  },
+  "u_confused": {
+    "src": "/emojis/v1/2233/76299860fa9bced2.png",
+    "label": "困惑，没太明白"
+  },
+  "u_cry": {
+    "src": "/emojis/v1/2233/c4476304aecd27ae.png",
+    "label": "夸张地哭哭、委屈"
+  },
+  "u_laugh": {
+    "src": "/emojis/v1/2233/fe766c59519dc255.png",
+    "label": "大笑，真的很开心"
+  },
+  "u_grievance": {
+    "src": "/emojis/v1/2233/1e8fa95fcf7c8b96.png",
+    "label": "委屈巴巴，轻轻抱怨"
+  },
+  "u_angry": {
+    "src": "/emojis/v1/2233/f74354d83bbcd2d6.png",
+    "label": "气呼呼，抗议被戳"
+  },
+  "u_speechless": {
+    "src": "/emojis/v1/2233/8b0d0b8becb28a00.png",
+    "label": "无言以对、短暂沉默"
+  },
+  "u_embarrassed": {
+    "src": "/emojis/v1/2233/1eda3a0677b96e7f.png",
+    "label": "流汗、尴尬、心虚"
+  },
+  "u_best": {
+    "src": "/emojis/v1/2233/cc25333ddd02746e.png",
+    "label": "举起第一名牌子，夸奖、祝贺"
+  },
+  "u_cheer": {
+    "src": "/emojis/v1/2233/7b31e98b9d156055.png",
+    "label": "比耶、庆祝、打招呼"
+  },
+  "u_gloomy": {
+    "src": "/emojis/v1/2233/889616080e5a94e9.png",
+    "label": "郁闷，心情有点低落"
+  },
+  "cat_coffee": {
+    "src": "/emojis/v1/blobcat/4528e1a17f71d2ed.png",
+    "label": "捧着咖啡，休息片刻"
+  },
+  "cat_comfy": {
+    "src": "/emojis/v1/blobcat/75b9f498d1d5a7b6.png",
+    "label": "裹着被子，困倦、晚安"
+  },
+  "cat_flower": {
+    "src": "/emojis/v1/blobcat/1ad3101800831209.png",
+    "label": "送花，鼓励、感谢、祝福"
+  }
+}
