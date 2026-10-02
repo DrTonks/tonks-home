@@ -5,6 +5,9 @@ describe('pet reaction policy', () => {
   it('keeps persona-exclusive images separate and recognizes the old image pool', () => {
     expect(findReaction('live2d', 'quiet_happy')).toBeUndefined()
     expect(findReaction('static', 'u_cheer')).toBeUndefined()
+    expect(findReaction('static', 'u_drink')?.pets).toContain('static')
+    expect(findReaction('live2d', 'u_tv_think')?.src).toContain('/bilibili/')
+    expect(findReaction('static', 'u_tv_think')).toBeUndefined()
     expect(legacyReaction('static', '/assets/emoji/happy-1.jpg')?.id).toBe('quiet_happy')
     expect(legacyReaction('live2d', '/assets/emoji/happy-1.jpg')).toBeUndefined()
     expect(findReaction('static', 'https://example.com/a.png')).toBeUndefined()

@@ -94,5 +94,45 @@
   "cat_flower": {
     "src": "/emojis/v1/blobcat/1ad3101800831209.png",
     "label": "送花，鼓励、感谢、祝福"
+  },
+  "u_tv_doge": {
+    "src": "/emojis/v1/bilibili/daa338aa1dc86707.png",
+    "label": "小电视 doge，俏皮玩笑、心照不宣"
+  },
+  "u_tv_chuckle": {
+    "src": "/emojis/v1/bilibili/13593c61bafafeb6.png",
+    "label": "小电视捂嘴偷笑，忍不住的开心"
+  },
+  "u_tv_angry": {
+    "src": "/emojis/v1/bilibili/e2828950f931a47d.png",
+    "label": "小电视发怒，气呼呼地抗议"
+  },
+  "u_tv_cute": {
+    "src": "/emojis/v1/bilibili/0d6e69040245b2dc.png",
+    "label": "小电视托脸卖萌，亲切地打招呼"
+  },
+  "u_tv_sleep": {
+    "src": "/emojis/v1/bilibili/bda09f3e83f1177f.png",
+    "label": "小电视困倦，没睡醒、准备休息"
+  },
+  "u_tv_cool": {
+    "src": "/emojis/v1/bilibili/04d6e712b1ffcd4e.png",
+    "label": "小电视戴墨镜，佩服、夸奖、得意"
+  },
+  "u_tv_grievance": {
+    "src": "/emojis/v1/bilibili/d8af1f42679baa28.png",
+    "label": "小电视委屈落泪，难过、想被安慰"
+  },
+  "u_tv_shy": {
+    "src": "/emojis/v1/bilibili/f4943dfc2f03b4dc.png",
+    "label": "小电视害羞脸红，被夸奖后的不好意思"
+  },
+  "u_tv_think": {
+    "src": "/emojis/v1/bilibili/8eba9b0317247077.png",
+    "label": "小电视扶眼镜思考，认真琢磨"
+  },
+  "u_tv_surprise": {
+    "src": "/emojis/v1/bilibili/14acf6a273ebc27e.png",
+    "label": "小电视惊吓，突然听到意外消息"
   }
 }
