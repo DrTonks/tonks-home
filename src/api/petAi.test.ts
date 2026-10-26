@@ -21,7 +21,7 @@ describe('pet AI SSE parser', () => {
 })
 
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
 describe('pet reply transport compatibility', () => {
   const payload = { pet_id: 'static' as const, question_id: 'q_mood', answer: '开心' }
   function mockStream(emoji?: unknown) {
@@ -58,5 +58,59 @@ describe('pet reply transport compatibility', () => {
     controller.abort()
     await rejected
     expect(received?.aborted).toBe(true)
+  })
+
+  function pendingStream() {
+    vi.useFakeTimers()
+    vi.stubGlobal('window', globalThis)
+    vi.stubGlobal('localStorage', { getItem: () => 'test-client' })
+    let controller!: ReadableStreamDefaultController<Uint8Array>
+    vi.stubGlobal('fetch', vi.fn(async (_url, init) => new Response(new ReadableStream({ start(c) {
+      controller = c
+      init.signal.addEventListener('abort', () => c.error(new DOMException('Aborted', 'AbortError')))
+    } }))))
+    const emit = (event: object) => controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`))
+    return { emit, close: () => controller.close() }
+  }
+
+  it('renews the idle timeout through three searches and returns the final reply', async () => {
+    const stream = pendingStream()
+    const stage = vi.fn()
+    const result = streamPetReply(payload, stage)
+    await vi.advanceTimersByTimeAsync(0)
+    for (let i = 0; i < 3; i++) {
+      await vi.advanceTimersByTimeAsync(10_000)
+      stream.emit({ type: 'status', stage: 'searching' })
+      await vi.advanceTimersByTimeAsync(5_000)
+      stream.emit({ type: 'status', stage: 'thinking' })
+    }
+    stream.emit({ type: 'result', reply: '核实好了。' })
+    stream.close()
+    expect(await result).toEqual({ reply: '核实好了。' })
+    expect(stage).toHaveBeenCalledTimes(6)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('times out a silent stream instead of waiting for the total deadline', async () => {
+    pendingStream()
+    const result = streamPetReply(payload, () => {})
+    const rejected = expect(result).rejects.toMatchObject({ code: 'timeout' })
+    await vi.advanceTimersByTimeAsync(35_001)
+    await rejected
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('enforces the total deadline even if valid statuses keep arriving', async () => {
+    const stream = pendingStream()
+    const result = streamPetReply(payload, () => {})
+    const rejected = expect(result).rejects.toMatchObject({ code: 'timeout' })
+    await vi.advanceTimersByTimeAsync(0)
+    for (let i = 0; i < 8; i++) {
+      await vi.advanceTimersByTimeAsync(10_000)
+      stream.emit({ type: 'status', stage: 'thinking' })
+    }
+    await vi.advanceTimersByTimeAsync(10_001)
+    await rejected
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

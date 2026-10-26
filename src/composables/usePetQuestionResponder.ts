@@ -109,7 +109,7 @@ export function usePetQuestionResponder(
           bubble.showStatus(stage)
           revision = bubble.revision.value
         },
-        15_000,
+        undefined,
         controller.signal,
       )
       if (isCurrent()) reactions.sayReply(reply.reply, reply.emoji_id, replyPrefix)

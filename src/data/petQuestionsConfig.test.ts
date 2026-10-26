@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import questions from './pet-questions.json'
 
 describe('pet question configuration', () => {
+  it('keeps birthday local and routes other answers through AI with a local fallback', () => {
+    expect(questions.find(q => q.id === 'q_birthday')?.replyMode).toBe('fixed')
+    const inputs = questions.filter(q => q.kind !== 'action' && q.id !== 'q_birthday')
+    expect(inputs).toHaveLength(10)
+    expect(inputs.every(q => q.replyMode === 'ai_with_fallback' && q.fallbackKey)).toBe(true)
+  })
   it('keeps every repeatable answer in a one-value local memory slot', () => {
     const recurringAI = questions.filter(
       (question) => question.kind === 'recurring' && question.replyMode === 'ai_with_fallback',

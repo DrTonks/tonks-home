@@ -3,7 +3,7 @@
     "id": "q_name",
     "key": "user_name",
     "kind": "memory",
-    "replyMode": "fixed",
+    "replyMode": "ai_with_fallback",
     "fallbackKey": "name_saved",
     "schedule": { "mode": "once" },
     "allowPermanentReject": true,

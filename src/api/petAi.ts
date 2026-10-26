@@ -58,14 +58,17 @@ export function parseSSEBlock(block: string): PetAIEvent | null {
 export async function streamPetReply(
   payload: PetAIRequest,
   onStage: (stage: PetAIStage) => void,
-  timeoutMs = 15_000,
+  timeoutMs = 35_000,
   signal?: AbortSignal,
 ): Promise<PetAIReply> {
   const controller = new AbortController()
   const abort = () => controller.abort()
   signal?.addEventListener('abort', abort, { once: true })
   if (signal?.aborted) abort()
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  // Multi-round searches may take longer than one chat call. Each valid stage
+  // renews the idle timeout, while the hard deadline bounds the entire reply.
+  let timer = window.setTimeout(abort, timeoutMs)
+  const deadline = window.setTimeout(abort, 90_000)
   try {
     const response = await fetch('/api/pet/reply', {
       method: 'POST',
@@ -92,6 +95,8 @@ export async function streamPetReply(
       const event = parseSSEBlock(block)
       if (!event) return
       if (event.type === 'status' && (event.stage === 'thinking' || event.stage === 'searching')) {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(abort, timeoutMs)
         onStage(event.stage)
       } else if (event.type === 'result' && typeof event.reply === 'string' && event.reply.trim()) {
         reply = { reply: event.reply, ...(typeof event.emoji_id === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(event.emoji_id) ? { emoji_id: event.emoji_id } : {}) }
@@ -123,5 +128,6 @@ export async function streamPetReply(
   } finally {
     signal?.removeEventListener('abort', abort)
     window.clearTimeout(timer)
+    window.clearTimeout(deadline)
   }
 }

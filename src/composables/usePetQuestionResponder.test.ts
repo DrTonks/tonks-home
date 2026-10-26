@@ -24,6 +24,18 @@ function start() {
   return { scope, bubble, responder, resolve: (value: { reply: string; emoji_id?: string }) => resolve(value) }
 }
 describe('pet AI lifecycle', () => {
+  it('answers birthdays locally without sending the date to AI', async () => {
+    const scope = effectScope()
+    const bubble = useSpeechBubble()
+    const responder = scope.run(() => usePetQuestionResponder('static', {
+      question_replies: { birthday_saved: ['我记住你的生日了。'] },
+    }, bubble))!
+    await responder.respond({ id: 'q_birthday', replyMode: 'fixed', fallbackKey: 'birthday_saved' } as PetQuestion,
+      { answer: '2000-05-15', previousAnswer: null })
+    expect(mocks.stream).not.toHaveBeenCalled()
+    expect(mocks.sayReply).toHaveBeenCalledWith('我记住你的生日了。', undefined, '')
+    scope.stop(); bubble.hide()
+  })
   it('presents text and optional image together and preserves acknowledgement', async () => {
     const t = start()
     const pending = t.responder.respond(question, answer, '谢谢推荐。')
