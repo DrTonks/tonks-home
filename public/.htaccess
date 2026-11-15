@@ -1,0 +1,16 @@
+# Static public documents must never fall back to the Vue application shell.
+# Requires AllowOverride FileInfo/Indexes; server-level catch-all rewrites must
+# exclude real files and return 404 for unknown paths (see docs/search-access.md).
+DirectoryIndex index.html
+FallbackResource disabled
+ErrorDocument 404 /404.html
+AddType text/plain .txt
+AddType text/markdown .md
+AddType application/json .json
+AddType application/xml .xml
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:html|txt|md|json|xml)$">
+    Header set Cache-Control "no-cache"
+    Header set X-Content-Type-Options "nosniff"
+  </FilesMatch>
+</IfModule>

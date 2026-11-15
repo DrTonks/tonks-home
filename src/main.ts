@@ -6,6 +6,7 @@ import router from './routes'
 import { api } from './api'
 import { recordSiteVisit } from './lib/site-visits'
 import { installVisibilityTitle } from './lib/visibility-title'
+import { installAgentTools } from './lib/agent-tools'
 import { setupMock } from './mock'
 import './styles/index.css'
 
@@ -20,3 +21,4 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.mount('#app')
+void installAgentTools()

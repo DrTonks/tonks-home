@@ -1,0 +1,38 @@
+{
+  "url": "https://tonks.top/",
+  "name": "DrTonks",
+  "tagline": "将点滴的美好谱写成诗",
+  "description": "DrTonks 的个人主页，记录个人动态、编程项目与生活，连接博客文章、时间线和旅行相册。",
+  "image": "https://tonks.top/assets/avatar.jpg",
+  "sameAs": [
+    "https://github.com/DrTonks",
+    "https://blog.tonks.top/"
+  ],
+  "links": [
+    {
+      "title": "博客文章",
+      "url": "https://blog.tonks.top/archive/",
+      "description": "按分类和标签浏览技术笔记、学习记录与生活随笔。"
+    },
+    {
+      "title": "项目作品",
+      "url": "https://blog.tonks.top/projects/",
+      "description": "浏览项目说明、技术栈及公开源码链接。"
+    },
+    {
+      "title": "个人时间线",
+      "url": "https://blog.tonks.top/timeline/",
+      "description": "记录学习、项目和生活中的经历。"
+    },
+    {
+      "title": "旅行相册",
+      "url": "https://blog.tonks.top/albums/",
+      "description": "查看旅行照片与生活留影。"
+    },
+    {
+      "title": "GitHub",
+      "url": "https://github.com/DrTonks",
+      "description": "公开代码仓库与开发活动。"
+    }
+  ]
+}

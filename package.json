@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build && node scripts/check-search.mjs",
     "deploy": "node scripts/deploy.js",
     "ship": "pnpm build && pnpm run check:build && pnpm run deploy",
     "preview": "vite preview",
@@ -15,7 +15,8 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{vue,js,ts,jsx,tsx,css,scss,md}\"",
     "check:build": "node scripts/check-build.mjs",
-    "test:deploy": "node tests/deploy-safety.node.mjs"
+    "test:deploy": "node tests/deploy-safety.node.mjs",
+    "test:search": "vitest run src/lib/agent-tools.test.ts scripts/search-artifacts.test.ts"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",

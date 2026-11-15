@@ -1,3 +1,4 @@
+import './check-search.mjs';
 import { fileURLToPath } from 'node:url';
 import { createPlan } from './deploy-plan.mjs';
 const plan = createPlan(fileURLToPath(new URL('../dist', import.meta.url)));

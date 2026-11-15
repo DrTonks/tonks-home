@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import searchPlugin from './scripts/search-artifacts.mjs'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const articleIndexTarget = process.env.VITE_ARTICLE_INDEX_TARGET || env.VITE_ARTICLE_INDEX_TARGET || 'https://blog.tonks.top'
 
   return {
-    plugins: [vue()],
+    plugins: [vue(), searchPlugin()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

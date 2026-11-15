@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import publicProfile from '@/config/public-profile.json'
 import { useRouter } from 'vue-router'
 import AvatarCore from '@/components/layout/AvatarCore.vue'
 import BackgroundLayer from '@/components/layout/BackgroundLayer.vue'
@@ -312,14 +313,14 @@ onBeforeUnmount(() => {
           <div v-if="!isExpanded" class="name-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
             <p class="font-script text-[66px] tracking-wider text-brand-sky-bright"
                style="text-shadow: 0 0 12px hsl(var(--color-sky) / 0.6), 0 0 30px hsl(var(--color-sky) / 0.35), 0 0 60px hsl(var(--color-sky) / 0.15), 0 2px 4px rgba(0,0,0,0.15);">
-              DrTonks
+              {{ publicProfile.name }}
             </p>
           </div>
         </Transition>
         <!-- 简介：头像下方 -->
         <Transition name="intro-fade">
           <div v-if="!isExpanded" class="bio-label absolute top-0 left-1/2 pointer-events-none select-none whitespace-nowrap">
-            <p class="bio-copy text-[20px] tracking-wider text-brand-sky-deep" style="font-family: KaiTi, STKaiti, serif;">将点滴的美好谱写成诗</p>
+            <p class="bio-copy text-[20px] tracking-wider text-brand-sky-deep" style="font-family: KaiTi, STKaiti, serif;">{{ publicProfile.tagline }}</p>
           </div>
         </Transition>
       </div>
