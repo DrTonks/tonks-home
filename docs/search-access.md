@@ -28,3 +28,14 @@ node scripts/check-search-http.mjs https://tonks.top home
 
 公开资料修改后开发服务重启读取配置，生产需重新构建并部署。博客文章与项目目录由博客自身生成；主页的稳定导航无需随每篇新文章重新发布，也不代表后端最新动态接口已被本次静态导出接管。
 
+
+## 2026-11-15 发布记录
+
+用户明确批准后，先合入远程已有桌宠/公告更新，再通过 pnpm ship 完成构建、资源校验、上传校验和 HTML 发布。23 个测试文件、124 项测试通过（排除 .tmp 中的旧仓库快照）。
+
+Apache `/etc/apache2/sites-enabled/default-ssl.conf` 中仅将 `/var/www/html` 旧的泛化 RewriteRule 改成 RewriteEngine Off；未知地址交给已部署 .htaccess 返回 404。其他虚拟主机以及 API、图片、音乐、community 代理或 Alias 保留。配置备份：`/root/apache-release-backups/default-ssl-search-20261115T023406Z.conf`。configtest 通过后平滑 reload，服务 active，没有 PM2 重启。
+
+生产 check-search-http.mjs 已通过：公开文档返回正确 MIME，未知 txt 路径为真实 404。后续若增加正式前端路由，应显式配置这些路由，避免重新启用会吞掉所有未知资源的 fallback。
+
+
+生产真实 Edge 回归通过：无 JS 核心内容可读，Vue 挂载和新版欢迎界面正常；普通访问 Agent 请求为 0，主页两项只读工具无网络请求。工具测试使用模拟支持接口，不等同于原生 Agent 客户端认证。
