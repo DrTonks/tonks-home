@@ -24,6 +24,7 @@ const router = createRouter({
 })
 
 router.afterEach(to => {
+  document.title = to.name === 'not-found' ? '404 · 页面未找到 - DrTonks' : '个人主页 - DrTonks'
   let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]')
   if (!robots) { robots = document.createElement('meta'); robots.name = 'robots'; document.head.append(robots) }
   robots.content = to.name === 'home' ? 'index, follow' : 'noindex, follow'

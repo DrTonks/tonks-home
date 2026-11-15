@@ -24,4 +24,10 @@ if(mode==='home'){
 }
 const missing=await fetch(new URL('/__tonks_search_missing__.txt',origin),{signal:AbortSignal.timeout(15000)});
 assert.equal(missing.status,404,'Unknown resources must not return SPA HTML with HTTP 200');
+if(mode==='home'){
+ const errorHtml=await missing.text();
+ assert.ok(errorHtml.includes('name="tonks-error-page"'), '404 must load the original application error view');
+ assert.match(errorHtml,/<script[^>]*type="module"[^>]*src="\/assets\//);
+ assert.ok(!errorHtml.includes('rel="canonical"'), 'Server error document must not claim the homepage canonical');
+}
 console.log(`[search-http] PASS ${mode} ${origin}`);

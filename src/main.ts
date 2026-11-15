@@ -20,5 +20,11 @@ void recordSiteVisit().catch((error) => {
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
-app.mount('#app')
+// On an Apache error document, keep the dark fallback until the original
+// missing URL has resolved, avoiding the homepage loading/welcome screens.
+if (document.querySelector('meta[name="tonks-error-page"]')) {
+  void router.isReady().then(() => app.mount('#app'))
+} else {
+  app.mount('#app')
+}
 void installAgentTools()

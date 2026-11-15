@@ -39,3 +39,11 @@ Apache `/etc/apache2/sites-enabled/default-ssl.conf` 中仅将 `/var/www/html` �
 
 
 生产真实 Edge 回归通过：无 JS 核心内容可读，Vue 挂载和新版欢迎界面正常；普通访问 Agent 请求为 0，主页两项只读工具无网络请求。工具测试使用模拟支持接口，不等同于原生 Agent 客户端认证。
+
+## 404 视觉回归修复（本地，待批准发布）
+
+前次发布的简易静态 404 替代了原 NotFoundView 动画，属于用户体验回归。现在构建后的 404.html 从同一次构建的 index.html 提取应用脚本、样式和字体，加载原有 NotFoundView.vue，保留字效、星空和 15 秒返回逻辑；不复制组件或另做动画。错误文档保留 noindex，移除首页 canonical、分享元数据和 Person/WebSite 标记，无 JS 时提供黑底 404 和返回入口。等待错误路由就绪后再挂载，避免错误页面闪过首页加载界面。
+
+Apache 继续使用 ErrorDocument 404 /404.html 和已关闭的泛化 fallback，无需恢复错误的 HTTP 200。开发模式 /404 继续走原 Vue 路由；生产 ErrorDocument 的 HTTP 状态要通过实际服务器或本地静态服务器夹具验证，Vite SPA 回退状态不能代替 Apache。
+
+新增 scripts/test-404-browser.mjs 在本地静态服务器夹具上返回真实 404，并使用真实 Edge 验证直接/深层路径、无 JS、桌面/手机动画、手动返回、站内路由和自动返回。它验证构建产物，不能冒充生产 Apache 已验收。本轮 125 项测试、完整构建与资源校验通过，截图已检查；NotFoundView.vue 本身没有修改。上线后需执行本仓库加强后的 check-search-http.mjs，并在浏览器直接打开 /404 检查动画。

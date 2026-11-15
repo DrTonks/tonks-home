@@ -17,3 +17,17 @@ test('public HTML checks accept escaped descriptions and query parameters withou
   profile.links = originalLinks
  }
 })
+
+test('404 reuses built assets without claiming homepage identity', async () => {
+ const {errorDocument} = await import('./error-document.mjs')
+ const built = `<html><head><title>Home</title>${searchHead()}<script type="module" crossorigin src="/assets/main-abcd.js"></script><link rel="stylesheet" href="/assets/main-abcd.css"></head><body>home</body></html>`
+ const html = errorDocument(built)
+ expect(html).toContain('/assets/main-abcd.js')
+ expect(html).toContain('/assets/main-abcd.css')
+ expect(html).toContain('name="robots" content="noindex, follow"')
+ expect(html).toContain('id="static-not-found"')
+ expect(html).not.toContain('rel="canonical"')
+ expect(html).not.toContain('application/ld+json')
+ expect(html).not.toContain('property="og:')
+ expect(() => errorDocument('<html><head></head></html>')).toThrow()
+})

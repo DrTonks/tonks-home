@@ -1,16 +1,16 @@
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
+import {errorDocument} from './error-document.mjs';
 export const profile=JSON.parse(readFileSync(new URL('../src/config/public-profile.json',import.meta.url),'utf8'));
 export const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const json=s=>JSON.stringify(s).replace(/</g,'\\u003c');
 export function searchArtifacts(){
  const markdown=`# ${profile.name}\n\n${profile.tagline}\n\n${profile.description}\n\n## 站点导航\n\n${profile.links.map(l=>`- [${l.title}](${l.url})：${l.description}`).join('\n')}\n`;
  const llms=`# ${profile.name} 的个人主页\n\n> ${profile.description}\n\n本站有可选的浏览器互动。公开信息无需登录；静态入口可直接读取。\n\n## 内容入口\n\n- [个人简介与站点导航](${profile.url}index.md)\n- [结构化站点目录](${profile.url}agent/site.json)\n- [博客内容入口](https://blog.tonks.top/llms.txt)\n\nWebMCP（支持时）：tonks_home_info、tonks_find_destinations，仅查询公开资料，不提供留言、投票或管理操作。\n`;
- const notFound='<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex"><title>页面未找到 - DrTonks</title><body><main><h1>页面未找到</h1><p>这个地址不存在或已移动。</p><a href="/">返回主页</a></main></body></html>';
  return new Map([
   ['robots.txt',`User-agent: *\nAllow: /\n\nSitemap: ${profile.url}sitemap.xml\n`],
   ['sitemap.xml',`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(profile.url)}</loc></url></urlset>`],
-  ['llms.txt',llms],['index.md',markdown],['404.html',notFound],
+  ['llms.txt',llms],['index.md',markdown],
   ['agent/site.json',JSON.stringify({schemaVersion:1,...profile,markdown:profile.url+'index.md'})]
  ]);
 }
@@ -33,6 +33,11 @@ export default function searchPlugin(){
     server.watcher.add(profileFile);server.watcher.on('change',changed);
     server.httpServer?.once('close',()=>server.watcher.off('change',changed));
   },
-  generateBundle(){for(const [fileName,source] of artifacts)this.emitFile({type:'asset',fileName,source});}
+  generateBundle:{order:'post',handler(_options,bundle){
+    for(const [fileName,source] of artifacts)this.emitFile({type:'asset',fileName,source});
+    const index=bundle['index.html'];
+    if(!index || index.type!=='asset')throw new Error('Missing built application HTML for 404');
+    this.emitFile({type:'asset',fileName:'404.html',source:errorDocument(String(index.source))});
+  }}
  };
 }
