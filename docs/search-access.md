@@ -57,4 +57,6 @@ Apache 继续使用 ErrorDocument 404 /404.html 和已关闭的泛化 fallback�
 
 禁用 JavaScript 时简介直接可读；模块加载失败时立即恢复简介，启动超过 8 秒仍未完成时也恢复，避免脚本不可用导致长期空白。超时后应用若最终成功启动，仍按原流程进入开屏。404 的独立正文不注入该启动脚本，保留原有错误页回退。没有新增请求、依赖或持续轮询。
 
-本地验证：`pnpm test:search`、`pnpm build`、`pnpm check:build`；指定 `PLAYWRIGHT_MODULE_PATH` 后运行 `node scripts/test-home-bootstrap-browser.mjs`，脚本自动启动仅监听本机的静态服务并退出清理。可选 `BOOT_SCREENSHOT_DIR` 指定已存在的截图目录，检查后清理截图。2026-11-17 Edge 实测通过：桌面亮色/手机暗色延迟模块加载时逐帧未见简介闪现，底色匹配原开屏，动画完成；无 JS、模块失败、8 秒超时后恢复及独立 404 均通过。子 agent 两轮审查通过；本轮尚未发布。
+本地验证：`pnpm test:search`、`pnpm build`、`pnpm check:build`；指定 `PLAYWRIGHT_MODULE_PATH` 后运行 `node scripts/test-home-bootstrap-browser.mjs`，脚本自动启动仅监听本机的静态服务并退出清理。可选 `BOOT_SCREENSHOT_DIR` 指定已存在的截图目录，检查后清理截图。2026-11-17 Edge 实测通过：桌面亮色/手机暗色延迟模块加载时逐帧未见简介闪现，底色匹配原开屏，动画完成；无 JS、模块失败、8 秒超时后恢复及独立 404 均通过。子 agent 两轮审查通过。
+
+2026-11-17 经用户批准，修复提交 `75f81f4` 已推送，通过 `pnpm ship` 部署。构建和资源校验通过（199 个资源、2 个 HTML）。线上真实 Edge 再次验证通过：桌面亮色/手机暗色的延迟加载均未闪现静态简介，原开屏动画正常；无 JS 可读、模块加载失败回退、8 秒超时后恢复、HTTP 404 及原错误页均正常。线上测试拦截 API 与写请求，未产生互动数据变更。本次未改动 Apache 配置或重启后端服务。
