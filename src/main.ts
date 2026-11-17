@@ -26,5 +26,6 @@ if (document.querySelector('meta[name="tonks-error-page"]')) {
   void router.isReady().then(() => app.mount('#app'))
 } else {
   app.mount('#app')
+  document.dispatchEvent(new Event('tonks:app-mounted'))
 }
 void installAgentTools()

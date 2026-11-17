@@ -20,14 +20,23 @@ test('public HTML checks accept escaped descriptions and query parameters withou
 
 test('404 reuses built assets without claiming homepage identity', async () => {
  const {errorDocument} = await import('./error-document.mjs')
- const built = `<html><head><title>Home</title>${searchHead()}<script type="module" crossorigin src="/assets/main-abcd.js"></script><link rel="stylesheet" href="/assets/main-abcd.css"></head><body>home</body></html>`
+ const built = `<html><head><title>Home</title>${searchHead()}<script type="module" crossorigin src="/assets/main-abcd.js"></script><link rel="stylesheet" href="/assets/main-abcd.css"></head><body>${searchBody()}</body></html>`
  const html = errorDocument(built)
  expect(html).toContain('/assets/main-abcd.js')
  expect(html).toContain('/assets/main-abcd.css')
  expect(html).toContain('name="robots" content="noindex, follow"')
  expect(html).toContain('id="static-not-found"')
+ expect(html).not.toContain('id="home-bootstrap"')
  expect(html).not.toContain('rel="canonical"')
  expect(html).not.toContain('application/ld+json')
  expect(html).not.toContain('property="og:')
  expect(() => errorDocument('<html><head></head></html>')).toThrow()
+})
+
+// The fallback must remain ordinary readable HTML when scripts do not execute.
+test('bootstrap guard runs before fallback markup without wrapping public content in noscript', () => {
+ const body = searchBody()
+ expect(body.indexOf('id="home-bootstrap"')).toBeLessThan(body.indexOf('id="static-profile"'))
+ expect(body.indexOf(profile.description)).toBeLessThan(body.indexOf('<noscript>'))
+ expect(searchHead()).toContain('html[data-home-boot] #static-profile{display:none}')
 })
